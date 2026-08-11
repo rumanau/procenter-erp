@@ -211,7 +211,6 @@ export function ControlAsistencia({setView,empleados,catalogos}:{setView:(v:View
                 <thead><tr><th>Colaborador</th><th>Fecha</th><th>Tipo</th><th>Horas</th><th>Costo est.</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   {activos.slice(0,3).map((e,i)=>{
-                    const pl=(catalogos.planillas as any[]).find((p:any)=>p.id===e.planillaId);
                     const hrTarifa=(e.salario/(30*8));
                     const h=[2,3,1][i];
                     const tipo=["regular","doble","regular"][i];

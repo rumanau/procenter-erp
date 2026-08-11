@@ -56,9 +56,9 @@ export function LoginScreen({onLogin}:{onLogin:()=>void}) {
             {loading?"Verificando...":"INGRESAR"}
           </button>
 
-          <a href="#" onClick={e=>e.preventDefault()} style={{display:"block",textAlign:"center",marginTop:"16px",fontSize:"13px",color:"#E8611A",textDecoration:"none",fontWeight:500}}>
+          <button type="button" onClick={()=>{}} style={{display:"block",width:"100%",textAlign:"center",marginTop:"16px",fontSize:"13px",color:"#E8611A",textDecoration:"none",fontWeight:500,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
             ¿Olvidaste tu Contraseña?
-          </a>
+          </button>
         </div>
       </div>
     </div>

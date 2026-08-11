@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import type { View } from "../../types";
 
 export function BajaDescarte({setView}:{setView:(v:View)=>void}) {

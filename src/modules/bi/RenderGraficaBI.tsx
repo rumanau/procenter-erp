@@ -116,7 +116,7 @@ export function RenderGraficaBI({g}:{g:GraficaConstructor}) {
   }
 
   if(g.tipo==="spc_xbar"){
-    const mn2=Math.min(...dX);const mean2=dX.reduce((a,b)=>a+b,0)/dX.length;
+    const mean2=dX.reduce((a,b)=>a+b,0)/dX.length;
     const sd=Math.sqrt(dX.reduce((a,b)=>a+(b-mean2)**2,0)/dX.length)||1;
     const ucl=mean2+3*sd;const lcl=Math.max(0,mean2-3*sd);const range=ucl-lcl||1;
     const sc2=(v:number)=>H-28-Math.round(((v-lcl)/range)*(H-38));

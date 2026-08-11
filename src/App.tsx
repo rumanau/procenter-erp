@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company, Empleado } from "./types";
+import type { View, Company } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";

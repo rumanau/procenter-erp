@@ -21,3 +21,16 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# archivos sueltos de exportación a CodeSandbox (no forman parte del build real)
+/PROCENTER-*.tsx
+/PROCENTER-*.css
+/PROCENTER-*.json
+/PROCENTER-*.txt
+/PROCENTER-*.md
+/LEEME-PRIMERO.txt
+/RESUMEN-COMPILACION.txt
+/start.bat
+
+# configuración local de Claude Code
+.claude/settings.local.json

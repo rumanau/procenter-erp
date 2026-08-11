@@ -34,12 +34,6 @@ export function BIReporteria({setView,empleados,catalogos}:{setView:(v:View)=>vo
   const [cCfg,setCCfg]=useState<Partial<GraficaConstructor>>({color:"#E8611A"});
   const COLS_GRAFICA=["#E8611A","#3B82F6","#10B981","#7C3AED","#F59E0B","#EF4444","#06B6D4","#1B1F2E"];
 
-  // Hooks hoisted for estadística tab (kept as-is from source)
-  const [estMenu,setEstMenu]=useState("basicas");
-  const [estSub,setEstSub]=useState("Estadísticos descriptivos");
-  const [datosInput,setDatosInput]=useState("22,18,3,9,145,12,4,8");
-  const [estResultado,setEstResultado]=useState<any>(null);
-
   const totalBruto=empleados.filter(e=>e.estado==="activo").reduce((a,e)=>a+e.salario,0);
   const totalEmpleados=empleados.filter(e=>e.estado==="activo").length;
   const planillasActivas=catalogos.planillas.filter(p=>p.estado==="activa").length;

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View } from "../../types";
-import { CATALOGOS_INIT, EXISTENCIAS } from "../../data/catalogos";
+import { CATALOGOS_INIT } from "../../data/catalogos";
 
 export function TrasladoBodegas({setView}:{setView:(v:View)=>void}) {
   const [origen,setOrigen]=useState("Bodega Central");

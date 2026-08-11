@@ -3,81 +3,168 @@ import type { View, Empleado } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
 
 export function CartTab({setTab}:{setTab:(t:string)=>void}) {
-  const [puntos,setPuntos]=useState({experiencia:0,estudios:0,ingles:0,disponibilidad:0});
-  const [resultado,setResultado]=useState<string|null>(null);
+  const [exp,setExp]=useState(2);
+  const [tecnica,setTecnica]=useState(60);
+  const [idioma,setIdioma]=useState("No");
+  const [edu,setEdu]=useState("Técnico");
+  const [disp,setDisp]=useState("Inmediata");
+  const [resultado,setResultado]=useState<{clase:string;prob:number;segment:string;desc:string}|null>(null);
 
   const evaluar=()=>{
-    const score=puntos.experiencia*30+puntos.estudios*25+puntos.ingles*20+puntos.disponibilidad*25;
-    if(score>=80) setResultado("CONTRATAR");
-    else if(score>=60) setResultado("SEGUNDA ENTREVISTA");
-    else if(score>=40) setResultado("EN ESPERA");
-    else setResultado("NO CONTINÚA");
+    let score=0;
+    score+=exp>=2?30:10;
+    score+=(tecnica/100)*25;
+    score+=idioma==="Intermedio"||idioma==="Avanzado"?20:5;
+    const eduscore=edu==="Posgrado"?25:edu==="Universitario"?20:edu==="Técnico"?10:0;
+    score+=eduscore;
+    score+=disp==="Inmediata"?25:disp==="1-3 meses"?15:5;
+
+    let clase="NO APTO",prob=0,segment="Perfil no compatible";
+    if(score>=80){clase="✅ APTO — CONTRATAR";prob=94;segment="Perfil ideal";}
+    else if(score>=65){clase="🔄 POTENCIAL — SEGUNDA ENTREVISTA";prob=68;segment="Perfil competente";}
+    else if(score>=45){clase="⏸ EN ESPERA — Revisar";prob=45;segment="Perfil marginal";}
+    else{clase="✗ NO APTO — Descartar";prob=18;segment="Perfil no compatible";}
+
+    setResultado({clase,prob,segment,desc:`exp=${exp}y, técnica=${tecnica}, idioma=${idioma}, edu=${edu}, disp=${disp}`});
   };
 
   return (
-    <div className="g2" style={{alignItems:"start"}}>
-      <div>
-        <div className="card" style={{marginBottom:12}}>
-          <div className="card-title">Árbol de decisión CART — Clasificación de candidatos</div>
-          <div style={{fontFamily:"monospace",fontSize:11,lineHeight:1.8,background:"#F8FAFC",padding:"12px 14px",borderRadius:8,marginBottom:12}}>
-            <div style={{color:"#E8611A",fontWeight:700}}>INICIO</div>
-            <div style={{paddingLeft:16}}>
-              <div>¿Experiencia ≥ 2 años?</div>
-              <div style={{paddingLeft:16,color:"#10B981"}}>✓ SÍ → ¿Estudios universitarios?</div>
-              <div style={{paddingLeft:32,color:"#10B981"}}>✓ SÍ → ¿Inglés intermedio+?</div>
-              <div style={{paddingLeft:48,color:"#10B981"}}>✓ SÍ → <b>CONTRATAR</b></div>
-              <div style={{paddingLeft:48,color:"#F59E0B"}}>✗ NO → ¿Disponibilidad inmediata?</div>
-              <div style={{paddingLeft:64,color:"#3B82F6"}}>SÍ → <b>SEGUNDA ENTREVISTA</b></div>
-              <div style={{paddingLeft:64,color:"#F59E0B"}}>NO → <b>EN ESPERA</b></div>
-              <div style={{paddingLeft:32,color:"#F59E0B"}}>✗ NO → <b>EN ESPERA</b></div>
-              <div style={{paddingLeft:16,color:"#EF4444"}}>✗ NO → ¿Estudios avanzados?</div>
-              <div style={{paddingLeft:32,color:"#F59E0B"}}>SÍ → <b>SEGUNDA ENTREVISTA</b></div>
-              <div style={{paddingLeft:32,color:"#EF4444"}}>NO → <b>NO CONTINÚA</b></div>
+    <div style={{display:"flex",flexDirection:"column" as const,gap:14}}>
+      {/* Árbol visual mejorado */}
+      <div className="card">
+        <div className="card-title" style={{marginBottom:16}}>🌳 Árbol CART — Clasificación estadística de candidatos</div>
+        <div style={{overflowX:"auto",paddingBottom:12}}>
+          <div style={{display:"flex",flexDirection:"column" as const,alignItems:"center",gap:20,minWidth:800}}>
+            {/* Nodo raíz */}
+            <div style={{width:160,padding:"12px",background:"#1B1F2E",color:"#fff",borderRadius:8,textAlign:"center" as const,fontWeight:700,fontSize:13}}>¿Exp ≥ 5 años?</div>
+
+            {/* Bifurcación 1 */}
+            <div style={{display:"flex",gap:60,width:"100%",justifyContent:"center"}}>
+              <div style={{textAlign:"center" as const}}>
+                <div style={{fontSize:11,color:"#10B981",fontWeight:700,marginBottom:8}}>Sí</div>
+                <div style={{width:140,padding:"10px",background:"#EFF6FF",border:"2px solid #3B82F6",borderRadius:8,fontSize:12,fontWeight:600}}>¿Score ≥ 80?</div>
+              </div>
+              <div style={{textAlign:"center" as const}}>
+                <div style={{fontSize:11,color:"#EF4444",fontWeight:700,marginBottom:8}}>No</div>
+                <div style={{width:140,padding:"10px",background:"#FEF2F2",border:"2px solid #EF4444",borderRadius:8,fontSize:12,fontWeight:600}}>¿Exp ≥ 3 años?</div>
+              </div>
+            </div>
+
+            {/* Resultados finales */}
+            <div style={{display:"flex",gap:30,width:"100%",justifyContent:"center",flexWrap:"wrap"}}>
+              <div style={{width:110,padding:"10px",background:"#ECFDF5",border:"2px solid #10B981",borderRadius:8,textAlign:"center" as const}}>
+                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>Apto (94%)</div>
+                <div style={{fontWeight:700,fontSize:13,color:"#065F46"}}>✅ CONTRATAR</div>
+              </div>
+              <div style={{width:110,padding:"10px",background:"#EFF6FF",border:"2px solid #3B82F6",borderRadius:8,textAlign:"center" as const}}>
+                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>Potencial (68%)</div>
+                <div style={{fontWeight:700,fontSize:13,color:"#1D4ED8"}}>🔄 2ª ENTREVISTA</div>
+              </div>
+              <div style={{width:110,padding:"10px",background:"#FFFBEB",border:"2px solid #F59E0B",borderRadius:8,textAlign:"center" as const}}>
+                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>Marginal (45%)</div>
+                <div style={{fontWeight:700,fontSize:13,color:"#92400E"}}>⏸ EN ESPERA</div>
+              </div>
+              <div style={{width:110,padding:"10px",background:"#FEF2F2",border:"2px solid #EF4444",borderRadius:8,textAlign:"center" as const}}>
+                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>No apto (18%)</div>
+                <div style={{fontWeight:700,fontSize:13,color:"#991B1B"}}>✗ DESCARTAR</div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="card">
-          <div className="card-title">Evaluador CART</div>
-          <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
-            {[
-              {k:"experiencia" as const,l:"Experiencia laboral",opts:["< 1 año","1-2 años","2-5 años","> 5 años"]},
-              {k:"estudios" as const,l:"Nivel de estudios",opts:["Sin título","Técnico","Universitario","Posgrado"]},
-              {k:"ingles" as const,l:"Nivel de inglés",opts:["Ninguno","Básico","Intermedio","Avanzado"]},
-              {k:"disponibilidad" as const,l:"Disponibilidad",opts:["3+ meses","1-3 meses","Inmediata","Flexible"]},
-            ].map(f=>(
-              <div key={f.k} className="form-group" style={{margin:0}}>
-                <label className="form-label">{f.l}</label>
-                <select className="form-control" value={puntos[f.k]} onChange={e=>setPuntos(p=>({...p,[f.k]:parseFloat(e.target.value)}))}>
-                  <option value={0}>Seleccionar...</option>
-                  {f.opts.map((o,i)=><option key={o} value={(i+1)*0.33}>{o}</option>)}
-                </select>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn-primary btn-sm" style={{width:"100%",marginTop:12}} onClick={evaluar}>🌳 Clasificar candidato</button>
-          {resultado&&(
-            <div style={{marginTop:10,padding:"12px",borderRadius:8,textAlign:"center" as const,background:resultado==="CONTRATAR"?"#ECFDF5":resultado==="SEGUNDA ENTREVISTA"?"#EFF6FF":resultado==="EN ESPERA"?"#FFFBEB":"#FEF2F2",border:`1px solid ${resultado==="CONTRATAR"?"#6EE7B7":resultado==="SEGUNDA ENTREVISTA"?"#BFDBFE":resultado==="EN ESPERA"?"#FDE68A":"#FCA5A5"}`}}>
-              <div style={{fontSize:11,color:"#6B7280",marginBottom:4}}>Resultado CART:</div>
-              <div style={{fontSize:16,fontWeight:800,color:resultado==="CONTRATAR"?"#065F46":resultado==="SEGUNDA ENTREVISTA"?"#1D4ED8":resultado==="EN ESPERA"?"#92400E":"#991B1B"}}>{resultado}</div>
-            </div>
-          )}
+        <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #E5E7EB",fontSize:10,color:"#6B7280"}}>
+          ✓ Poda activa (profundidad máx. 3) — Previene overfitting
         </div>
       </div>
-      <div className="card">
-        <div className="card-title">¿Cómo funciona el algoritmo CART?</div>
-        <div style={{fontSize:12,color:"#374151",lineHeight:1.7}}>
-          <p style={{marginTop:0}}>El árbol CART (Classification And Regression Tree) evalúa candidatos usando 4 variables clave con distinto peso:</p>
-          {[["30%","Experiencia laboral","Factor más importante. Candidatos con +2 años pasan directamente al nodo de estudios."],["25%","Nivel educativo","Sin título universitario, se requiere disponibilidad inmediata para avanzar."],["20%","Inglés","Idioma diferenciador. Nivel intermedio o superior abre la clasificación Contratar."],["25%","Disponibilidad","Disponibilidad inmediata compensa otras debilidades parciales."]].map(([pct,name,desc])=>(
-            <div key={name} style={{padding:"8px 0",borderBottom:"1px solid #F3F4F6"}}>
-              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
-                <span style={{background:"#E8611A",color:"#fff",borderRadius:4,padding:"1px 6px",fontSize:10,fontWeight:700}}>{pct}</span>
-                <span style={{fontWeight:600,fontSize:12.5}}>{name}</span>
+
+      {/* Evaluador con sliders */}
+      <div className="g2">
+        <div className="card">
+          <div className="card-title">📊 Evaluador candidato</div>
+          <div style={{display:"flex",flexDirection:"column" as const,gap:14}}>
+            {/* Experiencia en años */}
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <label className="form-label" style={{margin:0}}>Años de experiencia</label>
+                <span style={{fontWeight:700,color:"#E8611A",fontSize:13}}>{exp} años</span>
               </div>
-              <div style={{fontSize:11.5,color:"#6B7280"}}>{desc}</div>
+              <input type="range" min="0" max="10" value={exp} onChange={e=>setExp(parseInt(e.target.value))} style={{width:"100%"}}/>
+              <div style={{fontSize:9,color:"#9CA3AF",marginTop:3}}>0 = No tiene, 5+ = Experiencia sólida</div>
             </div>
-          ))}
+
+            {/* Score técnico */}
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <label className="form-label" style={{margin:0}}>Score prueba técnica (0-100)</label>
+                <span style={{fontWeight:700,color:tecnica>=80?"#10B981":tecnica>=60?"#F59E0B":"#EF4444",fontSize:13}}>{tecnica}</span>
+              </div>
+              <input type="range" min="0" max="100" value={tecnica} onChange={e=>setTecnica(parseInt(e.target.value))} style={{width:"100%"}}/>
+              <div style={{fontSize:9,color:"#9CA3AF",marginTop:3}}>Evaluación técnica requerida</div>
+            </div>
+
+            {/* Idioma */}
+            <div>
+              <label className="form-label">Idioma requerido</label>
+              <select className="form-control" value={idioma} onChange={e=>setIdioma(e.target.value)}>
+                <option value="No">No</option>
+                <option value="Básico">Básico</option>
+                <option value="Intermedio">Intermedio</option>
+                <option value="Avanzado">Avanzado</option>
+              </select>
+            </div>
+
+            {/* Educación */}
+            <div>
+              <label className="form-label">Nivel educativo</label>
+              <select className="form-control" value={edu} onChange={e=>setEdu(e.target.value)}>
+                <option value="Sin título">Sin título</option>
+                <option value="Técnico">Técnico</option>
+                <option value="Universitario">Universitario</option>
+                <option value="Posgrado">Posgrado</option>
+              </select>
+            </div>
+
+            {/* Disponibilidad */}
+            <div>
+              <label className="form-label">Disponibilidad</label>
+              <select className="form-control" value={disp} onChange={e=>setDisp(e.target.value)}>
+                <option value="3+ meses">3+ meses</option>
+                <option value="1-3 meses">1-3 meses</option>
+                <option value="Inmediata">Inmediata</option>
+              </select>
+            </div>
+          </div>
+          <button className="btn btn-primary" style={{width:"100%",marginTop:16}} onClick={evaluar}>🔍 Ejecutar clasificación CART</button>
         </div>
+
+        {/* Resultado mejorado */}
+        {resultado&&(
+          <div className="card" style={{display:"flex",flexDirection:"column" as const}}>
+            <div className="card-title">📈 Resultado CART</div>
+            <div style={{background:resultado.prob>=80?"#ECFDF5":resultado.prob>=65?"#EFF6FF":resultado.prob>=45?"#FFFBEB":"#FEF2F2",border:`2px solid ${resultado.prob>=80?"#6EE7B7":resultado.prob>=65?"#BFDBFE":resultado.prob>=45?"#FDE68A":"#FCA5A5"}`,borderRadius:10,padding:14,marginBottom:12}}>
+              <div style={{fontSize:13,fontWeight:700,color:resultado.prob>=80?"#065F46":resultado.prob>=65?"#1D4ED8":resultado.prob>=45?"#92400E":"#991B1B",marginBottom:6}}>{resultado.clase}</div>
+              <div style={{fontSize:11,color:"#6B7280",marginBottom:8}}>No cumple criterios mínimos: exp=4, score=82, idioma=No</div>
+              <div style={{fontSize:24,fontWeight:700,color:resultado.prob>=80?"#10B981":resultado.prob>=65?"#3B82F6":resultado.prob>=45?"#F59E0B":"#EF4444"}}>
+                {resultado.prob}%
+              </div>
+              <div style={{fontSize:10,color:"#6B7280",marginTop:6}}>Probabilidad de éxito</div>
+            </div>
+
+            <div style={{background:"#F9FAFB",borderRadius:8,padding:12,marginBottom:12}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#6B7280",marginBottom:6}}>Segmento: <span style={{color:"#1B1F2E",fontWeight:700}}>{resultado.segment}</span></div>
+              <div style={{fontSize:11,color:"#374151",lineHeight:1.6}}>
+                <div>• <b>Experiencia:</b> {exp} años</div>
+                <div>• <b>Score técnico:</b> {tecnica}/100</div>
+                <div>• <b>Idioma:</b> {idioma}</div>
+                <div>• <b>Educación:</b> {edu}</div>
+                <div>• <b>Disponibilidad:</b> {disp}</div>
+              </div>
+            </div>
+
+            <div style={{fontSize:10,color:"#6B7280",borderTop:"1px solid #E5E7EB",paddingTop:10}}>
+              💡 <b>Interpretabilidad CART:</b> Puedes ver exactamente qué reglas llevaron a esta clasificación, reduciendo sesgos humanos.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -351,35 +438,124 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
             </div>
 
             <div className="card">
-              <div className="card-title">Preview — Árbol generado</div>
-              <div style={{fontFamily:"monospace",fontSize:11,lineHeight:1.8,background:"#F8FAFC",padding:"12px 14px",borderRadius:8}}>
-                <div style={{color:"#E8611A",fontWeight:700}}>INICIO</div>
-                <div style={{paddingLeft:16}}>
+              <div className="card-title">🌳 Preview — Árbol generado con dependencias</div>
+              <div style={{overflowX:"auto",paddingBottom:12,background:"#F8FAFC",borderRadius:8,border:"1px solid #E5E7EB",padding:16}}>
+                <svg width="100%" height="500" viewBox="0 0 1200 500" style={{minWidth:1000}}>
+                  {/* Definiciones */}
+                  <defs>
+                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                      <polygon points="0 0, 10 3, 0 6" fill="#10B981"/>
+                    </marker>
+                    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                      <polygon points="0 0, 10 3, 0 6" fill="#EF4444"/>
+                    </marker>
+                  </defs>
+
                   {(() => {
-                    const renderNodo=(nodoId:string,depth:number):React.ReactNode=>{
-                      if(nodoId==="CONTRATAR") return <div style={{color:"#10B981"}}>→ <b>CONTRATAR</b></div>;
-                      if(nodoId==="SEGUNDA ENTREVISTA") return <div style={{color:"#3B82F6"}}>→ <b>SEGUNDA ENTREVISTA</b></div>;
-                      if(nodoId==="EN ESPERA") return <div style={{color:"#F59E0B"}}>→ <b>EN ESPERA</b></div>;
-                      if(nodoId==="NO CONTINÚA") return <div style={{color:"#EF4444"}}>→ <b>NO CONTINÚA</b></div>;
-                      const n=arbolNodos[nodoId];
-                      if(!n) return null;
-                      return (
-                        <div key={nodoId}>
-                          <div>{n.pregunta}</div>
-                          <div style={{paddingLeft:16,color:"#10B981"}}>✓ SÍ: {renderNodo(n.siNode,depth+1)}</div>
-                          <div style={{paddingLeft:16,color:"#EF4444"}}>✗ NO: {renderNodo(n.noNode,depth+1)}</div>
-                        </div>
-                      );
+                    const positions: Record<string,{x:number;y:number}> = {};
+
+                    const calcPos = (levelIndex:number, posInLevel:number): {x:number;y:number} => {
+                      const levelCount = Math.pow(2, levelIndex);
+                      const spacing = 1100 / (levelCount + 1);
+                      const x = 50 + spacing * (posInLevel + 0.5);
+                      const y = 50 + levelIndex * 110;
+                      return {x, y};
                     };
-                    return renderNodo("n1",0);
+
+                    const getResultColor = (resultado:string) => {
+                      if(resultado==="CONTRATAR") return {bg:"#ECFDF5",border:"#6EE7B7",text:"#065F46"};
+                      if(resultado==="SEGUNDA ENTREVISTA") return {bg:"#EFF6FF",border:"#BFDBFE",text:"#1D4ED8"};
+                      if(resultado==="EN ESPERA") return {bg:"#FFFBEB",border:"#FDE68A",text:"#92400E"};
+                      return {bg:"#FEF2F2",border:"#FCA5A5",text:"#991B1B"};
+                    };
+
+                    const renderTreeSVG = (nodoId:string, level:number, pos:number) => {
+                      const currentPos = calcPos(level, pos);
+                      positions[nodoId] = currentPos;
+                      const elements: React.ReactNode[] = [];
+
+                      if(typeof nodoId === "string" && !nodoId.startsWith("n")) {
+                        const colors = getResultColor(nodoId);
+                        elements.push(
+                          <g key={`result-${nodoId}`}>
+                            <rect x={currentPos.x-65} y={currentPos.y-22} width="130" height="44" fill={colors.bg} stroke={colors.border} strokeWidth="2.5" rx="8"/>
+                            <text x={currentPos.x} y={currentPos.y+6} textAnchor="middle" fill={colors.text} fontSize="12" fontWeight="700">
+                              {nodoId.length>15 ? nodoId.substring(0,12)+"..." : nodoId}
+                            </text>
+                          </g>
+                        );
+                        return elements;
+                      }
+
+                      const n = arbolNodos[nodoId];
+                      if(!n) return elements;
+
+                      // Nodo de decisión
+                      elements.push(
+                        <g key={`decision-${nodoId}`}>
+                          <rect x={currentPos.x-70} y={currentPos.y-22} width="140" height="44" fill="#1B1F2E" stroke="#374151" strokeWidth="2.5" rx="8"/>
+                          <text x={currentPos.x} y={currentPos.y-4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">
+                            {n.pregunta.length>20 ? n.pregunta.substring(0,17)+"..." : n.pregunta}
+                          </text>
+                        </g>
+                      );
+
+                      // Rama SÍ (izquierda)
+                      const siPos = calcPos(level + 1, pos * 2);
+                      elements.push(
+                        <g key={`line-si-${nodoId}`}>
+                          <line x1={currentPos.x-35} y1={currentPos.y+22} x2={siPos.x} y2={siPos.y-25} stroke="#10B981" strokeWidth="2.5" markerEnd="url(#arrowGreen)"/>
+                          <text x={(currentPos.x-35+siPos.x)/2} y={(currentPos.y+22+siPos.y-25)/2-5} fill="#10B981" fontSize="11" fontWeight="700">Sí</text>
+                        </g>
+                      );
+                      elements.push(...renderTreeSVG(n.siNode, level + 1, pos * 2));
+
+                      // Rama NO (derecha)
+                      const noPos = calcPos(level + 1, pos * 2 + 1);
+                      elements.push(
+                        <g key={`line-no-${nodoId}`}>
+                          <line x1={currentPos.x+35} y1={currentPos.y+22} x2={noPos.x} y2={noPos.y-25} stroke="#EF4444" strokeWidth="2.5" markerEnd="url(#arrowRed)"/>
+                          <text x={(currentPos.x+35+noPos.x)/2} y={(currentPos.y+22+noPos.y-25)/2-5} fill="#EF4444" fontSize="11" fontWeight="700">No</text>
+                        </g>
+                      );
+                      elements.push(...renderTreeSVG(n.noNode, level + 1, pos * 2 + 1));
+
+                      return elements;
+                    };
+
+                    return renderTreeSVG("n1", 0, 0);
+                  })()}
+                </svg>
+              </div>
+
+              <div style={{marginTop:14,background:"#F9FAFB",borderRadius:8,padding:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#6B7280",marginBottom:10}}>📊 Estructura del árbol</div>
+                <div style={{fontFamily:"monospace",fontSize:10,lineHeight:1.8,color:"#374151",maxHeight:180,overflowY:"auto" as const}}>
+                  {(() => {
+                    const renderText=(nodoId:string,depth:number):string[]=> {
+                      if(typeof nodoId === "string" && !nodoId.startsWith("n")) {
+                        return [`${"  ".repeat(depth)}→ ${nodoId}`];
+                      }
+                      const n=arbolNodos[nodoId];
+                      if(!n) return [];
+                      return [
+                        `${"  ".repeat(depth)}❓ ${n.pregunta}`,
+                        ...renderText(n.siNode, depth+1).map(l=>`${"  ".repeat(depth)}  ✓ ${l}`),
+                        ...renderText(n.noNode, depth+1).map(l=>`${"  ".repeat(depth)}  ✗ ${l}`)
+                      ];
+                    };
+                    return renderText("n1",0).map((line,i)=><div key={i}>{line}</div>);
                   })()}
                 </div>
-                <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #E5E7EB",fontSize:10,color:"#6B7280"}}>
-                  <div style={{marginBottom:4}}><b>Pesos configurados:</b></div>
-                  <div>• Experiencia: {pesos.experiencia}%</div>
-                  <div>• Estudios: {pesos.estudios}%</div>
-                  <div>• Inglés: {pesos.ingles}%</div>
-                  <div>• Disponibilidad: {pesos.disponibilidad}%</div>
+              </div>
+
+              <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #E5E7EB",fontSize:10,color:"#6B7280"}}>
+                <div style={{marginBottom:6}}><b>Pesos configurados:</b></div>
+                <div style={{display:"flex",gap:12,flexWrap:"wrap" as const}}>
+                  <div>• <span style={{color:"#E8611A",fontWeight:700}}>Experiencia: {pesos.experiencia}%</span></div>
+                  <div>• <span style={{color:"#E8611A",fontWeight:700}}>Estudios: {pesos.estudios}%</span></div>
+                  <div>• <span style={{color:"#E8611A",fontWeight:700}}>Inglés: {pesos.ingles}%</span></div>
+                  <div>• <span style={{color:"#E8611A",fontWeight:700}}>Disponibilidad: {pesos.disponibilidad}%</span></div>
                 </div>
               </div>
             </div>

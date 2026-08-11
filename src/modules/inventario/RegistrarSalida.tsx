@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View } from "../../types";
-import { CATALOGOS_INIT, EXISTENCIAS } from "../../data/catalogos";
+import { CATALOGOS_INIT } from "../../data/catalogos";
 
 export function RegistrarSalida({setView}:{setView:(v:View)=>void}) {
   const [tipo,setTipo]=useState("consumo");

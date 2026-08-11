@@ -11,7 +11,6 @@ export function EntradasSalidas({setView}:{setView:(v:View)=>void}) {
     {id:"ENT-2024-040",tipo:"entrada",icon:"📥",color:"#10B981",bg:"#ECFDF5",cod:"INV-EQO-00041",name:"Multímetro Digital",qty:3,proveedor:"ElectroMayorista",fecha:"24 May 2024",hora:"08:45",bodega:"Bodega Central",valor:2670},
     {id:"AJU-2024-007",tipo:"ajuste",icon:"⚖️",color:"#F59E0B",bg:"#FFFBEB",cod:"INV-HER-00203",name:"Llave Ajustable 12\"",qty:-2,proveedor:"Ajuste conteo",fecha:"22 May 2024",hora:"16:20",bodega:"Bodega Central",valor:-290},
   ];
-  const filtered=tab==="todos"?movimientos:movimientos.filter(m=>m.tipo===tab.slice(0,-1)||m.tipo===tab.slice(0,-1)+"s");
   const entradas=movimientos.filter(m=>m.tipo==="entrada").reduce((s,m)=>s+m.valor,0);
   const salidas=movimientos.filter(m=>m.tipo==="salida").reduce((s,m)=>s+m.valor,0);
 

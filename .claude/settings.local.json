@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls \"C:\\\\Users\\\\RUMANAU\\\\OneDrive\\\\Escritorio\\\\\")",
-      "PowerShell(Start-Process PowerShell -ArgumentList '-NoProfile -File C:\\\\Users\\\\RUMANAU\\\\OneDrive\\\\Escritorio\\\\Claude\\\\start-server.ps1' -PassThru; Start-Sleep -Seconds 25)"
-    ]
-  }
-}
