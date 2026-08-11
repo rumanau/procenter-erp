@@ -35,6 +35,7 @@ export function ReclutamientoHome({setTab,requisiciones,vacantes,perfilesTalento
     {icon:"📨",name:"Ofertas",desc:"Borrador → Enviada → Aceptada",sub:`${ofertasAbiertas.length} abiertas`,view:"ofertas"},
     {icon:"🌳",name:"CART",desc:"Árbol de decisión · Evaluador",sub:"Motor de clasificación",view:"cart"},
     {icon:"📈",name:"Analítica",desc:"Embudo · Time to Hire · Fuentes",sub:"Métricas en tiempo real",view:"analitica"},
+    {icon:"📚",name:"Biblioteca",desc:"Pruebas psicométricas · Guías",sub:"Recursos documentales",view:"biblioteca"},
     {icon:"⚙️",name:"Configuración",desc:"Filtros · Equipo · Parámetros",sub:"Personalizable",view:"config"},
   ];
 

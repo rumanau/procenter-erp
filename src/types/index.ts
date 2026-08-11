@@ -328,6 +328,17 @@ export interface Candidato {
   educacion?: string;
   competencias?: string[];
   personaId?: string;
+  asignadoA?: string;
+  prioridad?: "Alta" | "Media" | "Baja";
+  etiquetas?: string[];
+  informador?: string;
+}
+
+export interface Subtarea {
+  id: string;
+  candidatoId: string;
+  texto: string;
+  completada: boolean;
 }
 
 export interface TimelineEvento {
@@ -337,6 +348,7 @@ export interface TimelineEvento {
   icono: string;
   descripcion: string;
   responsable?: string;
+  tipo?: "sistema" | "comentario";
 }
 
 export interface Entrevista {
@@ -417,4 +429,14 @@ export interface FiltrosBaseTalentoConfig {
   experiencia: boolean;
   disponibilidad: boolean;
   vehiculo: boolean;
+}
+
+export interface RecursoDocumental {
+  id: string;
+  nombre: string;
+  categoria: "Prueba Psicométrica" | "Guía de Entrevista" | "Plantilla de Evaluación" | "Política" | "Otro";
+  descripcion: string;
+  fecha: string;
+  version: string;
+  estado: "Activo" | "Archivado";
 }

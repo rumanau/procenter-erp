@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { View, Empleado, Vacante, Requisicion, Candidato, Entrevista, Evaluacion, Documento, TimelineEvento } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
-import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT, OFERTAS_INIT, EQUIPO_RECLUTAMIENTO_INIT, FILTROS_TALENTO_INIT, FUENTES_POSTULACION } from "../../data/reclutamiento";
+import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT, OFERTAS_INIT, EQUIPO_RECLUTAMIENTO_INIT, FILTROS_TALENTO_INIT, FUENTES_POSTULACION, SUBTAREAS_INIT, RECURSOS_DOCUMENTALES_INIT } from "../../data/reclutamiento";
 import { Requisiciones } from "./reclutamiento/Requisiciones";
 import { BaseTalento } from "./reclutamiento/BaseTalento";
 import { VacanteModal } from "./reclutamiento/VacanteModal";
@@ -13,7 +13,8 @@ import { Ofertas } from "./reclutamiento/Ofertas";
 import { ReclutamientoHome } from "./reclutamiento/ReclutamientoHome";
 import { ConfigReclutamiento } from "./reclutamiento/ConfigReclutamiento";
 import { AnaliticaReclutamiento } from "./reclutamiento/AnaliticaReclutamiento";
-import type { ArbolCartNodo, OfertaLaboral, FiltrosBaseTalentoConfig, MiembroEquipoReclutamiento } from "../../types";
+import { BibliotecaDocumental } from "./reclutamiento/BibliotecaDocumental";
+import type { ArbolCartNodo, OfertaLaboral, FiltrosBaseTalentoConfig, MiembroEquipoReclutamiento, Subtarea, RecursoDocumental } from "../../types";
 
 export function CartTab({setTab,arbolNodos}:{setTab:(t:string)=>void;arbolNodos:Record<string,ArbolCartNodo>}) {
   const [exp,setExp]=useState(2);
@@ -178,10 +179,44 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
   const [equipoReclutamiento,setEquipoReclutamiento]=useState<MiembroEquipoReclutamiento[]>(EQUIPO_RECLUTAMIENTO_INIT);
   const [fuentesHabilitadas,setFuentesHabilitadas]=useState<string[]>(FUENTES_POSTULACION);
   const [umbralCart,setUmbralCart]=useState(50);
+  const [subtareas,setSubtareas]=useState<Subtarea[]>(SUBTAREAS_INIT);
+  const [recursos,setRecursos]=useState<RecursoDocumental[]>(RECURSOS_DOCUMENTALES_INIT);
   const selCand=candidatos.find(c=>c.id===selCandId)||null;
 
-  const agregarEvento=(candidatoId:string,icono:string,descripcion:string,responsable?:string)=>{
-    setTimeline(prev=>[...prev,{id:`TL-${Date.now()}`,candidatoId,fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),icono,descripcion,responsable}]);
+  const agregarEvento=(candidatoId:string,icono:string,descripcion:string,responsable?:string,tipo:"sistema"|"comentario"="sistema")=>{
+    setTimeline(prev=>[...prev,{id:`TL-${Date.now()}-${Math.floor(Math.random()*1000)}`,candidatoId,fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),icono,descripcion,responsable,tipo}]);
+  };
+
+  const actualizarCampoCandidato=(campo:"asignadoA"|"prioridad",valor:string)=>{
+    if(!selCand) return;
+    setCandidatos(prev=>prev.map(c=>c.id===selCand.id?{...c,[campo]:valor}:c));
+    agregarEvento(selCand.id,"✏️",`${campo==="asignadoA"?"Asignado a":"Prioridad cambiada a"}: ${valor}`,"Ronald");
+  };
+
+  const agregarEtiquetaCandidato=(tag:string)=>{
+    if(!selCand) return;
+    setCandidatos(prev=>prev.map(c=>c.id===selCand.id?{...c,etiquetas:[...(c.etiquetas||[]),tag]}:c));
+  };
+  const quitarEtiquetaCandidato=(tag:string)=>{
+    if(!selCand) return;
+    setCandidatos(prev=>prev.map(c=>c.id===selCand.id?{...c,etiquetas:(c.etiquetas||[]).filter(t=>t!==tag)}:c));
+  };
+
+  const agregarSubtareaCandidato=(texto:string)=>{
+    if(!selCand) return;
+    setSubtareas(prev=>[...prev,{id:`ST-${Date.now()}`,candidatoId:selCand.id,texto,completada:false}]);
+  };
+  const toggleSubtareaCandidato=(id:string)=>setSubtareas(prev=>prev.map(s=>s.id===id?{...s,completada:!s.completada}:s));
+
+  const comentarCandidato=(texto:string)=>{
+    if(!selCand) return;
+    agregarEvento(selCand.id,"💬",texto,"Ronald","comentario");
+  };
+
+  const cambiarEtapaRapida=(nuevaEtapa:string)=>{
+    if(!selCand) return;
+    setCandidatos(prev=>prev.map(c=>c.id===selCand.id?{...c,etapa:nuevaEtapa}:c));
+    agregarEvento(selCand.id,"🔄",`Movido a etapa: ${nuevaEtapa}`,"Ronald");
   };
 
   const cambiarEstadoOferta=(oferta:OfertaLaboral,nuevoEstado:OfertaLaboral["estado"])=>{
@@ -310,7 +345,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
         </div>
 
         <div className="tab-bar">
-          {[["dashboard","🏠 Dashboard"],["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["analitica","📈 Analítica"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"],["config","⚙️ Configuración"]].map(([id,l])=>(
+          {[["dashboard","🏠 Dashboard"],["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["analitica","📈 Analítica"],["biblioteca","📚 Biblioteca"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"],["config","⚙️ Configuración"]].map(([id,l])=>(
             <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{l}</div>
           ))}
         </div>
@@ -416,21 +451,38 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                     <div style={{fontSize:11.5,fontWeight:700,color:"#374151",background:"#F3F4F6",padding:"6px 8px",borderRadius:6,marginBottom:8,textAlign:"center" as const}}>
                       {etapa}<br/><span style={{fontSize:18,fontWeight:800,color:"#1B1F2E"}}>{cands.length}</span>
                     </div>
-                    {cands.map(c=>(
+                    {cands.map(c=>{
+                      const prio=c.prioridad||"Media";
+                      const prioIcon=prio==="Alta"?"⬆️":prio==="Baja"?"⬇️":"➡️";
+                      const prioColor=prio==="Alta"?"#DC2626":prio==="Baja"?"#6B7280":"#D97706";
+                      return (
                       <div key={c.id} style={{background:"#fff",border:"1px solid #E5E7EB",borderRadius:7,padding:"8px 10px",marginBottom:6,boxShadow:"0 1px 3px rgba(0,0,0,.06)"}}>
                         <div onClick={()=>setSelCandId(c.id)} style={{cursor:"pointer"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                            <span style={{fontSize:9.5,color:"#9CA3AF",fontFamily:"monospace"}}>{c.id}</span>
+                            <span title={`Prioridad ${prio}`} style={{fontSize:11,color:prioColor}}>{prioIcon}</span>
+                          </div>
                           <div style={{fontSize:11.5,fontWeight:600,marginBottom:2}}>{c.nombre}</div>
                           <div style={{fontSize:10.5,color:"#6B7280",marginBottom:4}}>{vacantes.find(v=>v.id===c.vacante)?.puesto||"—"}</div>
-                          <div style={{display:"flex",alignItems:"center",gap:4}}>
+                          {c.etiquetas&&c.etiquetas.length>0&&(
+                            <div style={{display:"flex",gap:4,flexWrap:"wrap" as const,marginBottom:5}}>
+                              {c.etiquetas.map(t=><span key={t} className="badge badge-gray" style={{fontSize:8.5}}>{t}</span>)}
+                            </div>
+                          )}
+                          <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:5}}>
                             <div style={{background:"#E5E7EB",borderRadius:3,height:5,flex:1}}>
                               <div style={{width:`${c.puntCART}%`,background:c.puntCART>=80?"#10B981":"#F59E0B",height:"100%",borderRadius:3}}/>
                             </div>
                             <span style={{fontSize:10,fontWeight:700,color:c.puntCART>=80?"#10B981":"#F59E0B"}}>{c.puntCART}</span>
                           </div>
+                          <div style={{display:"flex",justifyContent:"flex-end"}}>
+                            <div className="user-avatar" title={c.asignadoA||"Sin asignar"} style={{width:20,height:20,fontSize:8,background:c.asignadoA?"#3B82F6":"#D1D5DB"}}>{c.asignadoA?c.asignadoA.split(" ").map(n=>n[0]).join("").slice(0,2):"—"}</div>
+                          </div>
                         </div>
                         <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:6,fontSize:10,padding:"3px 6px"}} onClick={()=>setMoverEtapaCand(c)}>🔄 Mover de etapa</button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -465,6 +517,10 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
             candidatos={candidatos} vacantes={vacantes} ofertas={ofertas}
             postulaciones={postulaciones} timeline={timeline}
           />
+        )}
+
+        {tab==="biblioteca"&&(
+          <BibliotecaDocumental recursos={recursos} setRecursos={setRecursos}/>
         )}
 
         {tab==="config"&&(
@@ -673,11 +729,21 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
           entrevistas={entrevistas.filter(e=>e.candidatoId===selCand.id)}
           evaluaciones={evaluaciones.filter(e=>e.candidatoId===selCand.id)}
           documentos={documentos.filter(d=>d.candidatoId===selCand.id)}
-          timeline={timeline.filter(t=>t.candidatoId===selCand.id).slice().reverse()}
+          timeline={timeline.filter(t=>t.candidatoId===selCand.id)}
+          subtareas={subtareas.filter(s=>s.candidatoId===selCand.id)}
+          equipo={equipoReclutamiento}
+          etapas={etapas}
           onCerrar={()=>setSelCandId(null)}
           onIntegrar={()=>{integrarAlSistema(selCand);setSelCandId(null);}}
           onProgramarEntrevista={()=>{setEntrevistaPreseleccion({candidatoId:selCand.id,abrir:true});setTab("entrevistas");setSelCandId(null);}}
           onAgregarDocumento={(tipo,nombre)=>agregarDocumentoCandidato(selCand.id,tipo,nombre)}
+          onCambiarEtapa={cambiarEtapaRapida}
+          onActualizarCampo={actualizarCampoCandidato}
+          onAgregarEtiqueta={agregarEtiquetaCandidato}
+          onQuitarEtiqueta={quitarEtiquetaCandidato}
+          onAgregarSubtarea={agregarSubtareaCandidato}
+          onToggleSubtarea={toggleSubtareaCandidato}
+          onComentar={comentarCandidato}
         />
       )}
 

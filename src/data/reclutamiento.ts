@@ -1,4 +1,4 @@
-import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento, OfertaLaboral, MiembroEquipoReclutamiento, FiltrosBaseTalentoConfig } from "../types";
+import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento, OfertaLaboral, MiembroEquipoReclutamiento, FiltrosBaseTalentoConfig, Subtarea, RecursoDocumental } from "../types";
 
 export const FUENTES_POSTULACION = ["Portal PROCENTER", "LinkedIn", "Indeed", "Referido", "Correo", "Feria de empleo", "Universidad", "Carga manual"];
 
@@ -98,10 +98,26 @@ export const POSTULACIONES_INIT: Postulacion[] = [
 ];
 
 export const CANDIDATOS_INIT: Candidato[] = [
-  { id: "CAND-001", nombre: "Esteban Vargas", vacante: "VAC-001", etapa: "Entrevista técnica", puntCART: 85, estado: "Avanzando", correo: "e.vargas@gmail.com", tel: "8654-3210", cedula: "1-1234-5678", experiencia: "4 años en mantenimiento industrial, soldadura y electricidad.", educacion: "Técnico Electromecánico (INA)", competencias: ["Mantenimiento", "Soldadura", "Electricidad industrial"], personaId: "TAL-00381" },
-  { id: "CAND-002", nombre: "Alicia Moreno", vacante: "VAC-001", etapa: "Prueba técnica", puntCART: 72, estado: "En proceso", correo: "a.moreno@hotmail.com", tel: "8833-1122", cedula: "1-2345-6789", experiencia: "3 años de experiencia en mantenimiento de maquinaria liviana.", educacion: "Técnico en Mantenimiento", competencias: ["Mantenimiento preventivo", "Diagnóstico de fallas"], personaId: "TAL-00382" },
-  { id: "CAND-003", nombre: "Ricardo Salas", vacante: "VAC-002", etapa: "Entrevista RRHH", puntCART: 91, estado: "Avanzando", correo: "r.salas@yahoo.com", tel: "8799-4455", cedula: "1-3456-7890", experiencia: "5 años en asistencia administrativa y gerencial.", educacion: "Administración de Empresas (Universitario)", competencias: ["Gestión de agenda", "Excel avanzado", "Atención a proveedores"], personaId: "TAL-00383" },
-  { id: "CAND-004", nombre: "Patricia Nuñez", vacante: "VAC-002", etapa: "Revisión CV", puntCART: 45, estado: "Descartado", correo: "p.nunez@gmail.com", tel: "8600-0000", cedula: "1-4567-8901", experiencia: "1 año como asistente de oficina.", educacion: "Secretariado Ejecutivo (Técnico)", competencias: ["Digitación", "Atención al cliente"], personaId: "TAL-00384" },
+  { id: "CAND-001", nombre: "Esteban Vargas", vacante: "VAC-001", etapa: "Entrevista técnica", puntCART: 85, estado: "Avanzando", correo: "e.vargas@gmail.com", tel: "8654-3210", cedula: "1-1234-5678", experiencia: "4 años en mantenimiento industrial, soldadura y electricidad.", educacion: "Técnico Electromecánico (INA)", competencias: ["Mantenimiento", "Soldadura", "Electricidad industrial"], personaId: "TAL-00381", asignadoA: "Jules Ramirez", prioridad: "Alta", etiquetas: ["Urgente", "Técnico"], informador: "Ronald" },
+  { id: "CAND-002", nombre: "Alicia Moreno", vacante: "VAC-001", etapa: "Prueba técnica", puntCART: 72, estado: "En proceso", correo: "a.moreno@hotmail.com", tel: "8833-1122", cedula: "1-2345-6789", experiencia: "3 años de experiencia en mantenimiento de maquinaria liviana.", educacion: "Técnico en Mantenimiento", competencias: ["Mantenimiento preventivo", "Diagnóstico de fallas"], personaId: "TAL-00382", asignadoA: "Ronald", prioridad: "Media", etiquetas: ["Técnico"], informador: "Ronald" },
+  { id: "CAND-003", nombre: "Ricardo Salas", vacante: "VAC-002", etapa: "Entrevista RRHH", puntCART: 91, estado: "Avanzando", correo: "r.salas@yahoo.com", tel: "8799-4455", cedula: "1-3456-7890", experiencia: "5 años en asistencia administrativa y gerencial.", educacion: "Administración de Empresas (Universitario)", competencias: ["Gestión de agenda", "Excel avanzado", "Atención a proveedores"], personaId: "TAL-00383", asignadoA: "Ana Vargas", prioridad: "Alta", etiquetas: ["Administrativo"], informador: "Ronald" },
+  { id: "CAND-004", nombre: "Patricia Nuñez", vacante: "VAC-002", etapa: "Revisión CV", puntCART: 45, estado: "Descartado", correo: "p.nunez@gmail.com", tel: "8600-0000", cedula: "1-4567-8901", experiencia: "1 año como asistente de oficina.", educacion: "Secretariado Ejecutivo (Técnico)", competencias: ["Digitación", "Atención al cliente"], personaId: "TAL-00384", asignadoA: "Ana Vargas", prioridad: "Baja", etiquetas: ["Administrativo"], informador: "Ronald" },
+];
+
+export const SUBTAREAS_INIT: Subtarea[] = [
+  { id: "ST-001", candidatoId: "CAND-001", texto: "Confirmar disponibilidad para entrevista técnica", completada: true },
+  { id: "ST-002", candidatoId: "CAND-001", texto: "Solicitar certificado INA actualizado", completada: false },
+  { id: "ST-003", candidatoId: "CAND-003", texto: "Verificar referencias laborales", completada: false },
+];
+
+export const RECURSOS_DOCUMENTALES_INIT: RecursoDocumental[] = [
+  { id: "REC-001", nombre: "Prueba psicométrica DISC — Perfil de personalidad", categoria: "Prueba Psicométrica", descripcion: "Evalúa dominancia, influencia, estabilidad y cumplimiento. Aplicar en etapa de Entrevista RRHH.", fecha: "10 Ene 2026", version: "v2", estado: "Activo" },
+  { id: "REC-002", nombre: "Prueba de razonamiento lógico-numérico", categoria: "Prueba Psicométrica", descripcion: "Para puestos técnicos y administrativos. 30 preguntas, 40 minutos.", fecha: "10 Ene 2026", version: "v1", estado: "Activo" },
+  { id: "REC-003", nombre: "Guía de entrevista por competencias — RRHH", categoria: "Guía de Entrevista", descripcion: "Preguntas estructuradas por competencia (comunicación, trabajo en equipo, orientación a resultados).", fecha: "15 Feb 2026", version: "v3", estado: "Activo" },
+  { id: "REC-004", nombre: "Guía de entrevista técnica — Mantenimiento", categoria: "Guía de Entrevista", descripcion: "Preguntas técnicas específicas para puestos de mantenimiento y electromecánica.", fecha: "20 Mar 2026", version: "v1", estado: "Activo" },
+  { id: "REC-005", nombre: "Plantilla de evaluación de desempeño en entrevista", categoria: "Plantilla de Evaluación", descripcion: "Formato estándar con los 5 criterios usados en el módulo de Entrevistas.", fecha: "01 Abr 2026", version: "v2", estado: "Activo" },
+  { id: "REC-006", nombre: "Política de reclutamiento y selección", categoria: "Política", descripcion: "Lineamientos oficiales de PROCENTER para procesos de selección, ISO 9001 §7.2.", fecha: "05 Ene 2026", version: "v4", estado: "Activo" },
+  { id: "REC-007", nombre: "Prueba psicométrica de inteligencia emocional (versión anterior)", categoria: "Prueba Psicométrica", descripcion: "Reemplazada por DISC v2.", fecha: "12 Jun 2025", version: "v1", estado: "Archivado" },
 ];
 
 export const ENTREVISTAS_INIT: Entrevista[] = [
