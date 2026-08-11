@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { View, Empleado, Vacante, Requisicion, Candidato, Entrevista, Evaluacion, Documento, TimelineEvento } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
-import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT, OFERTAS_INIT } from "../../data/reclutamiento";
+import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT, OFERTAS_INIT, EQUIPO_RECLUTAMIENTO_INIT, FILTROS_TALENTO_INIT, FUENTES_POSTULACION } from "../../data/reclutamiento";
 import { Requisiciones } from "./reclutamiento/Requisiciones";
 import { BaseTalento } from "./reclutamiento/BaseTalento";
 import { VacanteModal } from "./reclutamiento/VacanteModal";
@@ -11,7 +11,9 @@ import { MoverEtapaModal } from "./reclutamiento/MoverEtapaModal";
 import { ArbolCartViz } from "./reclutamiento/ArbolCartViz";
 import { Ofertas } from "./reclutamiento/Ofertas";
 import { ReclutamientoHome } from "./reclutamiento/ReclutamientoHome";
-import type { ArbolCartNodo, OfertaLaboral } from "../../types";
+import { ConfigReclutamiento } from "./reclutamiento/ConfigReclutamiento";
+import { AnaliticaReclutamiento } from "./reclutamiento/AnaliticaReclutamiento";
+import type { ArbolCartNodo, OfertaLaboral, FiltrosBaseTalentoConfig, MiembroEquipoReclutamiento } from "../../types";
 
 export function CartTab({setTab,arbolNodos}:{setTab:(t:string)=>void;arbolNodos:Record<string,ArbolCartNodo>}) {
   const [exp,setExp]=useState(2);
@@ -172,6 +174,10 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
   const [moverEtapaCand,setMoverEtapaCand]=useState<Candidato|null>(null);
   const [entrevistaPreseleccion,setEntrevistaPreseleccion]=useState<{candidatoId:string;abrir:boolean}|null>(null);
   const [ofertas,setOfertas]=useState<OfertaLaboral[]>(OFERTAS_INIT);
+  const [filtrosConfig,setFiltrosConfig]=useState<FiltrosBaseTalentoConfig>(FILTROS_TALENTO_INIT);
+  const [equipoReclutamiento,setEquipoReclutamiento]=useState<MiembroEquipoReclutamiento[]>(EQUIPO_RECLUTAMIENTO_INIT);
+  const [fuentesHabilitadas,setFuentesHabilitadas]=useState<string[]>(FUENTES_POSTULACION);
+  const [umbralCart,setUmbralCart]=useState(50);
   const selCand=candidatos.find(c=>c.id===selCandId)||null;
 
   const agregarEvento=(candidatoId:string,icono:string,descripcion:string,responsable?:string)=>{
@@ -304,7 +310,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
         </div>
 
         <div className="tab-bar">
-          {[["dashboard","🏠 Dashboard"],["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
+          {[["dashboard","🏠 Dashboard"],["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["analitica","📈 Analítica"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"],["config","⚙️ Configuración"]].map(([id,l])=>(
             <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{l}</div>
           ))}
         </div>
@@ -314,7 +320,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
         )}
 
         {tab==="talento"&&(
-          <BaseTalento perfiles={perfilesTalento} vacantes={vacantes} onInvitar={invitarDesdeTalento}/>
+          <BaseTalento perfiles={perfilesTalento} vacantes={vacantes} onInvitar={invitarDesdeTalento} filtrosConfig={filtrosConfig}/>
         )}
 
         {tab==="vacantes"&&(
@@ -451,6 +457,22 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
             candidatos={candidatos} vacantes={vacantes}
             onCambioEstado={cambiarEstadoOferta}
             onVerCandidato={id=>setSelCandId(id)}
+          />
+        )}
+
+        {tab==="analitica"&&(
+          <AnaliticaReclutamiento
+            candidatos={candidatos} vacantes={vacantes} ofertas={ofertas}
+            postulaciones={postulaciones} timeline={timeline}
+          />
+        )}
+
+        {tab==="config"&&(
+          <ConfigReclutamiento
+            filtrosConfig={filtrosConfig} setFiltrosConfig={setFiltrosConfig}
+            equipo={equipoReclutamiento} setEquipo={setEquipoReclutamiento}
+            fuentesHabilitadas={fuentesHabilitadas} setFuentesHabilitadas={setFuentesHabilitadas}
+            umbralCart={umbralCart} setUmbralCart={setUmbralCart}
           />
         )}
 

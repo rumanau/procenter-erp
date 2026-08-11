@@ -402,3 +402,19 @@ export interface OfertaLaboral {
   estado: "Borrador" | "Pendiente aprobación" | "Enviada" | "Aceptada" | "Rechazada" | "Vencida";
   fecha: string;
 }
+
+export interface MiembroEquipoReclutamiento {
+  id: string;
+  nombre: string;
+  rol: string;
+  correo: string;
+}
+
+export interface FiltrosBaseTalentoConfig {
+  busqueda: boolean;
+  provincia: boolean;
+  licencia: boolean;
+  experiencia: boolean;
+  disponibilidad: boolean;
+  vehiculo: boolean;
+}

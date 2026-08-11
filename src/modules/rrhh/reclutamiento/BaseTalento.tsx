@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import type { PerfilTalento, Vacante } from "../../../types";
+import type { PerfilTalento, Vacante, FiltrosBaseTalentoConfig } from "../../../types";
 import { PROVINCIAS_CR, CATEGORIAS_LICENCIA } from "../../../data/reclutamiento";
 
 const DISPONIBILIDADES = ["Inmediata", "1-3 meses", "3+ meses"];
@@ -16,8 +16,10 @@ function compatibilidad(p:PerfilTalento, v:Vacante|undefined):number|null {
   return Math.round((score/total)*100);
 }
 
-export function BaseTalento({perfiles,vacantes,onInvitar}:{
-  perfiles:PerfilTalento[];vacantes:Vacante[];onInvitar:(perfilIds:string[],vacanteId:string)=>void;
+const FILTROS_DEFAULT:FiltrosBaseTalentoConfig={busqueda:true,provincia:true,licencia:true,experiencia:true,disponibilidad:true,vehiculo:true};
+
+export function BaseTalento({perfiles,vacantes,onInvitar,filtrosConfig=FILTROS_DEFAULT}:{
+  perfiles:PerfilTalento[];vacantes:Vacante[];onInvitar:(perfilIds:string[],vacanteId:string)=>void;filtrosConfig?:FiltrosBaseTalentoConfig;
 }) {
   const [texto,setTexto]=useState("");
   const [provincia,setProvincia]=useState("todas");
@@ -37,19 +39,19 @@ export function BaseTalento({perfiles,vacantes,onInvitar}:{
   const filtrados=useMemo(()=>{
     const q=texto.trim().toLowerCase();
     return perfiles.filter(p=>{
-      if(q&&!(p.nombre.toLowerCase().includes(q)||p.profesion.toLowerCase().includes(q)||p.competencias.join(" ").toLowerCase().includes(q)||p.cvResumen.toLowerCase().includes(q)||p.certificaciones.join(" ").toLowerCase().includes(q))) return false;
-      if(provincia!=="todas"&&p.provincia!==provincia) return false;
-      if(licenciaFiltro==="si"&&!p.licencia.tiene) return false;
-      if(licenciaFiltro==="no"&&p.licencia.tiene) return false;
-      if(categorias.length>0&&!categorias.some(c=>p.licencia.categorias.includes(c))) return false;
-      if(p.experienciaAnios<expMin) return false;
-      if(disponibilidad!=="cualquiera"&&p.disponibilidadIngreso!==disponibilidad) return false;
-      if(vehiculo==="si"&&p.vehiculoPropio==="No") return false;
-      if(vehiculo==="no"&&p.vehiculoPropio!=="No") return false;
+      if(filtrosConfig.busqueda&&q&&!(p.nombre.toLowerCase().includes(q)||p.profesion.toLowerCase().includes(q)||p.competencias.join(" ").toLowerCase().includes(q)||p.cvResumen.toLowerCase().includes(q)||p.certificaciones.join(" ").toLowerCase().includes(q))) return false;
+      if(filtrosConfig.provincia&&provincia!=="todas"&&p.provincia!==provincia) return false;
+      if(filtrosConfig.licencia&&licenciaFiltro==="si"&&!p.licencia.tiene) return false;
+      if(filtrosConfig.licencia&&licenciaFiltro==="no"&&p.licencia.tiene) return false;
+      if(filtrosConfig.licencia&&categorias.length>0&&!categorias.some(c=>p.licencia.categorias.includes(c))) return false;
+      if(filtrosConfig.experiencia&&p.experienciaAnios<expMin) return false;
+      if(filtrosConfig.disponibilidad&&disponibilidad!=="cualquiera"&&p.disponibilidadIngreso!==disponibilidad) return false;
+      if(filtrosConfig.vehiculo&&vehiculo==="si"&&p.vehiculoPropio==="No") return false;
+      if(filtrosConfig.vehiculo&&vehiculo==="no"&&p.vehiculoPropio!=="No") return false;
       return true;
     }).map(p=>({perfil:p,compat:compatibilidad(p,vacanteSel)}))
       .sort((a,b)=>(b.compat??0)-(a.compat??0));
-  },[perfiles,texto,provincia,licenciaFiltro,categorias,expMin,disponibilidad,vehiculo,vacanteSel]);
+  },[perfiles,texto,provincia,licenciaFiltro,categorias,expMin,disponibilidad,vehiculo,vacanteSel,filtrosConfig]);
 
   const invitar=()=>{
     if(seleccion.length===0||!vacanteCtx) return;
@@ -62,10 +64,13 @@ export function BaseTalento({perfiles,vacantes,onInvitar}:{
       <div style={{width:260,flexShrink:0}}>
         <div className="card">
           <div className="card-title">🔍 Filtros combinables</div>
+          {filtrosConfig.busqueda&&(
           <div className="form-group">
             <label className="form-label">Búsqueda (nombre, puesto, CV, certificaciones)</label>
             <input className="form-control" placeholder="Ej. ISO 9001, soldadura..." value={texto} onChange={e=>setTexto(e.target.value)}/>
           </div>
+          )}
+          {filtrosConfig.provincia&&(
           <div className="form-group">
             <label className="form-label">Provincia</label>
             <select className="form-control" value={provincia} onChange={e=>setProvincia(e.target.value)}>
@@ -73,6 +78,8 @@ export function BaseTalento({perfiles,vacantes,onInvitar}:{
               {PROVINCIAS_CR.map(p=><option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+          )}
+          {filtrosConfig.licencia&&(<>
           <div className="form-group">
             <label className="form-label">Licencia de conducir</label>
             <div className="pills-row">
@@ -94,10 +101,14 @@ export function BaseTalento({perfiles,vacantes,onInvitar}:{
               </div>
             </div>
           )}
+          </>)}
+          {filtrosConfig.experiencia&&(
           <div className="form-group">
             <label className="form-label">Experiencia mínima: {expMin} años</label>
             <input type="range" min={0} max={10} value={expMin} onChange={e=>setExpMin(parseInt(e.target.value))} style={{width:"100%"}}/>
           </div>
+          )}
+          {filtrosConfig.disponibilidad&&(
           <div className="form-group">
             <label className="form-label">Disponibilidad de ingreso</label>
             <select className="form-control" value={disponibilidad} onChange={e=>setDisponibilidad(e.target.value)}>
@@ -105,6 +116,8 @@ export function BaseTalento({perfiles,vacantes,onInvitar}:{
               {DISPONIBILIDADES.map(d=><option key={d} value={d}>{d}</option>)}
             </select>
           </div>
+          )}
+          {filtrosConfig.vehiculo&&(
           <div className="form-group">
             <label className="form-label">Vehículo propio</label>
             <div className="pills-row">
@@ -113,6 +126,7 @@ export function BaseTalento({perfiles,vacantes,onInvitar}:{
               ))}
             </div>
           </div>
+          )}
           <div className="form-group" style={{marginBottom:0}}>
             <label className="form-label">Vacante de referencia (compatibilidad %)</label>
             <select className="form-control" value={vacanteCtx} onChange={e=>setVacanteCtx(e.target.value)}>

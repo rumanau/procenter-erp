@@ -1,4 +1,4 @@
-import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento, OfertaLaboral } from "../types";
+import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento, OfertaLaboral, MiembroEquipoReclutamiento, FiltrosBaseTalentoConfig } from "../types";
 
 export const FUENTES_POSTULACION = ["Portal PROCENTER", "LinkedIn", "Indeed", "Referido", "Correo", "Feria de empleo", "Universidad", "Carga manual"];
 
@@ -141,3 +141,19 @@ export const TIMELINE_INIT: TimelineEvento[] = [
 ];
 
 export const OFERTAS_INIT: OfertaLaboral[] = [];
+
+export const EQUIPO_RECLUTAMIENTO_INIT: MiembroEquipoReclutamiento[] = [
+  { id: "EQ-001", nombre: "Ronald", rol: "Reclutador / Super Admin", correo: "ronald@procenter.cr" },
+  { id: "EQ-002", nombre: "Ana Vargas", rol: "Entrevistadora RRHH", correo: "ana.vargas@csi.cr" },
+  { id: "EQ-003", nombre: "Jules Ramirez", rol: "Entrevistador Técnico", correo: "jules.ramirez@csi.cr" },
+  { id: "EQ-004", nombre: "María Rojas", rol: "Entrevistadora Calidad", correo: "maria.rojas@csi.cr" },
+];
+
+export const FILTROS_TALENTO_INIT: FiltrosBaseTalentoConfig = {
+  busqueda: true,
+  provincia: true,
+  licencia: true,
+  experiencia: true,
+  disponibilidad: true,
+  vehiculo: true,
+};
