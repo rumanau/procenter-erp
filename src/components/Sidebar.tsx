@@ -1,22 +1,49 @@
-import React from "react";
+import React, { useState } from "react";
 import type { View, Company } from "../types";
 import { ProcenterIsotipo } from "./Logo";
+
+const GRUPOS:Record<string,View[]>={
+  inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"],
+  solicitudes:["solicitudes","bandeja"],
+  bi:["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"],
+  rrhh:["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"],
+  finanzas:["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca"],
+  empresas:["empresas","empresa-detalle","verticales"],
+};
+const grupoDeVista=(v:View):string|null=>Object.keys(GRUPOS).find(g=>GRUPOS[g].includes(v))||null;
 
 export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setCollapsed}:
   {view:View;setView:(v:View)=>void;setStep:(s:number)=>void;company:Company;onSwitch:()=>void;collapsed:boolean;setCollapsed:(b:boolean)=>void}) {
 
-  const ni=(id:View|null,label:string,icon:string,active:boolean,action?:()=>void)=>(
-    <div className={`nav-item ${active?"active":""}`} onClick={action??(()=>id&&setView(id))} title={label}>
-      <span className="nav-item-icon">{icon}</span>
-      {!collapsed&&<span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>}
-    </div>
-  );
-  const ns=(id:View,label:string)=>(!collapsed?<div className={`nav-sub ${view===id?"active":""}`} onClick={()=>setView(id)}>{label}</div>:null);
+  const [abiertos,setAbiertos]=useState<Record<string,boolean>>(()=>{
+    const activo=grupoDeVista(view);
+    return activo?{[activo]:true}:{};
+  });
+  const toggleGrupo=(g:string)=>setAbiertos(prev=>({...prev,[g]:!prev[g]}));
 
-  const invActive=["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"].includes(view);
-  const biActive=["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"].includes(view);
-  const solActive=["solicitudes","bandeja"].includes(view);
-  const finanzasActive=["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca"].includes(view);
+  const ni=(id:View|null,label:string,icon:string,active:boolean,action?:()=>void,grupo?:string)=>{
+    const expandible=!!grupo;
+    const abierto=grupo?(abiertos[grupo]??false):false;
+    return (
+      <div className={`nav-item ${active?"active":""}`} onClick={action??(()=>{id&&setView(id);if(grupo)setAbiertos(prev=>({...prev,[grupo]:true}));})} title={label}>
+        <span className="nav-item-icon">{icon}</span>
+        {!collapsed&&<span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{label}</span>}
+        {!collapsed&&expandible&&(
+          <span onClick={e=>{e.stopPropagation();toggleGrupo(grupo!);}} style={{marginLeft:"auto",fontSize:9,color:"rgba(255,255,255,.35)",padding:"2px 4px",transform:abierto?"rotate(90deg)":"none",transition:"transform .15s"}}>▶</span>
+        )}
+      </div>
+    );
+  };
+  const ns=(id:View,label:string,grupo?:string)=>{
+    if(collapsed) return null;
+    if(grupo&&!(abiertos[grupo]??false)) return null;
+    return <div className={`nav-sub ${view===id?"active":""}`} onClick={()=>setView(id)}>{label}</div>;
+  };
+
+  const invActive=GRUPOS.inventario.includes(view);
+  const biActive=GRUPOS.bi.includes(view);
+  const solActive=GRUPOS.solicitudes.includes(view);
+  const finanzasActive=GRUPOS.finanzas.includes(view);
 
   return (
     <div className={`sidebar ${collapsed?"collapsed":""}`}>
@@ -39,49 +66,49 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
 
       <div className="nav-section">
         {!collapsed&&<div className="nav-section-label">Módulos</div>}
-        {ni("inventario","Inventario & Prov.","📦",invActive)}
-        {ns("existencias","↳ Consulta Existencias")}
-        {ns("nuevo","↳ Nuevo Artículo")}
-        {ns("entradas","↳ Entradas & Salidas")}
-        {ns("ingreso","↳ Registrar Ingreso")}
-        {ns("salida","↳ Registrar Salida")}
-        {ns("traslado","↳ Traslado Bodegas")}
-        {ns("ajuste","↳ Ajuste Inventario")}
-        {ns("baja","↳ Baja / Descarte")}
-        {ns("conteo","↳ Conteo / Auditoría")}
-        {ns("reabasto","↳ Reabastecimiento")}
-        {ns("valorizado","↳ Inv. Valorizado")}
-        {ns("trazabilidad","↳ Trazabilidad")}
+        {ni("inventario","Inventario & Prov.","📦",invActive,undefined,"inventario")}
+        {ns("existencias","↳ Consulta Existencias","inventario")}
+        {ns("nuevo","↳ Nuevo Artículo","inventario")}
+        {ns("entradas","↳ Entradas & Salidas","inventario")}
+        {ns("ingreso","↳ Registrar Ingreso","inventario")}
+        {ns("salida","↳ Registrar Salida","inventario")}
+        {ns("traslado","↳ Traslado Bodegas","inventario")}
+        {ns("ajuste","↳ Ajuste Inventario","inventario")}
+        {ns("baja","↳ Baja / Descarte","inventario")}
+        {ns("conteo","↳ Conteo / Auditoría","inventario")}
+        {ns("reabasto","↳ Reabastecimiento","inventario")}
+        {ns("valorizado","↳ Inv. Valorizado","inventario")}
+        {ns("trazabilidad","↳ Trazabilidad","inventario")}
 
-        {ni("solicitudes","Solicitudes","📬",solActive)}
-        {ns("solicitudes","↳ Nueva Solicitud")}
-        {ns("bandeja","↳ Bandeja de Gestión")}
+        {ni("solicitudes","Solicitudes","📬",solActive,undefined,"solicitudes")}
+        {ns("solicitudes","↳ Nueva Solicitud","solicitudes")}
+        {ns("bandeja","↳ Bandeja de Gestión","solicitudes")}
 
-        {ni("bi","BI & Reportería","📊",biActive)}
-        {ns("bi-ejecutivo","↳ Dashboard Ejecutivo")}
-        {ns("bi-rrhh","↳ BI RRHH & Nómina")}
-        {ns("bi-inv","↳ BI Inventario")}
-        {ns("bi-calidad","↳ BI Calidad ISO")}
-        {ns("reportes","↳ Generador Reportes")}
+        {ni("bi","BI & Reportería","📊",biActive,undefined,"bi")}
+        {ns("bi-ejecutivo","↳ Dashboard Ejecutivo","bi")}
+        {ns("bi-rrhh","↳ BI RRHH & Nómina","bi")}
+        {ns("bi-inv","↳ BI Inventario","bi")}
+        {ns("bi-calidad","↳ BI Calidad ISO","bi")}
+        {ns("reportes","↳ Generador Reportes","bi")}
 
-        {ni("rrhh","Recursos Humanos","👥",["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"].includes(view))}
-        {ns("admin-personal","↳ Adm. Personal")}
-        {ns("planillas","↳ Planillas")}
-        {ns("nomina","↳ Nómina")}
-        {ns("asistencia","↳ Asistencia")}
-        {ns("desempeno","↳ Desempeño")}
-        {ns("reclutamiento","↳ Reclutamiento")}
-        {ns("capacitacion","↳ Capacitación")}
-        {ns("clima","↳ Clima & Salud")}
+        {ni("rrhh","Recursos Humanos","👥",GRUPOS.rrhh.includes(view),undefined,"rrhh")}
+        {ns("admin-personal","↳ Adm. Personal","rrhh")}
+        {ns("planillas","↳ Planillas","rrhh")}
+        {ns("nomina","↳ Nómina","rrhh")}
+        {ns("asistencia","↳ Asistencia","rrhh")}
+        {ns("desempeno","↳ Desempeño","rrhh")}
+        {ns("reclutamiento","↳ Reclutamiento","rrhh")}
+        {ns("capacitacion","↳ Capacitación","rrhh")}
+        {ns("clima","↳ Clima & Salud","rrhh")}
 
-        {ni("finanzas","Finanzas","💰",finanzasActive)}
-        {ns("libro-diario","↳ Libro Diario")}
-        {ns("cxc","↳ Cuentas por Cobrar")}
-        {ns("cxp","↳ Cuentas por Pagar")}
-        {ns("estados-financieros","↳ Estados Financieros")}
-        {ns("flujo-caja","↳ Flujo de Caja")}
-        {ns("facturacion","↳ Facturación Electrónica")}
-        {ns("banca","↳ Conexión Bancaria")}
+        {ni("finanzas","Finanzas","💰",finanzasActive,undefined,"finanzas")}
+        {ns("libro-diario","↳ Libro Diario","finanzas")}
+        {ns("cxc","↳ Cuentas por Cobrar","finanzas")}
+        {ns("cxp","↳ Cuentas por Pagar","finanzas")}
+        {ns("estados-financieros","↳ Estados Financieros","finanzas")}
+        {ns("flujo-caja","↳ Flujo de Caja","finanzas")}
+        {ns("facturacion","↳ Facturación Electrónica","finanzas")}
+        {ns("banca","↳ Conexión Bancaria","finanzas")}
 
         {ni(null,"CRM & Ventas","🤝",false)}
         {ni(null,"Calidad ISO","✅",false)}
@@ -93,9 +120,9 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ni("config-finanzas","Config. Finanzas","💱",view==="config-finanzas")}
 
         {!collapsed&&<div className="nav-section-label" style={{marginTop:8}}>Organización</div>}
-        {ni("empresas","Empresas & Verticales","🏛️",["empresas","empresa-detalle","verticales"].includes(view))}
-        {ns("empresa-detalle","↳ Detalle empresa")}
-        {ns("verticales","↳ Verticales")}
+        {ni("empresas","Empresas & Verticales","🏛️",GRUPOS.empresas.includes(view),undefined,"empresas")}
+        {ns("empresa-detalle","↳ Detalle empresa","empresas")}
+        {ns("verticales","↳ Verticales","empresas")}
       </div>
 
       <div className="nav-section">
