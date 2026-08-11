@@ -222,3 +222,94 @@ export interface Moneda {
   simbolo: string;
   tipoCambio: number;
 }
+
+// ── Reclutamiento: Requisiciones, Base de Talento, Vacantes ──
+
+export interface Requisicion {
+  id: string;
+  puesto: string;
+  departamento: string;
+  solicitante: string;
+  motivo: string;
+  plazas: number;
+  presupuesto: number;
+  justificacion: string;
+  prioridad: "alta" | "media" | "baja";
+  estado: "pendiente" | "aprobada" | "rechazada" | "convertida";
+  fecha: string;
+  aprobador?: string;
+}
+
+export interface LicenciaConducir {
+  tiene: boolean;
+  categorias: string[];
+  vigencia?: string;
+}
+
+export interface PerfilTalento {
+  id: string;
+  nombre: string;
+  cedula: string;
+  correo: string;
+  telefono: string;
+  provincia: string;
+  canton: string;
+  fuente: string;
+  fechaRegistro: string;
+  profesion: string;
+  educacion: string;
+  experienciaAnios: number;
+  idiomas: string[];
+  competencias: string[];
+  certificaciones: string[];
+  licencia: LicenciaConducir;
+  vehiculoPropio: string;
+  disponibilidadViajar: boolean;
+  disponibilidadIngreso: "Inmediata" | "1-3 meses" | "3+ meses";
+  expectativaSalarial: number;
+  cvResumen: string;
+  estado: "disponible" | "en proceso" | "contratado" | "no disponible";
+}
+
+export interface Postulacion {
+  id: string;
+  personaId: string;
+  vacanteId: string | null;
+  fuente: string;
+  fecha: string;
+  estado: string;
+}
+
+export interface PerfilCart {
+  id: string;
+  nombre: string;
+  puesto: string;
+  pesos: { experiencia: number; tecnica: number; educacion: number; disponibilidad: number };
+}
+
+export interface Vacante {
+  id: string;
+  puesto: string;
+  departamento: string;
+  sucursal: string;
+  plazas: number;
+  responsable: string;
+  requisicionId?: string;
+  motivoContratacion: string;
+  tipoContrato: string;
+  jornada: string;
+  modalidad: string;
+  salarioMin: number;
+  salarioMax: number;
+  fechaLimite: string;
+  descripcion: string;
+  funciones: string;
+  requisitos: string;
+  educacionMin: string;
+  experienciaMin: number;
+  competencias: string;
+  idiomas: string;
+  perfilCartId?: string;
+  estado: "Borrador" | "Activa" | "Pausada" | "Cerrada";
+  fecha: string;
+}

@@ -1,6 +1,10 @@
 import React, { useState } from "react";
-import type { View, Empleado } from "../../types";
+import type { View, Empleado, Vacante, Requisicion } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
+import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT } from "../../data/reclutamiento";
+import { Requisiciones } from "./reclutamiento/Requisiciones";
+import { BaseTalento } from "./reclutamiento/BaseTalento";
+import { VacanteModal } from "./reclutamiento/VacanteModal";
 
 export function CartTab({setTab}:{setTab:(t:string)=>void}) {
   const [exp,setExp]=useState(2);
@@ -172,10 +176,11 @@ export function CartTab({setTab}:{setTab:(t:string)=>void}) {
 
 export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setView:(v:View)=>void;empleados:Empleado[];setEmpleados:(e:Empleado[])=>void;catalogos:typeof CATALOGOS_INIT}) {
   const [tab,setTab]=useState("vacantes");
-  const [vacantes]=useState([
-    {id:"VAC-001",puesto:"Técnico de Mantenimiento",depto:"Mantenimiento",tipo:"Indefinido",salarioMin:750000,salarioMax:900000,estado:"Activa",candidatos:4,fecha:"10 Jun 2024"},
-    {id:"VAC-002",puesto:"Asistente Administrativo",depto:"Administración",tipo:"Plazo fijo",salarioMin:500000,salarioMax:650000,estado:"Activa",candidatos:7,fecha:"05 Jun 2024"},
-  ]);
+  const [vacantes,setVacantes]=useState<Vacante[]>(VACANTES_INIT);
+  const [requisiciones,setRequisiciones]=useState<Requisicion[]>(REQUISICIONES_INIT);
+  const [perfilesTalento,setPerfilesTalento]=useState(PERFILES_TALENTO_INIT);
+  const [postulaciones,setPostulaciones]=useState(POSTULACIONES_INIT);
+  const [modalVacante,setModalVacante]=useState<{modo:"crear"|"editar";vacante:Vacante|null;requisicion:Requisicion|null}|null>(null);
   const [candidatos,setCandidatos]=useState([
     {id:"CAND-001",nombre:"Esteban Vargas",vacante:"VAC-001",etapa:"Entrevista técnica",puntCART:85,estado:"Avanzando",correo:"e.vargas@gmail.com",tel:"8654-3210"},
     {id:"CAND-002",nombre:"Alicia Moreno",vacante:"VAC-001",etapa:"Prueba técnica",puntCART:72,estado:"En proceso",correo:"a.moreno@hotmail.com",tel:"8833-1122"},
@@ -205,8 +210,8 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
       id:`COL-${String(empleados.length+1).padStart(3,"0")}`,
       nombre:cand.nombre,
       puesto:vac.puesto,
-      depto:vac.depto,
-      tipo:vac.tipo,
+      depto:vac.departamento,
+      tipo:vac.tipoContrato,
       inicio:new Date().toLocaleDateString("es-CR"),
       estado:"activo",
       foto:cand.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase(),
@@ -216,7 +221,23 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
     };
     setEmpleados([...empleados,nuevo]);
     setCandidatos(prev=>prev.map(c=>c.id===cand.id?{...c,etapa:"Contratado",estado:"Integrado"}:c));
-    alert(`✅ ¡${cand.nombre} integrado exitosamente!\n\nID: ${nuevo.id}\nPuesto: ${vac.puesto}\nDpto: ${vac.depto}\nPlanilla: ${(catalogos.planillas as any[]).find(p=>p.id===nuevo.planillaId)?.nombre||"—"}\n\nYa aparece en nómina y todos los módulos RRHH.`);
+    alert(`✅ ¡${cand.nombre} integrado exitosamente!\n\nID: ${nuevo.id}\nPuesto: ${vac.puesto}\nDpto: ${vac.departamento}\nPlanilla: ${(catalogos.planillas as any[]).find(p=>p.id===nuevo.planillaId)?.nombre||"—"}\n\nYa aparece en nómina y todos los módulos RRHH.`);
+  };
+
+  const guardarVacante=(v:Vacante)=>{
+    setVacantes(prev=>prev.some(x=>x.id===v.id)?prev.map(x=>x.id===v.id?v:x):[v,...prev]);
+    setModalVacante(null);
+  };
+
+  const invitarDesdeTalento=(perfilIds:string[],vacanteId:string)=>{
+    const nuevos=perfilIds.map(pid=>{
+      const p=perfilesTalento.find(x=>x.id===pid)!;
+      return {id:`CAND-${Date.now()}-${pid.slice(-3)}`,nombre:p.nombre,vacante:vacanteId,etapa:"Aplicación",puntCART:0,estado:"En proceso",correo:p.correo,tel:p.telefono};
+    });
+    setCandidatos(prev=>[...prev,...nuevos]);
+    setPostulaciones(prev=>[...prev,...perfilIds.map(pid=>({id:`POST-${Date.now()}-${pid.slice(-3)}`,personaId:pid,vacanteId,fuente:perfilesTalento.find(x=>x.id===pid)?.fuente||"Base de Talento",fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),estado:"En proceso"}))]);
+    setPerfilesTalento(prev=>prev.map(p=>perfilIds.includes(p.id)?{...p,estado:"en proceso"}:p));
+    setTab("candidatos");
   };
 
   const fmt=(n:number)=>`₡${n.toLocaleString("es-CR")}`;
@@ -231,48 +252,66 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
           </div>
           <div style={{display:"flex",gap:6}}>
             <button className="btn btn-secondary btn-sm" onClick={()=>setView("rrhh")}>← RRHH</button>
-            <button className="btn btn-primary btn-sm" onClick={()=>alert("Nueva vacante creada.")}>➕ Nueva Vacante</button>
+            <button className="btn btn-primary btn-sm" onClick={()=>setModalVacante({modo:"crear",vacante:null,requisicion:null})}>➕ Nueva Vacante</button>
           </div>
         </div>
 
-        <div className="g4" style={{marginBottom:14}}>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("vacantes")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📋 Vacantes activas</div><div className="kpi-value">{vacantes.filter(v=>v.estado==="Activa").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("candidatos")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">👤 Candidatos en pipeline</div><div className="kpi-value">{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("pipeline")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔄 Pipeline por etapa</div><div className="kpi-value" style={{color:"#3B82F6"}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("integracion")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔗 Integración</div><div className="kpi-value" style={{color:"#10B981"}}>{candidatos.filter(c=>c.estado==="Integrado").length}</div></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("requisiciones")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📝 Requisiciones</div><div className="kpi-value" style={{fontSize:18}}>{requisiciones.filter(r=>r.estado==="pendiente").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("vacantes")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📋 Vacantes activas</div><div className="kpi-value" style={{fontSize:18}}>{vacantes.filter(v=>v.estado==="Activa").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("talento")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🗂️ Base de Talento</div><div className="kpi-value" style={{fontSize:18}}>{perfilesTalento.length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("candidatos")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">👤 Candidatos en pipeline</div><div className="kpi-value" style={{fontSize:18}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("pipeline")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔄 Pipeline por etapa</div><div className="kpi-value" style={{fontSize:18,color:"#3B82F6"}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("integracion")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔗 Integración</div><div className="kpi-value" style={{fontSize:18,color:"#10B981"}}>{candidatos.filter(c=>c.estado==="Integrado").length}</div></div>
         </div>
 
         <div className="tab-bar">
-          {[["vacantes","📋 Vacantes"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
+          {[["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
             <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{l}</div>
           ))}
         </div>
 
+        {tab==="requisiciones"&&(
+          <Requisiciones requisiciones={requisiciones} setRequisiciones={setRequisiciones} onCrearVacante={req=>{setModalVacante({modo:"crear",vacante:null,requisicion:req});setTab("vacantes");}}/>
+        )}
+
+        {tab==="talento"&&(
+          <BaseTalento perfiles={perfilesTalento} vacantes={vacantes} onInvitar={invitarDesdeTalento}/>
+        )}
+
         {tab==="vacantes"&&(
           <div>
-            {vacantes.map(v=>(
+            {vacantes.map(v=>{
+              const nCand=candidatos.filter(c=>c.vacante===v.id).length;
+              return (
               <div key={v.id} className="card" style={{marginBottom:10,display:"flex",gap:16,alignItems:"center"}}>
                 <div style={{width:48,height:48,background:"#EFF6FF",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>🔍</div>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>{v.puesto}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <span style={{fontFamily:"monospace",fontSize:10.5,color:"#9CA3AF"}}>{v.id}</span>
+                    <span style={{fontSize:14,fontWeight:700}}>{v.puesto}</span>
+                    {v.requisicionId&&<span className="badge badge-purple" style={{fontSize:9.5}}>{v.requisicionId}</span>}
+                  </div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
-                    <span className="badge badge-info">{v.depto}</span>
-                    <span className={`badge ${v.tipo==="Indefinido"?"badge-ok":"badge-warn"}`}>{v.tipo}</span>
-                    <span className="badge badge-ok">{v.estado}</span>
+                    <span className="badge badge-info">{v.departamento}</span>
+                    <span className={`badge ${v.tipoContrato==="Indefinido"?"badge-ok":"badge-warn"}`}>{v.tipoContrato}</span>
+                    <span className={`badge ${v.estado==="Activa"?"badge-ok":v.estado==="Borrador"?"badge-gray":v.estado==="Pausada"?"badge-warn":"badge-crit"}`}>{v.estado}</span>
                     <span style={{fontSize:11.5,color:"#6B7280"}}>💰 {fmt(v.salarioMin)} – {fmt(v.salarioMax)}</span>
-                    <span style={{fontSize:11.5,color:"#6B7280"}}>📅 Abierta: {v.fecha}</span>
+                    <span style={{fontSize:11.5,color:"#6B7280"}}>📅 Límite: {v.fechaLimite||"—"}</span>
+                    {v.perfilCartId&&<span style={{fontSize:11.5,color:"#6B7280"}}>🌳 {PERFILES_CART_INIT.find(p=>p.id===v.perfilCartId)?.nombre}</span>}
                   </div>
                 </div>
                 <div style={{textAlign:"center" as const}}>
-                  <div style={{fontSize:24,fontWeight:700,color:"#3B82F6"}}>{v.candidatos}</div>
+                  <div style={{fontSize:24,fontWeight:700,color:"#3B82F6"}}>{nCand}</div>
                   <div style={{fontSize:10.5,color:"#6B7280"}}>candidatos</div>
                 </div>
                 <div style={{display:"flex",gap:6}}>
                   <button className="btn btn-secondary btn-sm" onClick={()=>setTab("candidatos")}>Ver candidatos</button>
-                  <button className="btn btn-ghost btn-sm">✏️ Editar</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setModalVacante({modo:"editar",vacante:v,requisicion:null})}>✏️ Editar</button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -380,7 +419,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                   <label className="form-label">Vacante</label>
                   <select className="form-control" value={vacSelCtor} onChange={e=>setVacSelCtor(e.target.value)}>
                     <option value="Manual">Manual (sin aplicar a vacante)</option>
-                    {vacantes.map(v=><option key={v.id} value={v.id}>{v.puesto} ({v.depto})</option>)}
+                    {vacantes.map(v=><option key={v.id} value={v.id}>{v.puesto} ({v.departamento})</option>)}
                   </select>
                 </div>
 
@@ -602,6 +641,10 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
       </div>
 
       <div className="right-panel">
+        <div className="panel-title">Postulaciones recibidas</div>
+        <div className="res-row"><span className="res-label">Total histórico</span><span className="res-val">{postulaciones.length}</span></div>
+        <div className="res-row"><span className="res-label">En Base de Talento</span><span className="res-val" style={{color:"#7C3AED"}}>{postulaciones.filter(p=>p.vacanteId===null).length}</span></div>
+        <div style={{height:14}}/>
         <div className="panel-title">Pipeline resumen</div>
         {etapas.slice(1,-1).map(et=>{
           const n=candidatos.filter(c=>c.etapa===et).length;
@@ -617,17 +660,27 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
         {vacantes.filter(v=>v.estado==="Activa").map(v=>(
           <div key={v.id} style={{padding:"7px 0",borderBottom:"1px solid #F3F4F6"}}>
             <div style={{fontSize:12,fontWeight:600}}>{v.puesto}</div>
-            <div style={{fontSize:10.5,color:"#6B7280"}}>{v.candidatos} candidatos · {v.depto}</div>
+            <div style={{fontSize:10.5,color:"#6B7280"}}>{candidatos.filter(c=>c.vacante===v.id).length} candidatos · {v.departamento}</div>
           </div>
         ))}
         <div style={{height:14}}/>
         <div className="panel-title">Acciones rápidas</div>
-        {[{l:"Nueva vacante",i:"➕"},{l:"Agregar candidato",i:"👤"},{l:"Ver pipeline",i:"🔄"},{l:"Usar CART",i:"🌳"}].map(a=>(
-          <div key={a.l} onClick={()=>alert(a.l)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:7,cursor:"pointer",marginBottom:4}} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.background="#F9FAFB"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.background="transparent"}>
+        {[{l:"Nueva vacante",i:"➕",a:()=>setModalVacante({modo:"crear",vacante:null,requisicion:null})},{l:"Base de Talento",i:"🗂️",a:()=>setTab("talento")},{l:"Ver pipeline",i:"🔄",a:()=>setTab("pipeline")},{l:"Usar CART",i:"🌳",a:()=>setTab("cart")}].map(a=>(
+          <div key={a.l} onClick={a.a} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:7,cursor:"pointer",marginBottom:4}} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.background="#F9FAFB"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.background="transparent"}>
             <span>{a.i}</span><span style={{fontSize:11.5,color:"#374151"}}>{a.l}</span><span style={{marginLeft:"auto",color:"#D1D5DB"}}>›</span>
           </div>
         ))}
       </div>
+
+      {modalVacante&&(
+        <VacanteModal
+          vacante={modalVacante.vacante}
+          requisicionOrigen={modalVacante.requisicion}
+          perfilesCart={PERFILES_CART_INIT}
+          onGuardar={guardarVacante}
+          onCerrar={()=>setModalVacante(null)}
+        />
+      )}
     </div>
   );
 }
