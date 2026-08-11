@@ -1,4 +1,4 @@
-import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento } from "../types";
+import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento, OfertaLaboral } from "../types";
 
 export const FUENTES_POSTULACION = ["Portal PROCENTER", "LinkedIn", "Indeed", "Referido", "Correo", "Feria de empleo", "Universidad", "Carga manual"];
 
@@ -139,3 +139,5 @@ export const TIMELINE_INIT: TimelineEvento[] = [
   { id: "TL-013", candidatoId: "CAND-004", fecha: "22 Jul 2026", icono: "🌳", descripcion: "Evaluación CART: 45/100", responsable: "Sistema" },
   { id: "TL-014", candidatoId: "CAND-004", fecha: "23 Jul 2026", icono: "✕", descripcion: "Candidatura descartada — no cumple criterios mínimos", responsable: "Ronald" },
 ];
+
+export const OFERTAS_INIT: OfertaLaboral[] = [];

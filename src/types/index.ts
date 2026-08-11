@@ -378,3 +378,27 @@ export interface Documento {
   version: string;
   estado: "Pendiente" | "Recibido" | "Verificado";
 }
+
+export interface ArbolCartNodo {
+  id: string;
+  pregunta: string;
+  siNode: string;
+  noNode: string;
+}
+
+export interface OfertaLaboral {
+  id: string;
+  candidatoId: string;
+  vacanteId: string;
+  salario: number;
+  puesto: string;
+  departamento: string;
+  jornada: string;
+  modalidad: string;
+  fechaIngreso: string;
+  beneficios: string;
+  periodoPrueba: string;
+  observaciones: string;
+  estado: "Borrador" | "Pendiente aprobación" | "Enviada" | "Aceptada" | "Rechazada" | "Vencida";
+  fecha: string;
+}

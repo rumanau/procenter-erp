@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import type { View, Empleado, Vacante, Requisicion, Candidato, Entrevista, Evaluacion, Documento, TimelineEvento } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
-import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT } from "../../data/reclutamiento";
+import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT, OFERTAS_INIT } from "../../data/reclutamiento";
 import { Requisiciones } from "./reclutamiento/Requisiciones";
 import { BaseTalento } from "./reclutamiento/BaseTalento";
 import { VacanteModal } from "./reclutamiento/VacanteModal";
 import { CandidatoExpediente } from "./reclutamiento/CandidatoExpediente";
 import { Entrevistas } from "./reclutamiento/Entrevistas";
 import { MoverEtapaModal } from "./reclutamiento/MoverEtapaModal";
+import { ArbolCartViz } from "./reclutamiento/ArbolCartViz";
+import { Ofertas } from "./reclutamiento/Ofertas";
+import type { ArbolCartNodo, OfertaLaboral } from "../../types";
 
-export function CartTab({setTab}:{setTab:(t:string)=>void}) {
+export function CartTab({setTab,arbolNodos}:{setTab:(t:string)=>void;arbolNodos:Record<string,ArbolCartNodo>}) {
   const [exp,setExp]=useState(2);
   const [tecnica,setTecnica]=useState(60);
   const [idioma,setIdioma]=useState("No");
@@ -32,54 +35,29 @@ export function CartTab({setTab}:{setTab:(t:string)=>void}) {
     else if(score>=45){clase="⏸ EN ESPERA — Revisar";prob=45;segment="Perfil marginal";}
     else{clase="✗ NO APTO — Descartar";prob=18;segment="Perfil no compatible";}
 
-    setResultado({clase,prob,segment,desc:`exp=${exp}y, técnica=${tecnica}, idioma=${idioma}, edu=${edu}, disp=${disp}`});
+    const cumple:string[]=[],falta:string[]=[];
+    (exp>=2?cumple:falta).push(`experiencia (${exp} años, mínimo 2)`);
+    (tecnica>=60?cumple:falta).push(`score técnico (${tecnica}/100, mínimo 60)`);
+    (idioma==="Intermedio"||idioma==="Avanzado"?cumple:falta).push(`idioma (${idioma})`);
+    (edu==="Universitario"||edu==="Posgrado"?cumple:falta).push(`educación (${edu})`);
+    (disp==="Inmediata"?cumple:falta).push(`disponibilidad (${disp})`);
+    const desc=falta.length===0
+      ? `Cumple todos los criterios evaluados: ${cumple.join(", ")}.`
+      : `Criterios que suman: ${cumple.length?cumple.join(", "):"ninguno"}. Criterios débiles: ${falta.join(", ")}.`;
+
+    setResultado({clase,prob,segment,desc});
   };
 
   return (
     <div style={{display:"flex",flexDirection:"column" as const,gap:14}}>
-      {/* Árbol visual mejorado */}
       <div className="card">
-        <div className="card-title" style={{marginBottom:16}}>🌳 Árbol CART — Clasificación estadística de candidatos</div>
-        <div style={{overflowX:"auto",paddingBottom:12}}>
-          <div style={{display:"flex",flexDirection:"column" as const,alignItems:"center",gap:20,minWidth:800}}>
-            {/* Nodo raíz */}
-            <div style={{width:160,padding:"12px",background:"#1B1F2E",color:"#fff",borderRadius:8,textAlign:"center" as const,fontWeight:700,fontSize:13}}>¿Exp ≥ 5 años?</div>
-
-            {/* Bifurcación 1 */}
-            <div style={{display:"flex",gap:60,width:"100%",justifyContent:"center"}}>
-              <div style={{textAlign:"center" as const}}>
-                <div style={{fontSize:11,color:"#10B981",fontWeight:700,marginBottom:8}}>Sí</div>
-                <div style={{width:140,padding:"10px",background:"#EFF6FF",border:"2px solid #3B82F6",borderRadius:8,fontSize:12,fontWeight:600}}>¿Score ≥ 80?</div>
-              </div>
-              <div style={{textAlign:"center" as const}}>
-                <div style={{fontSize:11,color:"#EF4444",fontWeight:700,marginBottom:8}}>No</div>
-                <div style={{width:140,padding:"10px",background:"#FEF2F2",border:"2px solid #EF4444",borderRadius:8,fontSize:12,fontWeight:600}}>¿Exp ≥ 3 años?</div>
-              </div>
-            </div>
-
-            {/* Resultados finales */}
-            <div style={{display:"flex",gap:30,width:"100%",justifyContent:"center",flexWrap:"wrap"}}>
-              <div style={{width:110,padding:"10px",background:"#ECFDF5",border:"2px solid #10B981",borderRadius:8,textAlign:"center" as const}}>
-                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>Apto (94%)</div>
-                <div style={{fontWeight:700,fontSize:13,color:"#065F46"}}>✅ CONTRATAR</div>
-              </div>
-              <div style={{width:110,padding:"10px",background:"#EFF6FF",border:"2px solid #3B82F6",borderRadius:8,textAlign:"center" as const}}>
-                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>Potencial (68%)</div>
-                <div style={{fontWeight:700,fontSize:13,color:"#1D4ED8"}}>🔄 2ª ENTREVISTA</div>
-              </div>
-              <div style={{width:110,padding:"10px",background:"#FFFBEB",border:"2px solid #F59E0B",borderRadius:8,textAlign:"center" as const}}>
-                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>Marginal (45%)</div>
-                <div style={{fontWeight:700,fontSize:13,color:"#92400E"}}>⏸ EN ESPERA</div>
-              </div>
-              <div style={{width:110,padding:"10px",background:"#FEF2F2",border:"2px solid #EF4444",borderRadius:8,textAlign:"center" as const}}>
-                <div style={{fontSize:10,color:"#6B7280",marginBottom:2}}>No apto (18%)</div>
-                <div style={{fontWeight:700,fontSize:13,color:"#991B1B"}}>✗ DESCARTAR</div>
-              </div>
-            </div>
-          </div>
+        <div className="card-title" style={{marginBottom:16}}>🌳 Árbol CART — mismo árbol configurado en Constructor</div>
+        <div style={{overflowX:"auto",paddingBottom:12,background:"#F8FAFC",borderRadius:8,border:"1px solid #E5E7EB",padding:16}}>
+          <ArbolCartViz nodos={arbolNodos} width={900} height={340}/>
         </div>
-        <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #E5E7EB",fontSize:10,color:"#6B7280"}}>
-          ✓ Poda activa (profundidad máx. 3) — Previene overfitting
+        <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #E5E7EB",fontSize:10,color:"#6B7280",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>🔗 Este árbol se edita en la pestaña <b>Constructor</b> — los cambios se reflejan aquí automáticamente.</span>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setTab("constructor")}>🛠️ Editar árbol</button>
         </div>
       </div>
 
@@ -149,7 +127,7 @@ export function CartTab({setTab}:{setTab:(t:string)=>void}) {
             <div className="card-title">📈 Resultado CART</div>
             <div style={{background:resultado.prob>=80?"#ECFDF5":resultado.prob>=65?"#EFF6FF":resultado.prob>=45?"#FFFBEB":"#FEF2F2",border:`2px solid ${resultado.prob>=80?"#6EE7B7":resultado.prob>=65?"#BFDBFE":resultado.prob>=45?"#FDE68A":"#FCA5A5"}`,borderRadius:10,padding:14,marginBottom:12}}>
               <div style={{fontSize:13,fontWeight:700,color:resultado.prob>=80?"#065F46":resultado.prob>=65?"#1D4ED8":resultado.prob>=45?"#92400E":"#991B1B",marginBottom:6}}>{resultado.clase}</div>
-              <div style={{fontSize:11,color:"#6B7280",marginBottom:8}}>No cumple criterios mínimos: exp=4, score=82, idioma=No</div>
+              <div style={{fontSize:11,color:"#6B7280",marginBottom:8}}>{resultado.desc}</div>
               <div style={{fontSize:24,fontWeight:700,color:resultado.prob>=80?"#10B981":resultado.prob>=65?"#3B82F6":resultado.prob>=45?"#F59E0B":"#EF4444"}}>
                 {resultado.prob}%
               </div>
@@ -192,10 +170,28 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
   const [selCandId,setSelCandId]=useState<string|null>(null);
   const [moverEtapaCand,setMoverEtapaCand]=useState<Candidato|null>(null);
   const [entrevistaPreseleccion,setEntrevistaPreseleccion]=useState<{candidatoId:string;abrir:boolean}|null>(null);
+  const [ofertas,setOfertas]=useState<OfertaLaboral[]>(OFERTAS_INIT);
   const selCand=candidatos.find(c=>c.id===selCandId)||null;
 
   const agregarEvento=(candidatoId:string,icono:string,descripcion:string,responsable?:string)=>{
     setTimeline(prev=>[...prev,{id:`TL-${Date.now()}`,candidatoId,fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),icono,descripcion,responsable}]);
+  };
+
+  const cambiarEstadoOferta=(oferta:OfertaLaboral,nuevoEstado:OfertaLaboral["estado"])=>{
+    setOfertas(prev=>prev.map(o=>o.id===oferta.id?{...o,estado:nuevoEstado}:o));
+    if(nuevoEstado==="Enviada"){
+      agregarEvento(oferta.candidatoId,"📨",`Oferta enviada — ${fmt(oferta.salario)}, ingreso ${oferta.fechaIngreso}`,"Ronald");
+      setCandidatos(prev=>prev.map(c=>c.id===oferta.candidatoId?{...c,etapa:"Oferta"}:c));
+    } else if(nuevoEstado==="Aceptada"){
+      agregarEvento(oferta.candidatoId,"🎉",`Oferta aceptada por el candidato`,"Ronald");
+      setCandidatos(prev=>prev.map(c=>c.id===oferta.candidatoId?{...c,etapa:"Contratado"}:c));
+    } else if(nuevoEstado==="Rechazada"){
+      agregarEvento(oferta.candidatoId,"✕",`Oferta rechazada por el candidato`,"Ronald");
+    } else if(nuevoEstado==="Vencida"){
+      agregarEvento(oferta.candidatoId,"⏱",`Oferta vencida sin respuesta`,"Ronald");
+    } else if(nuevoEstado==="Pendiente aprobación"){
+      agregarEvento(oferta.candidatoId,"📤",`Oferta enviada a aprobación`,"Ronald");
+    }
   };
 
   // Constructor de árbol
@@ -296,7 +292,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
         </div>
 
         <div className="tab-bar">
-          {[["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
+          {[["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
             <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{l}</div>
           ))}
         </div>
@@ -437,6 +433,15 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
           />
         )}
 
+        {tab==="ofertas"&&(
+          <Ofertas
+            ofertas={ofertas} setOfertas={setOfertas}
+            candidatos={candidatos} vacantes={vacantes}
+            onCambioEstado={cambiarEstadoOferta}
+            onVerCandidato={id=>setSelCandId(id)}
+          />
+        )}
+
         {tab==="constructor"&&(
           <div className="g2" style={{alignItems:"start"}}>
             <div>
@@ -499,99 +504,15 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                   ))}
                 </div>
 
-                <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>alert("✅ Árbol personalizado aplicado a CART")}>📤 Aplicar a CART</button>
+                <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>setTab("cart")}>📤 Ver en CART</button>
+                <div style={{fontSize:10,color:"#9CA3AF",marginTop:6,textAlign:"center" as const}}>Los cambios ya están activos — CART usa este mismo árbol en tiempo real.</div>
               </div>
             </div>
 
             <div className="card">
               <div className="card-title">🌳 Preview — Árbol generado con dependencias</div>
               <div style={{overflowX:"auto",paddingBottom:12,background:"#F8FAFC",borderRadius:8,border:"1px solid #E5E7EB",padding:16}}>
-                <svg width="100%" height="500" viewBox="0 0 1200 500" style={{minWidth:1000}}>
-                  {/* Definiciones */}
-                  <defs>
-                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                      <polygon points="0 0, 10 3, 0 6" fill="#10B981"/>
-                    </marker>
-                    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                      <polygon points="0 0, 10 3, 0 6" fill="#EF4444"/>
-                    </marker>
-                  </defs>
-
-                  {(() => {
-                    const positions: Record<string,{x:number;y:number}> = {};
-
-                    const calcPos = (levelIndex:number, posInLevel:number): {x:number;y:number} => {
-                      const levelCount = Math.pow(2, levelIndex);
-                      const spacing = 1100 / (levelCount + 1);
-                      const x = 50 + spacing * (posInLevel + 0.5);
-                      const y = 50 + levelIndex * 110;
-                      return {x, y};
-                    };
-
-                    const getResultColor = (resultado:string) => {
-                      if(resultado==="CONTRATAR") return {bg:"#ECFDF5",border:"#6EE7B7",text:"#065F46"};
-                      if(resultado==="SEGUNDA ENTREVISTA") return {bg:"#EFF6FF",border:"#BFDBFE",text:"#1D4ED8"};
-                      if(resultado==="EN ESPERA") return {bg:"#FFFBEB",border:"#FDE68A",text:"#92400E"};
-                      return {bg:"#FEF2F2",border:"#FCA5A5",text:"#991B1B"};
-                    };
-
-                    const renderTreeSVG = (nodoId:string, level:number, pos:number) => {
-                      const currentPos = calcPos(level, pos);
-                      positions[nodoId] = currentPos;
-                      const elements: React.ReactNode[] = [];
-
-                      if(typeof nodoId === "string" && !nodoId.startsWith("n")) {
-                        const colors = getResultColor(nodoId);
-                        elements.push(
-                          <g key={`result-${nodoId}`}>
-                            <rect x={currentPos.x-65} y={currentPos.y-22} width="130" height="44" fill={colors.bg} stroke={colors.border} strokeWidth="2.5" rx="8"/>
-                            <text x={currentPos.x} y={currentPos.y+6} textAnchor="middle" fill={colors.text} fontSize="12" fontWeight="700">
-                              {nodoId.length>15 ? nodoId.substring(0,12)+"..." : nodoId}
-                            </text>
-                          </g>
-                        );
-                        return elements;
-                      }
-
-                      const n = arbolNodos[nodoId];
-                      if(!n) return elements;
-
-                      // Nodo de decisión
-                      elements.push(
-                        <g key={`decision-${nodoId}`}>
-                          <rect x={currentPos.x-70} y={currentPos.y-22} width="140" height="44" fill="#1B1F2E" stroke="#374151" strokeWidth="2.5" rx="8"/>
-                          <text x={currentPos.x} y={currentPos.y-4} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">
-                            {n.pregunta.length>20 ? n.pregunta.substring(0,17)+"..." : n.pregunta}
-                          </text>
-                        </g>
-                      );
-
-                      // Rama SÍ (izquierda)
-                      const siPos = calcPos(level + 1, pos * 2);
-                      elements.push(
-                        <g key={`line-si-${nodoId}`}>
-                          <line x1={currentPos.x-35} y1={currentPos.y+22} x2={siPos.x} y2={siPos.y-25} stroke="#10B981" strokeWidth="2.5" markerEnd="url(#arrowGreen)"/>
-                          <text x={(currentPos.x-35+siPos.x)/2} y={(currentPos.y+22+siPos.y-25)/2-5} fill="#10B981" fontSize="11" fontWeight="700">Sí</text>
-                        </g>
-                      );
-                      elements.push(...renderTreeSVG(n.siNode, level + 1, pos * 2));
-
-                      // Rama NO (derecha)
-                      const noPos = calcPos(level + 1, pos * 2 + 1);
-                      elements.push(
-                        <g key={`line-no-${nodoId}`}>
-                          <line x1={currentPos.x+35} y1={currentPos.y+22} x2={noPos.x} y2={noPos.y-25} stroke="#EF4444" strokeWidth="2.5" markerEnd="url(#arrowRed)"/>
-                          <text x={(currentPos.x+35+noPos.x)/2} y={(currentPos.y+22+noPos.y-25)/2-5} fill="#EF4444" fontSize="11" fontWeight="700">No</text>
-                        </g>
-                      );
-                      elements.push(...renderTreeSVG(n.noNode, level + 1, pos * 2 + 1));
-
-                      return elements;
-                    };
-
-                    return renderTreeSVG("n1", 0, 0);
-                  })()}
-                </svg>
+                <ArbolCartViz nodos={arbolNodos} width={1200} height={500}/>
               </div>
 
               <div style={{marginTop:14,background:"#F9FAFB",borderRadius:8,padding:12}}>
@@ -666,7 +587,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
           </div>
         )}
 
-        {tab==="cart"&&<CartTab setTab={setTab}/>}
+        {tab==="cart"&&<CartTab setTab={setTab} arbolNodos={arbolNodos}/>}
       </div>
 
       <div className="right-panel">
