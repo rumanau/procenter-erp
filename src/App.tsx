@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company } from "./types";
+import type { View, Company, AsientoContable } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";
 import { CATALOGOS_INIT } from "./data/catalogos";
 import { COMPANIES } from "./data/empresas";
+import { ASIENTOS_INIT } from "./data/finanzas";
 
 // componentes compartidos
 import { Sidebar } from "./components/Sidebar";
@@ -55,6 +56,17 @@ import { CatalogoPlanillas }   from "./modules/config/CatalogoPlanillas";
 // módulos — empresas
 import { ModuloEmpresas }      from "./modules/empresas/ModuloEmpresas";
 
+// módulos — finanzas
+import { FinanzasHome }        from "./modules/finanzas/FinanzasHome";
+import { LibroDiario }         from "./modules/finanzas/LibroDiario";
+import { CuentasPorCobrar }    from "./modules/finanzas/CuentasPorCobrar";
+import { CuentasPorPagar }     from "./modules/finanzas/CuentasPorPagar";
+import { EstadosFinancieros }  from "./modules/finanzas/EstadosFinancieros";
+import { FlujoCaja }           from "./modules/finanzas/FlujoCaja";
+import { Facturacion }         from "./modules/finanzas/Facturacion";
+import { ConexionBancaria }    from "./modules/finanzas/ConexionBancaria";
+import { ConfigFinanzas }      from "./modules/finanzas/ConfigFinanzas";
+
 export default function App() {
   const [appState, setAppState] = useState<"login" | "selector" | "app">("login");
   const [company, setCompany]   = useState<Company>(COMPANIES[0]);
@@ -63,6 +75,7 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [catalogos, setCatalogos] = useState(CATALOGOS_INIT);
   const [empleados, setEmpleados] = useState(COLABORADORES_INIT);
+  const [asientosContables, setAsientosContables] = useState<AsientoContable[]>(ASIENTOS_INIT);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -116,12 +129,23 @@ export default function App() {
         {/* RRHH */}
         {view === "rrhh"           && <RRHHHome          setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "admin-personal" && <AdminPersonal     setView={setView} empleados={empleados} setEmpleados={setEmpleados} catalogos={catalogos} />}
-        {view === "nomina"         && <NominaComp        setView={setView} empleados={empleados} catalogos={catalogos} />}
+        {view === "nomina"         && <NominaComp        setView={setView} empleados={empleados} catalogos={catalogos} asientosContables={asientosContables} setAsientosContables={setAsientosContables} />}
         {view === "asistencia"     && <ControlAsistencia setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "desempeno"      && <GestionDesempeno  setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "reclutamiento"  && <Reclutamiento     setView={setView} empleados={empleados} setEmpleados={setEmpleados} catalogos={catalogos} />}
         {view === "capacitacion"   && <Capacitacion      setView={setView} />}
         {view === "clima"          && <ClimaYSalud       setView={setView} />}
+
+        {/* FINANZAS */}
+        {view === "finanzas"             && <FinanzasHome        setView={setView} asientos={asientosContables} />}
+        {view === "libro-diario"         && <LibroDiario          setView={setView} asientos={asientosContables} setAsientos={setAsientosContables} />}
+        {view === "cxc"                  && <CuentasPorCobrar     setView={setView} />}
+        {view === "cxp"                  && <CuentasPorPagar      setView={setView} />}
+        {view === "estados-financieros"  && <EstadosFinancieros   setView={setView} asientos={asientosContables} />}
+        {view === "flujo-caja"           && <FlujoCaja            setView={setView} />}
+        {view === "facturacion"          && <Facturacion          setView={setView} />}
+        {view === "banca"                && <ConexionBancaria     setView={setView} />}
+        {view === "config-finanzas"      && <ConfigFinanzas       setView={setView} />}
       </div>
     </div>
   );

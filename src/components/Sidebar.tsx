@@ -16,6 +16,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
   const invActive=["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"].includes(view);
   const biActive=["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"].includes(view);
   const solActive=["solicitudes","bandeja"].includes(view);
+  const finanzasActive=["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca"].includes(view);
 
   return (
     <div className={`sidebar ${collapsed?"collapsed":""}`}>
@@ -72,7 +73,16 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ns("reclutamiento","↳ Reclutamiento")}
         {ns("capacitacion","↳ Capacitación")}
         {ns("clima","↳ Clima & Salud")}
-        {ni(null,"Finanzas","💰",false)}
+
+        {ni("finanzas","Finanzas","💰",finanzasActive)}
+        {ns("libro-diario","↳ Libro Diario")}
+        {ns("cxc","↳ Cuentas por Cobrar")}
+        {ns("cxp","↳ Cuentas por Pagar")}
+        {ns("estados-financieros","↳ Estados Financieros")}
+        {ns("flujo-caja","↳ Flujo de Caja")}
+        {ns("facturacion","↳ Facturación Electrónica")}
+        {ns("banca","↳ Conexión Bancaria")}
+
         {ni(null,"CRM & Ventas","🤝",false)}
         {ni(null,"Calidad ISO","✅",false)}
 
@@ -80,6 +90,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ni("config-gral","Config. General","⚙️",view==="config-gral")}
         {ni("config-rrhh","Config. RRHH","👥",view==="config-rrhh")}
         {ni("config-inv","Config. Inventario","📦",view==="config-inv")}
+        {ni("config-finanzas","Config. Finanzas","💱",view==="config-finanzas")}
 
         {!collapsed&&<div className="nav-section-label" style={{marginTop:8}}>Organización</div>}
         {ni("empresas","Empresas & Verticales","🏛️",["empresas","empresa-detalle","verticales"].includes(view))}

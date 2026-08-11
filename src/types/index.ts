@@ -7,7 +7,10 @@ export type View =
   | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
   | "config-gral" | "config-rrhh" | "planillas"
   | "bi-ejecutivo" | "bi-rrhh" | "bi-inv" | "bi-calidad"
-  | "empresas" | "empresa-detalle" | "verticales";
+  | "empresas" | "empresa-detalle" | "verticales"
+  | "finanzas" | "libro-diario" | "cxc" | "cxp"
+  | "estados-financieros" | "flujo-caja" | "facturacion"
+  | "banca" | "config-finanzas";
 
 export interface Company {
   id: string;
@@ -149,4 +152,73 @@ export interface DeduccionExtra {
   empId: string;
   concepto: string;
   monto: number;
+}
+
+// ── Finanzas & Contabilidad ─────────────────────────────────
+
+export interface CuentaContable {
+  codigo: string;
+  nombre: string;
+  tipo: "activo" | "pasivo" | "patrimonio" | "ingreso" | "gasto";
+  naturaleza: "deudora" | "acreedora";
+}
+
+export interface LineaAsiento {
+  cuenta: string;
+  descripcion: string;
+  debito: number;
+  credito: number;
+}
+
+export interface AsientoContable {
+  id: string;
+  fecha: string;
+  concepto: string;
+  origen: string;
+  estado: "borrador" | "aprobado" | "anulado";
+  lineas: LineaAsiento[];
+}
+
+export interface Factura {
+  id: string;
+  tipo: "cxc" | "cxp";
+  contraparte: string;
+  cedula: string;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  moneda: string;
+  monto: number;
+  saldo: number;
+  estado: "pendiente" | "vencida" | "pagada" | "parcial";
+  consecutivo?: string;
+  claveHacienda?: string;
+  estadoHacienda?: "aceptado" | "pendiente" | "rechazado" | "enviando";
+}
+
+export interface CuentaBancaria {
+  id: string;
+  banco: string;
+  alias: string;
+  numero: string;
+  moneda: string;
+  saldo: number;
+  conectada: boolean;
+  ultimaSync?: string;
+}
+
+export interface MovimientoBancario {
+  id: string;
+  cuentaId: string;
+  fecha: string;
+  descripcion: string;
+  monto: number;
+  tipo: "credito" | "debito";
+  conciliado: boolean;
+}
+
+export interface Moneda {
+  codigo: string;
+  nombre: string;
+  simbolo: string;
+  tipoCambio: number;
 }

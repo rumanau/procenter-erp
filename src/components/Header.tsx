@@ -7,12 +7,13 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     if(["bi","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad","reportes"].includes(v)) return "bi";
     if(["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"].includes(v)) return "rrhh";
     if(["solicitudes","bandeja"].includes(v)) return "solicitudes";
-    if(["config-gral","config-inv"].includes(v)) return "config-gral";
+    if(["config-gral","config-inv","config-finanzas"].includes(v)) return "config-gral";
     if(["empresas","empresa-detalle","verticales"].includes(v)) return "empresas";
+    if(["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca"].includes(v)) return "finanzas";
     return "inventario";
   };
   const parent=getModuleParent(view);
-  const parentLabel:Record<View,string>={inventario:"Inventario & Proveeduría",bi:"BI & Reportería",rrhh:"Recursos Humanos",solicitudes:"Solicitudes","config-gral":"Configuración",empresas:"Empresas & Verticales"} as any;
+  const parentLabel:Record<View,string>={inventario:"Inventario & Proveeduría",bi:"BI & Reportería",rrhh:"Recursos Humanos",solicitudes:"Solicitudes","config-gral":"Configuración",empresas:"Empresas & Verticales",finanzas:"Contabilidad y Finanzas"} as any;
   const bc:Record<View,string>={
     inventario:"Inventario & Proveeduría",existencias:"Inventario › Consulta Existencias",
     nuevo:"Inventario › Nuevo Artículo",entradas:"Inventario › Entradas & Salidas",
@@ -41,6 +42,15 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     "bi-rrhh":"BI › RRHH & Nómina",
     "bi-inv":"BI › Inventario & Proveeduría",
     "bi-calidad":"BI › Calidad ISO",
+    finanzas:"Contabilidad y Finanzas",
+    "libro-diario":"Finanzas › Libro Diario",
+    cxc:"Finanzas › Cuentas por Cobrar",
+    cxp:"Finanzas › Cuentas por Pagar",
+    "estados-financieros":"Finanzas › Estados Financieros",
+    "flujo-caja":"Finanzas › Flujo de Caja",
+    facturacion:"Finanzas › Facturación Electrónica",
+    banca:"Finanzas › Conexión Bancaria",
+    "config-finanzas":"Configuración › Finanzas",
   };
   return (
     <div className="header">

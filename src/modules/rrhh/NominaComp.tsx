@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { View, Empleado, Planilla, FilaPlanilla, LineaHE, DeduccionExtra } from "../../types";
+import type { View, Empleado, Planilla, FilaPlanilla, LineaHE, DeduccionExtra, AsientoContable } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
 
 export function calcularRenta(salNeto:number):number {
@@ -24,22 +24,22 @@ export function calcularPlanillaCompleta(
     const heDob=heEmp.filter(l=>l.tipo==="doble").reduce((a,l)=>a+l.horas*((salBase/(30*8))*2),0);
     const bono=bonos[e.id]||0;
     const salBruto=salBase+heReg+heDob+bono;
-    const ccssObrero=Math.round(salBruto*(p.ccssObreroPorc/100));
-    const opc=Math.round(salBruto*(p.opcPorc/100));
-    const bpop=Math.round(salBruto*(p.bpopPorc/100));
+    const ccssObrero=Math.round(salBruto*(p.ccssObrero/100));
+    const opc=Math.round(salBruto*0.01);
+    const bpop=Math.round(salBruto*0.01);
     const baseRenta=salBruto-ccssObrero-opc-bpop;
     const renta=calcularRenta(baseRenta);
     const dedsExtra=dedExtra.filter(d=>d.empId===e.id).reduce((a,d)=>a+d.monto,0);
     const totalDed=ccssObrero+opc+bpop+renta+dedsExtra;
     const liquido=salBruto-totalDed;
-    const ccssPatronal=Math.round(salBruto*(p.ccssPatronalPorc/100));
+    const ccssPatronal=Math.round(salBruto*(p.ccssPatronal/100));
     const aguinaldo=Math.round(salBruto/12);
     const cargoTotal=salBruto+ccssPatronal+aguinaldo;
     return {empId:e.id,nombre:e.nombre,puesto:e.puesto,salBase,heReg,heDob,bono,salBruto,ccssObrero,opc,bpop,renta,dedsExtra,totalDed,liquido,ccssPatronal,aguinaldo,cargoTotal};
   });
 }
 
-export function NominaComp({setView,empleados,catalogos}:{setView:(v:View)=>void;empleados:Empleado[];catalogos:typeof CATALOGOS_INIT}) {
+export function NominaComp({setView,empleados,catalogos,asientosContables,setAsientosContables}:{setView:(v:View)=>void;empleados:Empleado[];catalogos:typeof CATALOGOS_INIT;asientosContables:AsientoContable[];setAsientosContables:(a:AsientoContable[])=>void}) {
   const [tab,setTab]=useState("selector");
   const [planSelId,setPlanSelId]=useState(catalogos.planillas[0]?.id||"");
   const [lineasHE,setLineasHE]=useState<LineaHE[]>([]);
@@ -60,6 +60,28 @@ export function NominaComp({setView,empleados,catalogos}:{setView:(v:View)=>void
   const totCargo=filas.reduce((a,f)=>a+f.cargoTotal,0);
 
   const fmt=(n:number)=>`₡${n.toLocaleString("es-CR")}`;
+
+  const lineasContables=[
+    {cuenta:"6101",descripcion:"Gasto de sueldos y salarios",debito:Math.round(totBruto),credito:0},
+    {cuenta:"6201",descripcion:"CCSS patronal (26.67%)",debito:totPatronal,credito:0},
+    {cuenta:"6202",descripcion:"Provisión aguinaldo (1/12)",debito:filas.reduce((a,f)=>a+f.aguinaldo,0),credito:0},
+    {cuenta:"2107",descripcion:"Aguinaldo por pagar",debito:0,credito:filas.reduce((a,f)=>a+f.aguinaldo,0)},
+    {cuenta:"2101",descripcion:"CCSS por pagar (obrero+patronal)",debito:0,credito:filas.reduce((a,f)=>a+f.ccssObrero,0)+totPatronal},
+    {cuenta:"2102",descripcion:"Renta por pagar",debito:0,credito:filas.reduce((a,f)=>a+f.renta,0)},
+    {cuenta:"2103",descripcion:"OPC por pagar",debito:0,credito:filas.reduce((a,f)=>a+f.opc,0)},
+    {cuenta:"2104",descripcion:"Banco Popular por pagar",debito:0,credito:filas.reduce((a,f)=>a+f.bpop,0)},
+    {cuenta:"1101",descripcion:"Bancos (planilla neta)",debito:0,credito:Math.round(totLiquido)},
+  ];
+  const yaEnviado=asientosContables.some(a=>a.origen==="Nómina"&&a.concepto.includes(planSel?.nombre||""));
+  const enviarAContabilidad=()=>{
+    const nuevo:AsientoContable={
+      id:`AS-2024-${String(asientosContables.length+1).padStart(3,"0")}`,
+      fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),
+      concepto:`Planilla ${planSel?.nombre||""} — ${empsEnPlan.length} colaboradores`,
+      origen:"Nómina",estado:"aprobado",lineas:lineasContables,
+    };
+    setAsientosContables([nuevo,...asientosContables]);
+  };
 
   return (
     <div style={{display:"flex",flex:1,overflow:"hidden"}}>
@@ -106,7 +128,7 @@ export function NominaComp({setView,empleados,catalogos}:{setView:(v:View)=>void
                       {isSelected&&<span style={{color:"#E8611A",fontSize:18}}>✓</span>}
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                      {[["Colaboradores",n],["CCSS Obrero",`${pl.ccssObreroPorc}%`],["OPC",`${pl.opcPorc}%`],["B.Pop",`${pl.bpopPorc}%`],["CCSS Patronal",`${pl.ccssPatronalPorc}%`],["Periodicidad",pl.periodicidad||"Mensual"]].map(([l,v])=>(
+                      {[["Colaboradores",n],["CCSS Obrero",`${pl.ccssObrero}%`],["OPC",`1.00%`],["B.Pop",`1.00%`],["CCSS Patronal",`${pl.ccssPatronal}%`],["Periodicidad",pl.periodicidad||"Mensual"]].map(([l,v])=>(
                         <div key={l as string} style={{background:"#F9FAFB",borderRadius:6,padding:"5px 8px"}}>
                           <div style={{fontSize:10,color:"#6B7280"}}>{l}</div>
                           <div style={{fontSize:12,fontWeight:700,color:"#1B1F2E"}}>{v}</div>
@@ -311,24 +333,18 @@ export function NominaComp({setView,empleados,catalogos}:{setView:(v:View)=>void
               <table className="tbl">
                 <thead><tr><th>Cuenta</th><th>Descripción</th><th>Débito</th><th>Crédito</th></tr></thead>
                 <tbody>
-                  {[
-                    ["6101","Gasto de sueldos y salarios",fmt(Math.round(totBruto)),""],
-                    ["6201","CCSS patronal (26.67%)",fmt(totPatronal),""],
-                    ["6202","Provisión aguinaldo (1/12)",fmt(filas.reduce((a,f)=>a+f.aguinaldo,0)),""],
-                    ["2101","CCSS por pagar (obrero+patronal)","",fmt(filas.reduce((a,f)=>a+f.ccssObrero,0)+totPatronal)],
-                    ["2102","Renta por pagar","",fmt(filas.reduce((a,f)=>a+f.renta,0))],
-                    ["2103","OPC por pagar","",fmt(filas.reduce((a,f)=>a+f.opc,0))],
-                    ["2104","Banco Popular por pagar","",fmt(filas.reduce((a,f)=>a+f.bpop,0))],
-                    ["1101","Bancos (planilla neta)","",fmt(Math.round(totLiquido))],
-                  ].map(([cod,desc,deb,cred])=>(
-                    <tr key={cod}><td style={{fontFamily:"monospace",fontSize:11,color:"#E8611A"}}>{cod}</td><td style={{fontSize:12}}>{desc}</td><td style={{color:"#10B981",fontWeight:600,fontSize:12}}>{deb}</td><td style={{color:"#EF4444",fontWeight:600,fontSize:12}}>{cred}</td></tr>
+                  {lineasContables.map(l=>(
+                    <tr key={l.cuenta}><td style={{fontFamily:"monospace",fontSize:11,color:"#E8611A"}}>{l.cuenta}</td><td style={{fontSize:12}}>{l.descripcion}</td><td style={{color:"#10B981",fontWeight:600,fontSize:12}}>{l.debito>0?fmt(l.debito):""}</td><td style={{color:"#EF4444",fontWeight:600,fontSize:12}}>{l.credito>0?fmt(l.credito):""}</td></tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button className="btn btn-secondary btn-sm">📊 Exportar asientos</button>
-              <button className="btn btn-ghost btn-sm" onClick={()=>alert("Integración contable en proceso.")}>🔗 Enviar a contabilidad</button>
+              {yaEnviado
+                ? <span className="badge badge-ok">✓ Enviado al Libro Diario</span>
+                : <button className="btn btn-primary btn-sm" onClick={enviarAContabilidad}>🔗 Enviar a contabilidad</button>}
+              <button className="btn btn-ghost btn-sm" onClick={()=>setView("libro-diario")}>📓 Ver Libro Diario</button>
             </div>
           </div>
         )}
@@ -339,7 +355,7 @@ export function NominaComp({setView,empleados,catalogos}:{setView:(v:View)=>void
         {planSel&&(
           <div style={{padding:"10px 12px",background:"#FFF3ED",border:"1px solid #FED7AA",borderRadius:8,marginBottom:12}}>
             <div style={{fontSize:13,fontWeight:700,color:"#E8611A",marginBottom:6}}>{planSel.nombre}</div>
-            {[["Colaboradores",empsEnPlan.length],["CCSS Obrero",`${(planSel as any).ccssObreroPorc}%`],["OPC",`${(planSel as any).opcPorc}%`],["B.Popular",`${(planSel as any).bpopPorc}%`],["CCSS Patronal",`${(planSel as any).ccssPatronalPorc}%`]].map(([l,v])=>(
+            {[["Colaboradores",empsEnPlan.length],["CCSS Obrero",`${(planSel as any).ccssObrero}%`],["OPC",`1.00%`],["B.Popular",`1.00%`],["CCSS Patronal",`${(planSel as any).ccssPatronal}%`]].map(([l,v])=>(
               <div key={l as string} style={{display:"flex",justifyContent:"space-between",fontSize:11.5,marginBottom:3}}>
                 <span style={{color:"#6B7280"}}>{l}</span><span style={{fontWeight:600}}>{v}</span>
               </div>
