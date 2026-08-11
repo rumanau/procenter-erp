@@ -1,4 +1,4 @@
-import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante } from "../types";
+import type { Requisicion, PerfilTalento, Postulacion, PerfilCart, Vacante, Candidato, TimelineEvento, Entrevista, Evaluacion, Documento } from "../types";
 
 export const FUENTES_POSTULACION = ["Portal PROCENTER", "LinkedIn", "Indeed", "Referido", "Correo", "Feria de empleo", "Universidad", "Carga manual"];
 
@@ -95,4 +95,47 @@ export const POSTULACIONES_INIT: Postulacion[] = [
   { id: "POST-1004", personaId: "TAL-00384", vacanteId: "VAC-002", fuente: "Portal PROCENTER", fecha: "21 May 2026", estado: "Descartada" },
   { id: "POST-1005", personaId: "TAL-00385", vacanteId: null, fuente: "Feria de empleo", fecha: "12 Jul 2026", estado: "En banco de talento" },
   { id: "POST-1006", personaId: "TAL-00386", vacanteId: null, fuente: "Indeed", fecha: "15 Jul 2026", estado: "En banco de talento" },
+];
+
+export const CANDIDATOS_INIT: Candidato[] = [
+  { id: "CAND-001", nombre: "Esteban Vargas", vacante: "VAC-001", etapa: "Entrevista técnica", puntCART: 85, estado: "Avanzando", correo: "e.vargas@gmail.com", tel: "8654-3210", cedula: "1-1234-5678", experiencia: "4 años en mantenimiento industrial, soldadura y electricidad.", educacion: "Técnico Electromecánico (INA)", competencias: ["Mantenimiento", "Soldadura", "Electricidad industrial"], personaId: "TAL-00381" },
+  { id: "CAND-002", nombre: "Alicia Moreno", vacante: "VAC-001", etapa: "Prueba técnica", puntCART: 72, estado: "En proceso", correo: "a.moreno@hotmail.com", tel: "8833-1122", cedula: "1-2345-6789", experiencia: "3 años de experiencia en mantenimiento de maquinaria liviana.", educacion: "Técnico en Mantenimiento", competencias: ["Mantenimiento preventivo", "Diagnóstico de fallas"], personaId: "TAL-00382" },
+  { id: "CAND-003", nombre: "Ricardo Salas", vacante: "VAC-002", etapa: "Entrevista RRHH", puntCART: 91, estado: "Avanzando", correo: "r.salas@yahoo.com", tel: "8799-4455", cedula: "1-3456-7890", experiencia: "5 años en asistencia administrativa y gerencial.", educacion: "Administración de Empresas (Universitario)", competencias: ["Gestión de agenda", "Excel avanzado", "Atención a proveedores"], personaId: "TAL-00383" },
+  { id: "CAND-004", nombre: "Patricia Nuñez", vacante: "VAC-002", etapa: "Revisión CV", puntCART: 45, estado: "Descartado", correo: "p.nunez@gmail.com", tel: "8600-0000", cedula: "1-4567-8901", experiencia: "1 año como asistente de oficina.", educacion: "Secretariado Ejecutivo (Técnico)", competencias: ["Digitación", "Atención al cliente"], personaId: "TAL-00384" },
+];
+
+export const ENTREVISTAS_INIT: Entrevista[] = [
+  { id: "ENT-001", candidatoId: "CAND-001", vacanteId: "VAC-001", tipo: "RRHH", fecha: "07 Ago 2026", hora: "10:00", entrevistador: "Ronald", modalidad: "Presencial", ubicacion: "Oficina Central", duracion: 45, estado: "Realizada" },
+  { id: "ENT-002", candidatoId: "CAND-001", vacanteId: "VAC-001", tipo: "Técnica", fecha: "10 Ago 2026", hora: "14:00", entrevistador: "Jules Ramirez", modalidad: "Presencial", ubicacion: "Bodega Central", duracion: 60, estado: "Programada" },
+  { id: "ENT-003", candidatoId: "CAND-003", vacanteId: "VAC-002", tipo: "RRHH", fecha: "08 Ago 2026", hora: "09:30", entrevistador: "Ana Vargas", modalidad: "Virtual", ubicacion: "Google Meet", duracion: 30, estado: "Programada" },
+  { id: "ENT-004", candidatoId: "CAND-002", vacanteId: "VAC-001", tipo: "RRHH", fecha: "03 Ago 2026", hora: "11:00", entrevistador: "Ronald", modalidad: "Presencial", ubicacion: "Oficina Central", duracion: 40, estado: "Realizada" },
+];
+
+export const EVALUACIONES_INIT: Evaluacion[] = [
+  { id: "EVAL-001", entrevistaId: "ENT-001", candidatoId: "CAND-001", comunicacion: 4, experiencia: 5, competencias: 4, culturaOrganizacional: 4, conocimientoTecnico: 5, resultado: 88, recomendacion: "Avanzar", comentarios: "Sólida experiencia técnica y buena comunicación. Se recomienda avanzar a entrevista técnica.", fecha: "07 Ago 2026", evaluador: "Ronald" },
+  { id: "EVAL-002", entrevistaId: "ENT-004", candidatoId: "CAND-002", comunicacion: 3, experiencia: 3, competencias: 4, culturaOrganizacional: 3, conocimientoTecnico: 3, resultado: 64, recomendacion: "En espera", comentarios: "Perfil competente, pero con menos experiencia que otros candidatos. Mantener en espera.", fecha: "03 Ago 2026", evaluador: "Ronald" },
+];
+
+export const DOCUMENTOS_INIT: Documento[] = [
+  { id: "DOC-001", candidatoId: "CAND-001", tipo: "CV", nombre: "CV_Esteban_Vargas.pdf", fecha: "04 Ago 2026", version: "v1", estado: "Verificado" },
+  { id: "DOC-002", candidatoId: "CAND-001", tipo: "Cédula", nombre: "Cedula_1-1234-5678.pdf", fecha: "04 Ago 2026", version: "v1", estado: "Recibido" },
+  { id: "DOC-003", candidatoId: "CAND-001", tipo: "Certificación", nombre: "INA_Electromecanica.pdf", fecha: "05 Ago 2026", version: "v1", estado: "Verificado" },
+  { id: "DOC-004", candidatoId: "CAND-003", tipo: "CV", nombre: "CV_Ricardo_Salas.pdf", fecha: "29 Jul 2026", version: "v1", estado: "Recibido" },
+];
+
+export const TIMELINE_INIT: TimelineEvento[] = [
+  { id: "TL-001", candidatoId: "CAND-001", fecha: "04 Ago 2026", icono: "📥", descripcion: "Aplicación recibida — Portal PROCENTER", responsable: "Sistema" },
+  { id: "TL-002", candidatoId: "CAND-001", fecha: "05 Ago 2026", icono: "📄", descripcion: "CV revisado", responsable: "Ronald" },
+  { id: "TL-003", candidatoId: "CAND-001", fecha: "06 Ago 2026", icono: "🌳", descripcion: "Evaluación CART: 85/100", responsable: "Sistema" },
+  { id: "TL-004", candidatoId: "CAND-001", fecha: "07 Ago 2026", icono: "🗣️", descripcion: "Entrevista RRHH realizada — Resultado 88/100, recomendación: Avanzar", responsable: "Ronald" },
+  { id: "TL-005", candidatoId: "CAND-001", fecha: "08 Ago 2026", icono: "🔄", descripcion: "Movido a etapa: Prueba técnica", responsable: "Ronald" },
+  { id: "TL-006", candidatoId: "CAND-001", fecha: "09 Ago 2026", icono: "📝", descripcion: "Prueba técnica: 91/100", responsable: "Jules Ramirez" },
+  { id: "TL-007", candidatoId: "CAND-001", fecha: "10 Ago 2026", icono: "🔄", descripcion: "Movido a etapa: Entrevista técnica — Programada para 10 Ago 2026 14:00", responsable: "Ronald" },
+  { id: "TL-008", candidatoId: "CAND-002", fecha: "01 Ago 2026", icono: "📥", descripcion: "Aplicación recibida — LinkedIn", responsable: "Sistema" },
+  { id: "TL-009", candidatoId: "CAND-002", fecha: "03 Ago 2026", icono: "🗣️", descripcion: "Entrevista RRHH realizada — Resultado 64/100, recomendación: En espera", responsable: "Ronald" },
+  { id: "TL-010", candidatoId: "CAND-003", fecha: "29 Jul 2026", icono: "📥", descripcion: "Aplicación recibida — Referido", responsable: "Sistema" },
+  { id: "TL-011", candidatoId: "CAND-003", fecha: "01 Ago 2026", icono: "🌳", descripcion: "Evaluación CART: 91/100", responsable: "Sistema" },
+  { id: "TL-012", candidatoId: "CAND-004", fecha: "20 Jul 2026", icono: "📥", descripcion: "Aplicación recibida — Portal PROCENTER", responsable: "Sistema" },
+  { id: "TL-013", candidatoId: "CAND-004", fecha: "22 Jul 2026", icono: "🌳", descripcion: "Evaluación CART: 45/100", responsable: "Sistema" },
+  { id: "TL-014", candidatoId: "CAND-004", fecha: "23 Jul 2026", icono: "✕", descripcion: "Candidatura descartada — no cumple criterios mínimos", responsable: "Ronald" },
 ];

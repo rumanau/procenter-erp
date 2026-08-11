@@ -1,10 +1,13 @@
 import React, { useState } from "react";
-import type { View, Empleado, Vacante, Requisicion } from "../../types";
+import type { View, Empleado, Vacante, Requisicion, Candidato, Entrevista, Evaluacion, Documento, TimelineEvento } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
-import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT } from "../../data/reclutamiento";
+import { VACANTES_INIT, REQUISICIONES_INIT, PERFILES_TALENTO_INIT, POSTULACIONES_INIT, PERFILES_CART_INIT, CANDIDATOS_INIT, ENTREVISTAS_INIT, EVALUACIONES_INIT, DOCUMENTOS_INIT, TIMELINE_INIT } from "../../data/reclutamiento";
 import { Requisiciones } from "./reclutamiento/Requisiciones";
 import { BaseTalento } from "./reclutamiento/BaseTalento";
 import { VacanteModal } from "./reclutamiento/VacanteModal";
+import { CandidatoExpediente } from "./reclutamiento/CandidatoExpediente";
+import { Entrevistas } from "./reclutamiento/Entrevistas";
+import { MoverEtapaModal } from "./reclutamiento/MoverEtapaModal";
 
 export function CartTab({setTab}:{setTab:(t:string)=>void}) {
   const [exp,setExp]=useState(2);
@@ -181,13 +184,19 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
   const [perfilesTalento,setPerfilesTalento]=useState(PERFILES_TALENTO_INIT);
   const [postulaciones,setPostulaciones]=useState(POSTULACIONES_INIT);
   const [modalVacante,setModalVacante]=useState<{modo:"crear"|"editar";vacante:Vacante|null;requisicion:Requisicion|null}|null>(null);
-  const [candidatos,setCandidatos]=useState([
-    {id:"CAND-001",nombre:"Esteban Vargas",vacante:"VAC-001",etapa:"Entrevista técnica",puntCART:85,estado:"Avanzando",correo:"e.vargas@gmail.com",tel:"8654-3210"},
-    {id:"CAND-002",nombre:"Alicia Moreno",vacante:"VAC-001",etapa:"Prueba técnica",puntCART:72,estado:"En proceso",correo:"a.moreno@hotmail.com",tel:"8833-1122"},
-    {id:"CAND-003",nombre:"Ricardo Salas",vacante:"VAC-002",etapa:"Entrevista RRHH",puntCART:91,estado:"Avanzando",correo:"r.salas@yahoo.com",tel:"8799-4455"},
-    {id:"CAND-004",nombre:"Patricia Nuñez",vacante:"VAC-002",etapa:"Revisión CV",puntCART:45,estado:"Descartado",correo:"p.nunez@gmail.com",tel:"8600-0000"},
-  ]);
-  const [selCand,setSelCand]=useState<typeof candidatos[0]|null>(null);
+  const [candidatos,setCandidatos]=useState<Candidato[]>(CANDIDATOS_INIT);
+  const [entrevistas,setEntrevistas]=useState<Entrevista[]>(ENTREVISTAS_INIT);
+  const [evaluaciones,setEvaluaciones]=useState<Evaluacion[]>(EVALUACIONES_INIT);
+  const [documentos,setDocumentos]=useState<Documento[]>(DOCUMENTOS_INIT);
+  const [timeline,setTimeline]=useState<TimelineEvento[]>(TIMELINE_INIT);
+  const [selCandId,setSelCandId]=useState<string|null>(null);
+  const [moverEtapaCand,setMoverEtapaCand]=useState<Candidato|null>(null);
+  const [entrevistaPreseleccion,setEntrevistaPreseleccion]=useState<{candidatoId:string;abrir:boolean}|null>(null);
+  const selCand=candidatos.find(c=>c.id===selCandId)||null;
+
+  const agregarEvento=(candidatoId:string,icono:string,descripcion:string,responsable?:string)=>{
+    setTimeline(prev=>[...prev,{id:`TL-${Date.now()}`,candidatoId,fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),icono,descripcion,responsable}]);
+  };
 
   // Constructor de árbol
   type Nodo={id:string;pregunta:string;siNode:string|"CONTRATAR"|"SEGUNDA ENTREVISTA"|"EN ESPERA"|"NO CONTINÚA";noNode:string|"CONTRATAR"|"SEGUNDA ENTREVISTA"|"EN ESPERA"|"NO CONTINÚA"};
@@ -203,7 +212,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
 
   const etapas=["Aplicación","Revisión CV","Entrevista RRHH","Prueba técnica","Entrevista técnica","Oferta","Contratado"];
 
-  const integrarAlSistema=(cand:typeof candidatos[0])=>{
+  const integrarAlSistema=(cand:Candidato)=>{
     const vac=vacantes.find(v=>v.id===cand.vacante);
     if(!vac) return;
     const nuevo:Empleado={
@@ -221,7 +230,26 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
     };
     setEmpleados([...empleados,nuevo]);
     setCandidatos(prev=>prev.map(c=>c.id===cand.id?{...c,etapa:"Contratado",estado:"Integrado"}:c));
+    agregarEvento(cand.id,"🎉",`Integrado al sistema como ${nuevo.id} — ${vac.puesto}`,"Ronald");
     alert(`✅ ¡${cand.nombre} integrado exitosamente!\n\nID: ${nuevo.id}\nPuesto: ${vac.puesto}\nDpto: ${vac.departamento}\nPlanilla: ${(catalogos.planillas as any[]).find(p=>p.id===nuevo.planillaId)?.nombre||"—"}\n\nYa aparece en nómina y todos los módulos RRHH.`);
+  };
+
+  const moverDeEtapa=(cand:Candidato,nuevaEtapa:string,responsable:string,observaciones:string,proximaAccion:string)=>{
+    setCandidatos(prev=>prev.map(c=>c.id===cand.id?{...c,etapa:nuevaEtapa}:c));
+    let desc=`Movido a etapa: ${nuevaEtapa}`;
+    if(observaciones.trim()) desc+=` — ${observaciones.trim()}`;
+    if(proximaAccion.trim()) desc+=` · Próxima acción: ${proximaAccion.trim()}`;
+    agregarEvento(cand.id,"🔄",desc,responsable);
+    setMoverEtapaCand(null);
+  };
+
+  const registrarEvaluacionCandidato=(candidatoId:string,resultado:number,recomendacion:string)=>{
+    agregarEvento(candidatoId,"🗣️",`Entrevista evaluada — Resultado ${resultado}/100, recomendación: ${recomendacion}`,"Ronald");
+  };
+
+  const agregarDocumentoCandidato=(candidatoId:string,tipo:string,nombre:string)=>{
+    setDocumentos(prev=>[...prev,{id:`DOC-${Date.now()}`,candidatoId,tipo,nombre,fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),version:"v1",estado:"Recibido"}]);
+    agregarEvento(candidatoId,"📎",`Documento agregado: ${tipo} — ${nombre}`,"Ronald");
   };
 
   const guardarVacante=(v:Vacante)=>{
@@ -230,13 +258,14 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
   };
 
   const invitarDesdeTalento=(perfilIds:string[],vacanteId:string)=>{
-    const nuevos=perfilIds.map(pid=>{
+    const nuevos:Candidato[]=perfilIds.map(pid=>{
       const p=perfilesTalento.find(x=>x.id===pid)!;
-      return {id:`CAND-${Date.now()}-${pid.slice(-3)}`,nombre:p.nombre,vacante:vacanteId,etapa:"Aplicación",puntCART:0,estado:"En proceso",correo:p.correo,tel:p.telefono};
+      return {id:`CAND-${Date.now()}-${pid.slice(-3)}`,nombre:p.nombre,vacante:vacanteId,etapa:"Aplicación",puntCART:0,estado:"En proceso",correo:p.correo,tel:p.telefono,cedula:p.cedula,experiencia:p.cvResumen,educacion:p.educacion,competencias:p.competencias,personaId:pid};
     });
     setCandidatos(prev=>[...prev,...nuevos]);
     setPostulaciones(prev=>[...prev,...perfilIds.map(pid=>({id:`POST-${Date.now()}-${pid.slice(-3)}`,personaId:pid,vacanteId,fuente:perfilesTalento.find(x=>x.id===pid)?.fuente||"Base de Talento",fecha:new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),estado:"En proceso"}))]);
     setPerfilesTalento(prev=>prev.map(p=>perfilIds.includes(p.id)?{...p,estado:"en proceso"}:p));
+    nuevos.forEach(c=>agregarEvento(c.id,"📥",`Aplicación recibida — Base de Talento (${c.personaId})`,"Sistema"));
     setTab("candidatos");
   };
 
@@ -256,17 +285,18 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
           </div>
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("requisiciones")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📝 Requisiciones</div><div className="kpi-value" style={{fontSize:18}}>{requisiciones.filter(r=>r.estado==="pendiente").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("vacantes")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📋 Vacantes activas</div><div className="kpi-value" style={{fontSize:18}}>{vacantes.filter(v=>v.estado==="Activa").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("talento")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🗂️ Base de Talento</div><div className="kpi-value" style={{fontSize:18}}>{perfilesTalento.length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("candidatos")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">👤 Candidatos en pipeline</div><div className="kpi-value" style={{fontSize:18}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("pipeline")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔄 Pipeline por etapa</div><div className="kpi-value" style={{fontSize:18,color:"#3B82F6"}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
-          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("integracion")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔗 Integración</div><div className="kpi-value" style={{fontSize:18,color:"#10B981"}}>{candidatos.filter(c=>c.estado==="Integrado").length}</div></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:10,marginBottom:14}}>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("requisiciones")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📝 Requisiciones</div><div className="kpi-value" style={{fontSize:17}}>{requisiciones.filter(r=>r.estado==="pendiente").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("vacantes")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">📋 Vacantes activas</div><div className="kpi-value" style={{fontSize:17}}>{vacantes.filter(v=>v.estado==="Activa").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("talento")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🗂️ Base de Talento</div><div className="kpi-value" style={{fontSize:17}}>{perfilesTalento.length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("candidatos")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">👤 En pipeline</div><div className="kpi-value" style={{fontSize:17}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("entrevistas")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🗣️ Entrevistas</div><div className="kpi-value" style={{fontSize:17,color:"#3B82F6"}}>{entrevistas.filter(e=>e.estado==="Programada").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("pipeline")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔄 Pipeline</div><div className="kpi-value" style={{fontSize:17,color:"#3B82F6"}}>{candidatos.filter(c=>c.estado!=="Descartado"&&c.estado!=="Integrado").length}</div></div>
+          <div className="kpi" style={{cursor:"pointer",transition:"all .15s"}} onClick={()=>setTab("integracion")} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="0 4px 12px rgba(0,0,0,.1)"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.boxShadow="var(--shadow-sm)"}><div className="kpi-label">🔗 Integración</div><div className="kpi-value" style={{fontSize:17,color:"#10B981"}}>{candidatos.filter(c=>c.estado==="Integrado").length}</div></div>
         </div>
 
         <div className="tab-bar">
-          {[["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
+          {[["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
             <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{l}</div>
           ))}
         </div>
@@ -346,8 +376,9 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                         <td style={{fontSize:11}}>{c.correo}</td>
                         <td>
                           <div style={{display:"flex",gap:4}}>
-                            <button className="btn btn-ghost btn-sm" onClick={()=>setSelCand(c)}>👁</button>
-                            {c.etapa==="Entrevista técnica"&&c.estado!=="Integrado"&&(
+                            <button className="btn btn-ghost btn-sm" onClick={()=>setSelCandId(c.id)}>👁</button>
+                            <button className="btn btn-ghost btn-sm" style={{fontSize:10}} onClick={()=>setMoverEtapaCand(c)}>🔄 Etapa</button>
+                            {c.etapa==="Contratado"&&c.estado!=="Integrado"&&(
                               <button className="btn btn-primary btn-sm" style={{fontSize:10}} onClick={()=>integrarAlSistema(c)}>✅ Integrar</button>
                             )}
                           </div>
@@ -358,26 +389,6 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                 </tbody>
               </table>
             </div>
-            {selCand&&(
-              <div style={{position:"fixed" as const,top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setSelCand(null)}>
-                <div style={{background:"#fff",borderRadius:14,padding:"20px 24px",width:480,boxShadow:"0 20px 60px rgba(0,0,0,.2)"}} onClick={e=>e.stopPropagation()}>
-                  <div style={{fontSize:16,fontWeight:700,marginBottom:12}}>📄 Ficha de candidato</div>
-                  <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:16}}>
-                    <div className="user-avatar" style={{width:48,height:48,fontSize:16,background:selCand.puntCART>=80?"#10B981":"#F59E0B"}}>{selCand.nombre.split(" ").map(n=>n[0]).join("").slice(0,2)}</div>
-                    <div><div style={{fontSize:14,fontWeight:700}}>{selCand.nombre}</div><div style={{fontSize:12,color:"#6B7280"}}>{selCand.correo} · {selCand.tel}</div></div>
-                  </div>
-                  {[["Vacante",vacantes.find(v=>v.id===selCand.vacante)?.puesto||"—"],["Etapa actual",selCand.etapa],["Estado",selCand.estado],["Puntuación CART",`${selCand.puntCART}/100`]].map(([l,v])=>(
-                    <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:12}}>
-                      <span style={{color:"#6B7280"}}>{l}</span><span style={{fontWeight:600}}>{v}</span>
-                    </div>
-                  ))}
-                  <div style={{display:"flex",gap:8,marginTop:14}}>
-                    {selCand.estado!=="Integrado"&&selCand.estado!=="Descartado"&&<button className="btn btn-primary btn-sm" onClick={()=>{integrarAlSistema(selCand);setSelCand(null);}}>✅ Integrar al sistema</button>}
-                    <button className="btn btn-secondary btn-sm" onClick={()=>setSelCand(null)}>Cerrar</button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -392,15 +403,18 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                       {etapa}<br/><span style={{fontSize:18,fontWeight:800,color:"#1B1F2E"}}>{cands.length}</span>
                     </div>
                     {cands.map(c=>(
-                      <div key={c.id} onClick={()=>setSelCand(c)} style={{background:"#fff",border:"1px solid #E5E7EB",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer",boxShadow:"0 1px 3px rgba(0,0,0,.06)"}}>
-                        <div style={{fontSize:11.5,fontWeight:600,marginBottom:2}}>{c.nombre}</div>
-                        <div style={{fontSize:10.5,color:"#6B7280",marginBottom:4}}>{vacantes.find(v=>v.id===c.vacante)?.puesto||"—"}</div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}>
-                          <div style={{background:"#E5E7EB",borderRadius:3,height:5,flex:1}}>
-                            <div style={{width:`${c.puntCART}%`,background:c.puntCART>=80?"#10B981":"#F59E0B",height:"100%",borderRadius:3}}/>
+                      <div key={c.id} style={{background:"#fff",border:"1px solid #E5E7EB",borderRadius:7,padding:"8px 10px",marginBottom:6,boxShadow:"0 1px 3px rgba(0,0,0,.06)"}}>
+                        <div onClick={()=>setSelCandId(c.id)} style={{cursor:"pointer"}}>
+                          <div style={{fontSize:11.5,fontWeight:600,marginBottom:2}}>{c.nombre}</div>
+                          <div style={{fontSize:10.5,color:"#6B7280",marginBottom:4}}>{vacantes.find(v=>v.id===c.vacante)?.puesto||"—"}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:4}}>
+                            <div style={{background:"#E5E7EB",borderRadius:3,height:5,flex:1}}>
+                              <div style={{width:`${c.puntCART}%`,background:c.puntCART>=80?"#10B981":"#F59E0B",height:"100%",borderRadius:3}}/>
+                            </div>
+                            <span style={{fontSize:10,fontWeight:700,color:c.puntCART>=80?"#10B981":"#F59E0B"}}>{c.puntCART}</span>
                           </div>
-                          <span style={{fontSize:10,fontWeight:700,color:c.puntCART>=80?"#10B981":"#F59E0B"}}>{c.puntCART}</span>
                         </div>
+                        <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:6,fontSize:10,padding:"3px 6px"}} onClick={()=>setMoverEtapaCand(c)}>🔄 Mover de etapa</button>
                       </div>
                     ))}
                   </div>
@@ -408,6 +422,19 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
               })}
             </div>
           </div>
+        )}
+
+        {tab==="entrevistas"&&(
+          <Entrevistas
+            candidatos={candidatos} vacantes={vacantes}
+            entrevistas={entrevistas} setEntrevistas={setEntrevistas}
+            evaluaciones={evaluaciones} setEvaluaciones={setEvaluaciones}
+            onEvaluada={registrarEvaluacionCandidato}
+            candidatoPreseleccionado={entrevistaPreseleccion?.candidatoId}
+            formularioAbiertoInicial={entrevistaPreseleccion?.abrir}
+            onCerrarFormularioInicial={()=>setEntrevistaPreseleccion(null)}
+            onVerCandidato={id=>setSelCandId(id)}
+          />
         )}
 
         {tab==="constructor"&&(
@@ -624,8 +651,10 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
                         <td>
                           {c.estado==="Integrado"?(
                             <span className="badge badge-ok">✓ Integrado</span>
-                          ):(
+                          ):c.etapa==="Contratado"?(
                             <button className="btn btn-primary btn-sm" onClick={()=>integrarAlSistema(c)}>✅ Integrar</button>
+                          ):(
+                            <span style={{fontSize:10.5,color:"#9CA3AF"}} title="Solo disponible una vez que el candidato llega a la etapa Contratado">Pendiente de contratación</span>
                           )}
                         </td>
                       </tr>
@@ -679,6 +708,30 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
           perfilesCart={PERFILES_CART_INIT}
           onGuardar={guardarVacante}
           onCerrar={()=>setModalVacante(null)}
+        />
+      )}
+
+      {selCand&&(
+        <CandidatoExpediente
+          candidato={selCand}
+          vacante={vacantes.find(v=>v.id===selCand.vacante)}
+          entrevistas={entrevistas.filter(e=>e.candidatoId===selCand.id)}
+          evaluaciones={evaluaciones.filter(e=>e.candidatoId===selCand.id)}
+          documentos={documentos.filter(d=>d.candidatoId===selCand.id)}
+          timeline={timeline.filter(t=>t.candidatoId===selCand.id).slice().reverse()}
+          onCerrar={()=>setSelCandId(null)}
+          onIntegrar={()=>{integrarAlSistema(selCand);setSelCandId(null);}}
+          onProgramarEntrevista={()=>{setEntrevistaPreseleccion({candidatoId:selCand.id,abrir:true});setTab("entrevistas");setSelCandId(null);}}
+          onAgregarDocumento={(tipo,nombre)=>agregarDocumentoCandidato(selCand.id,tipo,nombre)}
+        />
+      )}
+
+      {moverEtapaCand&&(
+        <MoverEtapaModal
+          candidato={moverEtapaCand}
+          etapas={etapas}
+          onMover={(nuevaEtapa,responsable,observaciones,proximaAccion)=>moverDeEtapa(moverEtapaCand,nuevaEtapa,responsable,observaciones,proximaAccion)}
+          onCerrar={()=>setMoverEtapaCand(null)}
         />
       )}
     </div>

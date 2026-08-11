@@ -313,3 +313,68 @@ export interface Vacante {
   estado: "Borrador" | "Activa" | "Pausada" | "Cerrada";
   fecha: string;
 }
+
+export interface Candidato {
+  id: string;
+  nombre: string;
+  vacante: string;
+  etapa: string;
+  puntCART: number;
+  estado: string;
+  correo: string;
+  tel: string;
+  cedula?: string;
+  experiencia?: string;
+  educacion?: string;
+  competencias?: string[];
+  personaId?: string;
+}
+
+export interface TimelineEvento {
+  id: string;
+  candidatoId: string;
+  fecha: string;
+  icono: string;
+  descripcion: string;
+  responsable?: string;
+}
+
+export interface Entrevista {
+  id: string;
+  candidatoId: string;
+  vacanteId: string;
+  tipo: "RRHH" | "Técnica" | "Gerencial";
+  fecha: string;
+  hora: string;
+  entrevistador: string;
+  modalidad: "Presencial" | "Virtual" | "Telefónica";
+  ubicacion: string;
+  duracion: number;
+  estado: "Programada" | "Realizada" | "Cancelada" | "No asistió";
+}
+
+export interface Evaluacion {
+  id: string;
+  entrevistaId: string;
+  candidatoId: string;
+  comunicacion: number;
+  experiencia: number;
+  competencias: number;
+  culturaOrganizacional: number;
+  conocimientoTecnico: number;
+  resultado: number;
+  recomendacion: "Avanzar" | "En espera" | "Rechazar";
+  comentarios: string;
+  fecha: string;
+  evaluador: string;
+}
+
+export interface Documento {
+  id: string;
+  candidatoId: string;
+  tipo: string;
+  nombre: string;
+  fecha: string;
+  version: string;
+  estado: "Pendiente" | "Recibido" | "Verificado";
+}
