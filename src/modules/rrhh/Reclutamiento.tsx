@@ -10,6 +10,7 @@ import { Entrevistas } from "./reclutamiento/Entrevistas";
 import { MoverEtapaModal } from "./reclutamiento/MoverEtapaModal";
 import { ArbolCartViz } from "./reclutamiento/ArbolCartViz";
 import { Ofertas } from "./reclutamiento/Ofertas";
+import { ReclutamientoHome } from "./reclutamiento/ReclutamientoHome";
 import type { ArbolCartNodo, OfertaLaboral } from "../../types";
 
 export function CartTab({setTab,arbolNodos}:{setTab:(t:string)=>void;arbolNodos:Record<string,ArbolCartNodo>}) {
@@ -156,7 +157,7 @@ export function CartTab({setTab,arbolNodos}:{setTab:(t:string)=>void;arbolNodos:
 }
 
 export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setView:(v:View)=>void;empleados:Empleado[];setEmpleados:(e:Empleado[])=>void;catalogos:typeof CATALOGOS_INIT}) {
-  const [tab,setTab]=useState("vacantes");
+  const [tab,setTab]=useState("dashboard");
   const [vacantes,setVacantes]=useState<Vacante[]>(VACANTES_INIT);
   const [requisiciones,setRequisiciones]=useState<Requisicion[]>(REQUISICIONES_INIT);
   const [perfilesTalento,setPerfilesTalento]=useState(PERFILES_TALENTO_INIT);
@@ -267,6 +268,16 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
 
   const fmt=(n:number)=>`₡${n.toLocaleString("es-CR")}`;
 
+  if(tab==="dashboard"){
+    return (
+      <ReclutamientoHome
+        setTab={setTab}
+        requisiciones={requisiciones} vacantes={vacantes} perfilesTalento={perfilesTalento}
+        candidatos={candidatos} entrevistas={entrevistas} ofertas={ofertas}
+      />
+    );
+  }
+
   return (
     <div style={{display:"flex",flex:1,overflow:"hidden"}}>
       <div className="content" style={{flex:1}}>
@@ -276,7 +287,8 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
             <div className="page-subtitle">Vacantes · Pipeline · CART · Integración automática · ISO 9001 §7.2</div>
           </div>
           <div style={{display:"flex",gap:6}}>
-            <button className="btn btn-secondary btn-sm" onClick={()=>setView("rrhh")}>← RRHH</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setTab("dashboard")}>← Dashboard</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>setView("rrhh")}>Salir a RRHH</button>
             <button className="btn btn-primary btn-sm" onClick={()=>setModalVacante({modo:"crear",vacante:null,requisicion:null})}>➕ Nueva Vacante</button>
           </div>
         </div>
@@ -292,7 +304,7 @@ export function Reclutamiento({setView,empleados,setEmpleados,catalogos}:{setVie
         </div>
 
         <div className="tab-bar">
-          {[["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
+          {[["dashboard","🏠 Dashboard"],["requisiciones","📝 Requisiciones"],["vacantes","📋 Vacantes"],["talento","🗂️ Base de Talento"],["candidatos","👤 Candidatos"],["pipeline","🔄 Pipeline"],["entrevistas","🗣️ Entrevistas"],["ofertas","📨 Ofertas"],["constructor","🛠️ Constructor"],["integracion","🔗 Integración"],["cart","🌳 CART"]].map(([id,l])=>(
             <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{l}</div>
           ))}
         </div>
