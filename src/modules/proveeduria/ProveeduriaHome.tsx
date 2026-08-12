@@ -1,7 +1,7 @@
 import React from "react";
 import type { View, OrdenCompra, ProveedorInventario, Factura } from "../../types";
 import { ModTile } from "../../components/ModTile";
-import { totalOC } from "../../data/proveeduria";
+import { totalOC, calcularEvaluacion } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
@@ -73,10 +73,13 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp}:
         })}
         <div style={{height:14}}/>
         <div className="panel-title">Top proveedores por facturación</div>
-        {activos.slice(0,5).map(p=>(
+        {[...activos].sort((a,b)=>{
+          const totalDe=(id:string)=>ordenesCompra.filter(o=>o.proveedorId===id&&o.estado!=="Cancelada").reduce((s,o)=>s+totalOC(o),0);
+          return totalDe(b.id)-totalDe(a.id);
+        }).slice(0,5).map(p=>(
           <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}>
             <div style={{fontSize:11.5,fontWeight:600}}>{p.nombre}</div>
-            <span className="badge badge-info" style={{fontSize:9}}>{p.rating}</span>
+            <span className="badge badge-info" style={{fontSize:9}} title="Evaluación calculada">{calcularEvaluacion(p.id,ordenesCompra).grado}</span>
           </div>
         ))}
       </div>

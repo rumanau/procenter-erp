@@ -43,7 +43,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
       costoUnitario:l.costoUnitario,contraparte:proveedor?.nombre||"—",fecha:hoy(),usuario:"Ronald",referencia:oc.id,
     }));
     setMovimientos(prev=>[...nuevosMovs,...prev]);
-    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Recibida"}:o));
+    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Recibida",fechaRecepcion:hoy()}:o));
     alert(`✅ Mercancía de ${oc.id} recibida.\n\nStock actualizado en ${bodNom(oc.bodegaId)}: ${oc.lineas.length} artículo(s).`);
   };
 
@@ -117,6 +117,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
             <div className="res-row"><span className="res-label">Bodega destino</span><span className="res-val">{bodNom(sel.bodegaId)}</span></div>
             <div className="res-row"><span className="res-label">Fecha</span><span className="res-val">{sel.fecha}</span></div>
             {sel.fechaEntregaEsperada&&<div className="res-row"><span className="res-label">Entrega esperada</span><span className="res-val">{sel.fechaEntregaEsperada}</span></div>}
+            {sel.fechaRecepcion&&<div className="res-row"><span className="res-label">Recibida el</span><span className="res-val">{sel.fechaRecepcion}</span></div>}
             <div className="res-row"><span className="res-label">Estado</span><span className={`badge ${badgeCl(sel.estado)}`}>{sel.estado}</span></div>
             {sel.facturaId&&<div className="res-row"><span className="res-label">Factura CxP</span><span className="res-val" style={{color:"#10B981"}}>{sel.facturaId}</span></div>}
           </div>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura } from "../../types";
-import { totalOC, parseFechaEsCR } from "../../data/proveeduria";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, type EvaluacionProveedor } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos";
@@ -25,6 +25,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   const cxpPendienteDe=(id:string)=>facturasDe(id).reduce((s,f)=>s+f.saldo,0);
   const comprasDe=(id:string)=>ocsDe(id).filter(o=>o.estado!=="Cancelada").reduce((s,o)=>s+totalOC(o),0);
   const ultimaCompraDe=(id:string)=>{const ocs=ocsDe(id).filter(o=>o.estado!=="Cancelada");return ocs.length?[...ocs].sort((a,b)=>b.id.localeCompare(a.id))[0]:null;};
+  const evalDe=(id:string)=>calcularEvaluacion(id,ordenesCompra);
   const esCritico=(id:string)=>{
     const hoy=new Date();
     const facturaVencida=facturasDe(id).some(f=>f.estado==="vencida");
@@ -106,13 +107,14 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
           {filtrados.map(p=>{
             const critico=esCritico(p.id);
             const ultima=ultimaCompraDe(p.id);
+            const ev=evalDe(p.id);
             return (
             <div key={p.id} className="card" onClick={()=>{setSelId(p.id);setTab("resumen");}}
               style={{marginBottom:8,cursor:"pointer",border:selId===p.id?"2px solid #E8611A":"1px solid #E5E7EB"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                 <div style={{fontSize:13,fontWeight:700}}>🏢 {p.nombre}</div>
                 <div style={{display:"flex",gap:4}}>
-                  <span className="badge badge-info" style={{fontSize:9}}>{p.rating}</span>
+                  <span className="badge badge-info" style={{fontSize:9}} title="Evaluación calculada">{ev.grado}</span>
                   <span className={`badge ${p.activo?"badge-ok":"badge-gray"}`} style={{fontSize:9}}>{p.activo?"Activo":"Inactivo"}</span>
                 </div>
               </div>
@@ -138,7 +140,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
                   <div style={{fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>🏢 {sel.nombre}
-                    <span className="badge badge-info">{sel.rating}</span>
+                    <span className="badge badge-info" title="Evaluación calculada">{evalDe(sel.id).grado}</span>
                     <span className={`badge ${sel.activo?"badge-ok":"badge-gray"}`}>{sel.activo?"Activo":"Inactivo"}</span>
                   </div>
                   <div style={{fontSize:11.5,color:"#6B7280",marginTop:2}}>{sel.cedulaJuridica} · {sel.contacto} · {sel.telefono}</div>
@@ -153,11 +155,11 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
               ))}
             </div>
 
-            {tab==="resumen"&&<ResumenTab proveedor={sel} comprasTotal={comprasDe(sel.id)} cxpPendiente={cxpPendienteDe(sel.id)} ocAbiertas={ocsAbiertasDe(sel.id)} nItems={itemsDe(sel.id).length} categorias={categorias} ocs={ocsDe(sel.id)} facturas={facturasDe(sel.id)}/>}
-            {tab==="catalogo"&&<CatalogoTab items={itemsDe(sel.id)} categorias={categorias}/>}
+            {tab==="resumen"&&<ResumenTab proveedor={sel} comprasTotal={comprasDe(sel.id)} cxpPendiente={cxpPendienteDe(sel.id)} ocAbiertas={ocsAbiertasDe(sel.id)} nItems={itemsDe(sel.id).length} categorias={categorias} ocs={ocsDe(sel.id)} facturas={facturasDe(sel.id)} evaluacion={evalDe(sel.id)}/>}
+            {tab==="catalogo"&&<CatalogoTab items={itemsDe(sel.id)} categorias={categorias} ordenesCompra={ocsDe(sel.id)}/>}
             {tab==="ordenes"&&<OrdenesTab ocs={ocsDe(sel.id)}/>}
             {tab==="cxp"&&<CxpTab facturas={facturasDe(sel.id)}/>}
-            {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)}/>}
+            {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)} evaluacion={evalDe(sel.id)}/>}
           </div>
         ):(
           <div className="card" style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#9CA3AF"}}>Selecciona un proveedor para ver su expediente</div>
@@ -169,9 +171,10 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   );
 }
 
-function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categorias,ocs,facturas}:{proveedor:ProveedorInventario;comprasTotal:number;cxpPendiente:number;ocAbiertas:number;nItems:number;categorias:CategoriaInventario[];ocs:OrdenCompra[];facturas:Factura[]}) {
+function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categorias,ocs,facturas,evaluacion}:{proveedor:ProveedorInventario;comprasTotal:number;cxpPendiente:number;ocAbiertas:number;nItems:number;categorias:CategoriaInventario[];ocs:OrdenCompra[];facturas:Factura[];evaluacion:EvaluacionProveedor}) {
   const recientes=[...ocs].sort((a,b)=>b.id.localeCompare(a.id)).slice(0,4);
   const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Enviada"?"badge-warn":"badge-gray";
+  const barColor=(v:number)=>v>=85?"#10B981":v>=70?"#F59E0B":"#EF4444";
   return (
     <div>
       <div className="g4" style={{marginBottom:14}}>
@@ -180,11 +183,29 @@ function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categ
         <div className="kpi"><div className="kpi-label">OC abiertas</div><div className="kpi-value" style={{fontSize:15}}>{ocAbiertas}</div></div>
         <div className="kpi"><div className="kpi-label">Artículos</div><div className="kpi-value" style={{fontSize:15}}>{nItems}</div></div>
       </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div className="card-title" style={{marginBottom:0}}>Evaluación del proveedor</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:22,fontWeight:800,color:barColor(evaluacion.puntaje)}}>{evaluacion.puntaje}</span>
+            <span className="badge badge-info">{evaluacion.grado}</span>
+          </div>
+        </div>
+        {[["Entrega a tiempo",evaluacion.entregaPct],["Estabilidad de precio",evaluacion.estabilidadPrecio],["Confiabilidad de suministro",evaluacion.confiabilidad]].map(([l,v])=>(
+          <div key={l as string} style={{marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:"#374151",fontWeight:600}}>{l}</span><span>{v}%</span></div>
+            <div className="stock-bar"><div className="stock-bar-fill" style={{width:`${v}%`,background:barColor(v as number)}}/></div>
+          </div>
+        ))}
+        <div style={{fontSize:10,color:"#9CA3AF",marginTop:8}}>
+          {evaluacion.conDatos?`Calculado a partir de ${evaluacion.nRecibidas} recepción(es) y el historial de precios registrado.`:"Aún sin historial de recepciones — se muestra un puntaje neutro hasta la primera orden recibida."}
+        </div>
+      </div>
       <div className="g2" style={{alignItems:"start"}}>
         <div className="card">
           <div className="card-title">Información comercial</div>
           <div className="resumen">
-            {[["Cédula jurídica",proveedor.cedulaJuridica],["Contacto",proveedor.contacto],["Teléfono",proveedor.telefono],["Condiciones de pago",proveedor.condicion],["Clasificación",proveedor.rating],["Moneda","Colones (₡)"]].map(([l,v])=>(
+            {[["Cédula jurídica",proveedor.cedulaJuridica],["Contacto",proveedor.contacto],["Teléfono",proveedor.telefono],["Condiciones de pago",proveedor.condicion],["Moneda","Colones (₡)"]].map(([l,v])=>(
               <div key={l} className="res-row"><span className="res-label">{l}</span><span className="res-val">{v||"—"}</span></div>
             ))}
           </div>
@@ -213,22 +234,39 @@ function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categ
   );
 }
 
-function CatalogoTab({items,categorias}:{items:Articulo[];categorias:CategoriaInventario[]}) {
+function CatalogoTab({items,categorias,ordenesCompra}:{items:Articulo[];categorias:CategoriaInventario[];ordenesCompra:OrdenCompra[]}) {
+  const historicoDe=(articuloId:string)=>{
+    const precios:number[]=[];
+    ordenesCompra.forEach(o=>o.lineas.forEach(l=>{if(l.articuloId===articuloId) precios.push(l.costoUnitario);}));
+    return precios;
+  };
   return (
     <div className="card" style={{padding:0,overflow:"hidden"}}>
       <table className="tbl">
-        <thead><tr><th>Código</th><th>Artículo</th><th>Categoría</th><th>Stock</th><th>Costo actual</th></tr></thead>
+        <thead><tr><th>Código</th><th>Artículo</th><th>Categoría</th><th>Stock</th><th>Costo actual</th><th>Tendencia</th></tr></thead>
         <tbody>
-          {items.map(a=>(
+          {items.map(a=>{
+            const historico=historicoDe(a.id);
+            const anteriores=historico.filter(p=>p!==a.costoUnitario);
+            const promAnterior=anteriores.length?anteriores.reduce((s,p)=>s+p,0)/anteriores.length:null;
+            const variacion=promAnterior?((a.costoUnitario-promAnterior)/promAnterior)*100:null;
+            return (
             <tr key={a.id}>
               <td><b style={{fontSize:11.5,fontFamily:"monospace"}}>{a.id}</b></td>
               <td style={{fontSize:12.5}}>{a.nombre}</td>
               <td><span className="badge badge-info" style={{fontSize:10}}>{categorias.find(c=>c.id===a.categoriaId)?.nombre}</span></td>
               <td>{a.stock} {a.unidad}</td>
               <td style={{fontWeight:600,color:"#E8611A"}}>{fmt(a.costoUnitario)}</td>
+              <td>
+                {variacion===null?<span style={{fontSize:10.5,color:"#9CA3AF"}}>Sin historial</span>:
+                  <span style={{fontSize:11,fontWeight:700,color:variacion>1?"#EF4444":variacion<-1?"#10B981":"#6B7280"}}>
+                    {variacion>0?"▲":variacion<0?"▼":"—"} {Math.abs(variacion).toFixed(1)}%
+                  </span>}
+              </td>
             </tr>
-          ))}
-          {items.length===0&&<tr><td colSpan={5} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Este proveedor no suministra artículos activos</td></tr>}
+            );
+          })}
+          {items.length===0&&<tr><td colSpan={6} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Este proveedor no suministra artículos activos</td></tr>}
         </tbody>
       </table>
     </div>
@@ -290,7 +328,7 @@ function CxpTab({facturas}:{facturas:Factura[]}) {
   );
 }
 
-function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminado}:{proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;puedeEliminar:boolean;onEliminado:()=>void}) {
+function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminado,evaluacion}:{proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;puedeEliminar:boolean;onEliminado:()=>void;evaluacion:EvaluacionProveedor}) {
   const set=(campo:keyof ProveedorInventario,valor:any)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,[campo]:valor}:p));
   const toggleCategoria=(catId:string)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,categorias:p.categorias.includes(catId)?p.categorias.filter(c=>c!==catId):[...p.categorias,catId]}:p));
   return (
@@ -309,10 +347,12 @@ function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminad
           </select>
         </div>
       </div>
-      <div className="form-group"><label className="form-label">Clasificación</label>
-        <select className="form-control" style={{width:120}} value={proveedor.rating} onChange={e=>set("rating",e.target.value)}>
-          <option>A+</option><option>A</option><option>B+</option><option>B</option><option>C</option>
-        </select>
+      <div className="form-group">
+        <label className="form-label">Clasificación</label>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span className="badge badge-info">{evaluacion.grado}</span>
+          <span style={{fontSize:11,color:"#9CA3AF"}}>Calculada automáticamente a partir del historial de compras — ver pestaña Resumen</span>
+        </div>
       </div>
       <div className="form-group"><label className="form-label">Categorías que suministra</label>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -358,11 +398,7 @@ function NuevoProveedorModal({categorias,onGuardar,onCerrar}:{categorias:Categor
             </select>
           </div>
         </div>
-        <div className="form-group"><label className="form-label">Clasificación inicial</label>
-          <select className="form-control" style={{width:120}} value={f.rating} onChange={e=>set("rating",e.target.value)}>
-            <option>A+</option><option>A</option><option>B+</option><option>B</option><option>C</option>
-          </select>
-        </div>
+        <div style={{fontSize:11,color:"#9CA3AF",marginBottom:10}}>La clasificación se calculará automáticamente una vez que este proveedor tenga historial de órdenes recibidas.</div>
         <div className="form-group"><label className="form-label">Categorías que suministra</label>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             {categorias.map(c=>(

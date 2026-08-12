@@ -525,6 +525,7 @@ export interface OrdenCompra {
   bodegaId: string;
   fecha: string;
   fechaEntregaEsperada?: string;
+  fechaRecepcion?: string;
   estado: EstadoOC;
   lineas: LineaOC[];
   observaciones?: string;
