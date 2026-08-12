@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo, EvaluacionServicio } from "../../types";
+import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo, EvaluacionServicio, DevolucionProveedor } from "../../types";
 import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, type ResumenLineaRecepcion } from "../../data/proveeduria";
 import { siguienteFolio } from "../../data/inventario";
 
@@ -8,13 +8,14 @@ const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short"
 const fmtFecha=(d:Date)=>d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 const MOTIVOS_RECHAZO:MotivoRechazo[]=["Producto defectuoso","Especificación incorrecta","Daño de transporte","Producto equivocado","Empaque deficiente","Otro"];
 
-export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones,evaluacionesServicio,setEvaluacionesServicio}:{
+export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones,evaluacionesServicio,setEvaluacionesServicio,devoluciones,setDevoluciones}:{
   setView:(v:View)=>void;ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;
   proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];setArticulos:React.Dispatch<React.SetStateAction<Articulo[]>>;
   movimientos:MovimientoInventario[];setMovimientos:React.Dispatch<React.SetStateAction<MovimientoInventario[]>>;
   facturasCxp:Factura[];setFacturasCxp:React.Dispatch<React.SetStateAction<Factura[]>>;
   recepciones:Recepcion[];setRecepciones:React.Dispatch<React.SetStateAction<Recepcion[]>>;
   evaluacionesServicio:EvaluacionServicio[];setEvaluacionesServicio:React.Dispatch<React.SetStateAction<EvaluacionServicio[]>>;
+  devoluciones:DevolucionProveedor[];setDevoluciones:React.Dispatch<React.SetStateAction<DevolucionProveedor[]>>;
 }) {
   const [filtro,setFiltro]=useState<EstadoOC|"">("");
   const [selId,setSelId]=useState<string|null>(null);
@@ -60,6 +61,17 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
     }
 
     setRecepciones(prev=>[nuevaRecepcion,...prev]);
+
+    const rechazadas=lineas.filter(l=>l.cantidadRechazada>0);
+    if(rechazadas.length>0){
+      let seq=devoluciones.length;
+      const nuevasDevoluciones:DevolucionProveedor[]=rechazadas.map(l=>{
+        seq++;
+        return {id:`DEV-PROV-${String(seq).padStart(4,"0")}`,proveedorId:oc.proveedorId,ordenCompraId:oc.id,recepcionId:folioRec,
+          articuloId:l.articuloId,cantidad:l.cantidadRechazada,motivo:l.motivoRechazo||"Otro",fecha,estado:"Pendiente"};
+      });
+      setDevoluciones(prev=>[...nuevasDevoluciones,...prev]);
+    }
 
     const resumenPrevio=resumenRecepcionOC(oc,recepciones);
     const completa=resumenPrevio.every(r=>{

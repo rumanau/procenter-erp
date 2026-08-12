@@ -90,6 +90,10 @@ export function siguienteFolioRecepcion(recepciones: Recepcion[]): string {
   return `REC-${recepciones.length + 1}`;
 }
 
+export function siguienteFolioDevolucion(devoluciones: { id: string }[]): string {
+  return `DEV-PROV-${String(devoluciones.length + 1).padStart(4, "0")}`;
+}
+
 export function totalOC(oc: OrdenCompra): number {
   return oc.lineas.reduce((s, l) => s + l.cantidad * l.costoUnitario, 0);
 }

@@ -552,6 +552,21 @@ export interface Recepcion {
   recibidoPor: string;
 }
 
+export type EstadoDevolucion = "Pendiente" | "Resuelta";
+
+export interface DevolucionProveedor {
+  id: string;
+  proveedorId: string;
+  ordenCompraId: string;
+  recepcionId: string;
+  articuloId: string;
+  cantidad: number;
+  motivo: MotivoRechazo;
+  fecha: string;
+  estado: EstadoDevolucion;
+  resolucion?: string;
+}
+
 export interface EvaluacionServicio {
   id: string;
   proveedorId: string;

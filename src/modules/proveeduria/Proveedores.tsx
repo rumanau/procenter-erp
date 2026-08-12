@@ -1,17 +1,18 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio } from "../../types";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor } from "../../types";
 import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, type EvaluacionProveedor } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos";
 type OrdenPor="nombre"|"compras"|"deuda";
-type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"documentos"|"editar";
+type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"documentos"|"devoluciones"|"editar";
 
-export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio}:{
+export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
   articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[];facturasCxp:Factura[];
   proveedorArticulos:ProveedorArticulo[];documentosProveedor:DocumentoProveedor[];setDocumentosProveedor:React.Dispatch<React.SetStateAction<DocumentoProveedor[]>>;
   recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];
+  devoluciones:DevolucionProveedor[];setDevoluciones:React.Dispatch<React.SetStateAction<DevolucionProveedor[]>>;
 }) {
   const [busqueda,setBusqueda]=useState("");
   const [filtro,setFiltro]=useState<FiltroChip>("todos");
@@ -29,6 +30,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   const ultimaCompraDe=(id:string)=>{const ocs=ocsDe(id).filter(o=>o.estado!=="Cancelada");return ocs.length?[...ocs].sort((a,b)=>b.id.localeCompare(a.id))[0]:null;};
   const evalDe=(id:string)=>calcularEvaluacion(id,ordenesCompra,recepciones,evaluacionesServicio);
   const documentosDe=(id:string)=>documentosProveedor.filter(d=>d.proveedorId===id);
+  const devolucionesDe=(id:string)=>devoluciones.filter(d=>d.proveedorId===id);
   const esCritico=(id:string)=>{
     const hoy=new Date();
     const facturaVencida=facturasDe(id).some(f=>f.estado==="vencida");
@@ -115,6 +117,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             const ev=evalDe(p.id);
             const docsVencidos=documentosDe(p.id).filter(d=>estadoDocumento(d.vigenciaHasta)==="Vencido").length;
             const docsPorVencer=documentosDe(p.id).filter(d=>estadoDocumento(d.vigenciaHasta)==="Por vencer").length;
+            const devsPendientes=devolucionesDe(p.id).filter(d=>d.estado==="Pendiente").length;
             return (
             <div key={p.id} className="card" onClick={()=>{setSelId(p.id);setTab("resumen");}}
               style={{marginBottom:8,cursor:"pointer",border:selId===p.id?"2px solid #E8611A":"1px solid #E5E7EB"}}>
@@ -131,6 +134,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
                 {cxpPendienteDe(p.id)>0&&<> · <span style={{color:"#EF4444",fontWeight:600}}>{fmt(cxpPendienteDe(p.id))} CxP</span></>}
                 {docsVencidos>0&&<span className="badge badge-crit" style={{fontSize:8.5,marginLeft:6}}>📄 {docsVencidos} vencido{docsVencidos>1?"s":""}</span>}
                 {docsVencidos===0&&docsPorVencer>0&&<span className="badge badge-warn" style={{fontSize:8.5,marginLeft:6}}>📄 Por vencer</span>}
+                {devsPendientes>0&&<span className="badge badge-warn" style={{fontSize:8.5,marginLeft:6}}>↩️ {devsPendientes} devolución{devsPendientes>1?"es":""}</span>}
                 {critico&&<span className="badge badge-crit" style={{fontSize:8.5,marginLeft:6}}>⚠ Atención</span>}
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
@@ -159,7 +163,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             </div>
 
             <div className="tab-bar" style={{marginBottom:12}}>
-              {([["resumen","Resumen"],["catalogo","Catálogo"],["ordenes","Órdenes"],["cxp","CxP"],["documentos","📄 Documentos"],["editar","✏️ Editar"]] as [Tab,string][]).map(([id,label])=>(
+              {([["resumen","Resumen"],["catalogo","Catálogo"],["ordenes","Órdenes"],["cxp","CxP"],["devoluciones","↩️ Devoluciones"],["documentos","📄 Documentos"],["editar","✏️ Editar"]] as [Tab,string][]).map(([id,label])=>(
                 <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{label}</div>
               ))}
             </div>
@@ -168,6 +172,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             {tab==="catalogo"&&<CatalogoTab items={itemsDe(sel.id)} categorias={categorias} ordenesCompra={ocsDe(sel.id)} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
             {tab==="ordenes"&&<OrdenesTab ocs={ocsDe(sel.id)}/>}
             {tab==="cxp"&&<CxpTab facturas={facturasDe(sel.id)}/>}
+            {tab==="devoluciones"&&<DevolucionesTab devoluciones={devolucionesDe(sel.id)} articulos={articulos} setDevoluciones={setDevoluciones}/>}
             {tab==="documentos"&&<DocumentosTab documentos={documentosDe(sel.id)} proveedorId={sel.id} setDocumentosProveedor={setDocumentosProveedor}/>}
             {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)} evaluacion={evalDe(sel.id)}/>}
           </div>
@@ -383,6 +388,44 @@ function CxpTab({facturas}:{facturas:Factura[]}) {
               </tr>
             ))}
             {facturas.length===0&&<tr><td colSpan={6} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin facturas en Cuentas por Pagar</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DevolucionesTab({devoluciones,articulos,setDevoluciones}:{devoluciones:DevolucionProveedor[];articulos:Articulo[];setDevoluciones:React.Dispatch<React.SetStateAction<DevolucionProveedor[]>>}) {
+  const ordenadas=[...devoluciones].sort((a,b)=>b.id.localeCompare(a.id));
+  const pendientes=devoluciones.filter(d=>d.estado==="Pendiente").length;
+  const marcarResuelta=(id:string)=>setDevoluciones(prev=>prev.map(d=>d.id===id?{...d,estado:"Resuelta"}:d));
+
+  return (
+    <div>
+      <div className="g3" style={{marginBottom:12}}>
+        <div className="kpi"><div className="kpi-label">Devoluciones totales</div><div className="kpi-value" style={{fontSize:15}}>{devoluciones.length}</div></div>
+        <div className="kpi"><div className="kpi-label">Pendientes</div><div className="kpi-value" style={{fontSize:15,color:pendientes>0?"#F59E0B":undefined}}>{pendientes}</div></div>
+        <div className="kpi"><div className="kpi-label">Unidades rechazadas</div><div className="kpi-value" style={{fontSize:15,color:"#EF4444"}}>{devoluciones.reduce((s,d)=>s+d.cantidad,0)}</div></div>
+      </div>
+      <div className="card" style={{padding:0,overflow:"hidden"}}>
+        <table className="tbl">
+          <thead><tr><th>Folio</th><th>Artículo</th><th>Cantidad</th><th>Motivo</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            {ordenadas.map(d=>{
+              const art=articulos.find(a=>a.id===d.articuloId);
+              return (
+                <tr key={d.id}>
+                  <td style={{fontFamily:"monospace",fontSize:11,color:"#E8611A",fontWeight:700}}>{d.id}</td>
+                  <td style={{fontSize:12}}>{art?.nombre||d.articuloId}</td>
+                  <td style={{fontWeight:600,color:"#EF4444"}}>{d.cantidad}</td>
+                  <td style={{fontSize:11.5}}>{d.motivo}</td>
+                  <td style={{fontSize:11.5}}>{d.fecha}</td>
+                  <td><span className={`badge ${d.estado==="Resuelta"?"badge-ok":"badge-warn"}`}>{d.estado}</span></td>
+                  <td>{d.estado==="Pendiente"&&<button className="btn btn-ghost btn-sm" onClick={()=>marcarResuelta(d.id)}>✓ Marcar resuelta</button>}</td>
+                </tr>
+              );
+            })}
+            {ordenadas.length===0&&<tr><td colSpan={7} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin devoluciones registradas — se generan automáticamente cuando se rechazan unidades al recibir una orden</td></tr>}
           </tbody>
         </table>
       </div>
