@@ -1,17 +1,18 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor } from "../../types";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor } from "../../types";
 import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, homologacionEfectiva, badgeHomologacion } from "../../data/proveeduria";
 import { ProveedorDetalle } from "./ProveedorDetalle";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 type FiltroChip="todos"|"activos"|"aprobados"|"atencion";
 
-export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones}:{
+export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones,auditoriaProveedores,setAuditoriaProveedores}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
   articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[];facturasCxp:Factura[];
   proveedorArticulos:ProveedorArticulo[];documentosProveedor:DocumentoProveedor[];setDocumentosProveedor:React.Dispatch<React.SetStateAction<DocumentoProveedor[]>>;
   recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];
   devoluciones:DevolucionProveedor[];setDevoluciones:React.Dispatch<React.SetStateAction<DevolucionProveedor[]>>;
+  auditoriaProveedores:AuditoriaProveedor[];setAuditoriaProveedores:React.Dispatch<React.SetStateAction<AuditoriaProveedor[]>>;
 }) {
   const [busqueda,setBusqueda]=useState("");
   const [filtro,setFiltro]=useState<FiltroChip>("todos");
@@ -72,6 +73,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
           documentosProveedor={documentosProveedor} setDocumentosProveedor={setDocumentosProveedor}
           recepciones={recepciones} evaluacionesServicio={evaluacionesServicio}
           devoluciones={devolucionesDe(prov.id)} setDevoluciones={setDevoluciones}
+          auditoriaProveedores={auditoriaProveedores} setAuditoriaProveedores={setAuditoriaProveedores}
           onEliminado={()=>setDetalleId(null)}
         />
       );

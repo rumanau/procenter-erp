@@ -29,7 +29,7 @@ export const CATEGORIAS_INIT: CategoriaInventario[] = [
   { id: "C6", nombre: "Activo Fijo", prefijo: "ACT", icono: "🏭", activa: true },
 ];
 
-export const PROVEEDORES_INIT: ProveedorInventario[] = [
+const PROVEEDORES_BASE: ProveedorInventario[] = [
   { id: "PV1", nombre: "TechnoSupply CR S.A.", cedulaJuridica: "3-101-334455", contacto: "ventas@technosupply.cr", telefono: "2233-4455", condicion: "30 días", rating: "A+", categorias: ["C1", "C4"], activo: true, homologacion: "Aprobado" },
   { id: "PV2", nombre: "MegaTools Ferretería", cedulaJuridica: "3-101-556611", contacto: "info@megatools.cr", telefono: "2245-7788", condicion: "Contado", rating: "A", categorias: ["C1", "C3"], activo: true, homologacion: "Aprobado" },
   { id: "PV3", nombre: "ElectroMayorista", cedulaJuridica: "3-101-667788", contacto: "compras@electromayorista.cr", telefono: "2260-1122", condicion: "60 días", rating: "B+", categorias: ["C4"], activo: true, homologacion: "Aprobado Condicionado" },
@@ -39,6 +39,16 @@ export const PROVEEDORES_INIT: ProveedorInventario[] = [
   { id: "PV7", nombre: "Mobiliario Corporativo CR", cedulaJuridica: "3-101-101156", contacto: "ventas@mobiliariocr.cr", telefono: "2210-2233", condicion: "45 días", rating: "A", categorias: ["C6"], activo: true, homologacion: "Pendiente" },
   { id: "PV8", nombre: "CamTech Seguridad Electrónica", cedulaJuridica: "3-101-212267", contacto: "info@camtech.cr", telefono: "2221-3344", condicion: "30 días", rating: "A", categorias: ["C4", "C5"], activo: true, homologacion: "Aprobado" },
 ];
+
+// Se deriva un primer contacto comercial y la moneda preferida a partir de los
+// datos que ya existían (correo/teléfono) — sin inventar personas ni cuentas
+// bancarias que el proveedor nunca ha entregado; eso queda vacío hasta que se
+// capture en el expediente real.
+export const PROVEEDORES_INIT: ProveedorInventario[] = PROVEEDORES_BASE.map(p => ({
+  ...p,
+  monedaPreferida: "CRC",
+  contactos: [{ id: `CT-${p.id}-1`, nombre: "Contacto Comercial", cargo: "Ventas", correo: p.contacto, telefono: p.telefono, principal: true }],
+}));
 
 interface Catalogo { catId: string; unidad: string; costoMin: number; costoMax: number; minBase: [number, number]; nombres: string[]; }
 

@@ -463,6 +463,41 @@ export interface CategoriaInventario {
 
 export type EstadoHomologacion = "Pendiente" | "En Evaluación" | "Aprobado" | "Aprobado Condicionado" | "Suspendido";
 
+export interface ContactoProveedor {
+  id: string;
+  nombre: string;
+  cargo: string;
+  correo: string;
+  telefono: string;
+  principal: boolean;
+}
+
+export interface CuentaBancariaProveedor {
+  id: string;
+  banco: string;
+  iban: string;
+  moneda: string;
+  titular: string;
+  principal: boolean;
+}
+
+export interface DireccionProveedor {
+  id: string;
+  tipo: "Fiscal" | "Entrega" | "Otra";
+  provincia: string;
+  canton: string;
+  senas: string;
+}
+
+export interface AuditoriaProveedor {
+  id: string;
+  proveedorId: string;
+  seccion: string;
+  descripcion: string;
+  fecha: string;
+  usuario: string;
+}
+
 export interface ProveedorInventario {
   id: string;
   nombre: string;
@@ -474,6 +509,15 @@ export interface ProveedorInventario {
   categorias: string[];
   activo: boolean;
   homologacion: EstadoHomologacion;
+  contactos?: ContactoProveedor[];
+  cuentasBancarias?: CuentaBancariaProveedor[];
+  direcciones?: DireccionProveedor[];
+  regimenFiscal?: string;
+  actividadEconomica?: string;
+  leadTimeContractualDias?: number;
+  descuentoPct?: number;
+  montoMinimoCompra?: number;
+  monedaPreferida?: string;
 }
 
 export type EstadoStock = "ok" | "bajo" | "critico" | "agotado";

@@ -1,17 +1,19 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor } from "../../types";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor, ContactoProveedor, CuentaBancariaProveedor, DireccionProveedor } from "../../types";
 import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
+const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 type Tab="resumen"|"compras"|"desempeno"|"precios"|"catalogo"|"finanzas"|"documentos"|"devoluciones"|"historial";
 
-export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones,onEliminado}:{
+export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones,auditoriaProveedores,setAuditoriaProveedores,onEliminado}:{
   proveedor:ProveedorInventario;setView:(v:View)=>void;onVolver:()=>void;
   proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
   articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[];facturasCxp:Factura[];
   proveedorArticulos:ProveedorArticulo[];documentosProveedor:DocumentoProveedor[];setDocumentosProveedor:React.Dispatch<React.SetStateAction<DocumentoProveedor[]>>;
   recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];
   devoluciones:DevolucionProveedor[];setDevoluciones:React.Dispatch<React.SetStateAction<DevolucionProveedor[]>>;
+  auditoriaProveedores:AuditoriaProveedor[];setAuditoriaProveedores:React.Dispatch<React.SetStateAction<AuditoriaProveedor[]>>;
   onEliminado:()=>void;
 }) {
   const [tab,setTab]=useState<Tab>("resumen");
@@ -95,7 +97,7 @@ export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProv
         {tab==="historial"&&<HistorialTab ocs={ocs} recepciones={recepciones.filter(r=>ocs.some(o=>o.id===r.ordenCompraId))} devoluciones={devoluciones} documentos={documentos}/>}
       </div>
 
-      {modalEditar&&<EditarProveedorModal proveedor={proveedor} categorias={categorias} setProveedores={setProveedores} homologEfectiva={homolog} onCerrar={()=>setModalEditar(false)}/>}
+      {modalEditar&&<EditarProveedorModal proveedor={proveedor} categorias={categorias} setProveedores={setProveedores} homologEfectiva={homolog} auditoriaProveedores={auditoriaProveedores} setAuditoriaProveedores={setAuditoriaProveedores} onCerrar={()=>setModalEditar(false)}/>}
     </div>
   );
 }
@@ -531,52 +533,255 @@ function HistorialTab({ocs,recepciones,devoluciones,documentos}:{ocs:OrdenCompra
   );
 }
 
-function EditarProveedorModal({proveedor,categorias,setProveedores,homologEfectiva,onCerrar}:{proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;homologEfectiva:EstadoHomologacionEfectivo;onCerrar:()=>void}) {
+type SeccionEdicion="general"|"contactos"|"comercial"|"bancaria"|"fiscal"|"direcciones"|"homologacion"|"configuracion";
+
+function EditarProveedorModal({proveedor,categorias,setProveedores,homologEfectiva,auditoriaProveedores,setAuditoriaProveedores,onCerrar}:{
+  proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
+  homologEfectiva:EstadoHomologacionEfectivo;auditoriaProveedores:AuditoriaProveedor[];setAuditoriaProveedores:React.Dispatch<React.SetStateAction<AuditoriaProveedor[]>>;onCerrar:()=>void;
+}) {
+  const [seccion,setSeccion]=useState<SeccionEdicion>("general");
   const set=(campo:keyof ProveedorInventario,valor:any)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,[campo]:valor}:p));
   const toggleCategoria=(catId:string)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,categorias:p.categorias.includes(catId)?p.categorias.filter(c=>c!==catId):[...p.categorias,catId]}:p));
+  const registrarAuditoria=(descripcion:string)=>setAuditoriaProveedores(prev=>[{id:`AUD-${Date.now()}`,proveedorId:proveedor.id,seccion:"Bancaria",descripcion,fecha:hoy(),usuario:"Ronald"},...prev]);
+
+  const contactos=proveedor.contactos||[];
+  const cuentas=proveedor.cuentasBancarias||[];
+  const direcciones=proveedor.direcciones||[];
+  const auditoriaDeEste=auditoriaProveedores.filter(a=>a.proveedorId===proveedor.id);
+
+  const secciones:[SeccionEdicion,string][]=[["general","General"],["contactos","Contactos"],["comercial","Comercial"],["bancaria","Bancaria"],["fiscal","Fiscal"],["direcciones","Direcciones"],["homologacion","Homologación"],["configuracion","Configuración"]];
+
   return (
     <div className="modal-overlay" onClick={onCerrar}>
-      <div className="modal" style={{maxWidth:560}} onClick={e=>e.stopPropagation()}>
+      <div className="modal" style={{maxWidth:820,display:"flex",flexDirection:"column",maxHeight:"85vh"}} onClick={e=>e.stopPropagation()}>
         <div className="modal-header">
           <div><div className="modal-title">Editar Proveedor</div><div className="modal-sub">{proveedor.nombre}</div></div>
           <div className="modal-close" onClick={onCerrar}>✕</div>
         </div>
-        <div className="g2">
-          <div className="form-group"><label className="form-label">Nombre / Razón social</label><input className="form-control" value={proveedor.nombre} onChange={e=>set("nombre",e.target.value)}/></div>
-          <div className="form-group"><label className="form-label">Cédula jurídica</label><input className="form-control" value={proveedor.cedulaJuridica} onChange={e=>set("cedulaJuridica",e.target.value)}/></div>
-        </div>
-        <div className="g3">
-          <div className="form-group"><label className="form-label">Correo de contacto</label><input className="form-control" value={proveedor.contacto} onChange={e=>set("contacto",e.target.value)}/></div>
-          <div className="form-group"><label className="form-label">Teléfono</label><input className="form-control" value={proveedor.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
-          <div className="form-group"><label className="form-label">Condición de pago</label>
-            <select className="form-control" value={proveedor.condicion} onChange={e=>set("condicion",e.target.value)}>
-              <option>Contado</option><option>15 días</option><option>30 días</option><option>45 días</option><option>60 días</option>
-            </select>
-          </div>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Estado de homologación</label>
-          <select className="form-control" value={proveedor.homologacion} onChange={e=>set("homologacion",e.target.value)} disabled={homologEfectiva==="Bloqueado"}>
-            <option>Pendiente</option><option>En Evaluación</option><option>Aprobado</option><option>Aprobado Condicionado</option><option>Suspendido</option>
-          </select>
-          {homologEfectiva==="Bloqueado"?
-            <div style={{fontSize:11,color:"#EF4444",marginTop:4}}>🚫 Bloqueado automáticamente por documentos vencidos — regulariza los documentos en la pestaña Documentos para poder cambiar este estado manualmente.</div>
-            :<div style={{fontSize:11,color:"#9CA3AF",marginTop:4}}>Distinto del estado administrativo (Activo/Inactivo).</div>}
-        </div>
-        <div className="form-group"><label className="form-label">Categorías que suministra</label>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {categorias.map(c=>(
-              <span key={c.id} className={`badge ${proveedor.categorias.includes(c.id)?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>toggleCategoria(c.id)}>{c.icono} {c.nombre}</span>
+        <div style={{display:"flex",gap:16,flex:1,overflow:"hidden"}}>
+          <div style={{width:150,flexShrink:0,display:"flex",flexDirection:"column",gap:2}}>
+            {secciones.map(([id,label])=>(
+              <div key={id} onClick={()=>setSeccion(id)} style={{padding:"8px 10px",borderRadius:6,fontSize:12,cursor:"pointer",fontWeight:seccion===id?700:400,background:seccion===id?"#FFF3ED":"transparent",color:seccion===id?"#E8611A":"#374151"}}>{label}</div>
             ))}
           </div>
+          <div style={{flex:1,overflow:"auto",paddingRight:4}}>
+            {seccion==="general"&&(
+              <div>
+                <div className="g2">
+                  <div className="form-group"><label className="form-label">Nombre / Razón social</label><input className="form-control" value={proveedor.nombre} onChange={e=>set("nombre",e.target.value)}/></div>
+                  <div className="form-group"><label className="form-label">Cédula jurídica</label><input className="form-control" value={proveedor.cedulaJuridica} onChange={e=>set("cedulaJuridica",e.target.value)}/></div>
+                </div>
+                <div className="g2">
+                  <div className="form-group"><label className="form-label">Correo principal</label><input className="form-control" value={proveedor.contacto} onChange={e=>set("contacto",e.target.value)}/></div>
+                  <div className="form-group"><label className="form-label">Teléfono principal</label><input className="form-control" value={proveedor.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
+                </div>
+                <div className="form-group"><label className="form-label">Clasificación (calculada)</label><div className="form-control" style={{background:"#F9FAFB",color:"#6B7280"}}>Automática — ver pestaña Desempeño</div></div>
+              </div>
+            )}
+
+            {seccion==="contactos"&&<ContactosSeccion contactos={contactos} onCambiar={list=>set("contactos",list)}/>}
+
+            {seccion==="comercial"&&(
+              <div>
+                <div className="g2">
+                  <div className="form-group"><label className="form-label">Condición de pago</label>
+                    <select className="form-control" value={proveedor.condicion} onChange={e=>set("condicion",e.target.value)}>
+                      <option>Contado</option><option>15 días</option><option>30 días</option><option>45 días</option><option>60 días</option>
+                    </select>
+                  </div>
+                  <div className="form-group"><label className="form-label">Moneda preferida</label>
+                    <select className="form-control" value={proveedor.monedaPreferida||"CRC"} onChange={e=>set("monedaPreferida",e.target.value)}>
+                      <option value="CRC">CRC — Colones</option><option value="USD">USD — Dólares</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="g3">
+                  <div className="form-group"><label className="form-label">Lead time contractual (días)</label><input type="number" className="form-control" value={proveedor.leadTimeContractualDias??""} min={0} onChange={e=>set("leadTimeContractualDias",e.target.value?Math.max(0,parseInt(e.target.value)):undefined)}/></div>
+                  <div className="form-group"><label className="form-label">Descuento acordado (%)</label><input type="number" className="form-control" value={proveedor.descuentoPct??""} min={0} max={100} onChange={e=>set("descuentoPct",e.target.value?Math.max(0,Math.min(100,parseFloat(e.target.value))):undefined)}/></div>
+                  <div className="form-group"><label className="form-label">Monto mínimo de compra</label><input type="number" className="form-control" value={proveedor.montoMinimoCompra??""} min={0} onChange={e=>set("montoMinimoCompra",e.target.value?Math.max(0,parseFloat(e.target.value)):undefined)}/></div>
+                </div>
+              </div>
+            )}
+
+            {seccion==="bancaria"&&<BancariaSeccion cuentas={cuentas} onCambiar={list=>set("cuentasBancarias",list)} registrarAuditoria={registrarAuditoria} auditoria={auditoriaDeEste}/>}
+
+            {seccion==="fiscal"&&(
+              <div className="g2">
+                <div className="form-group"><label className="form-label">Régimen fiscal</label><input className="form-control" value={proveedor.regimenFiscal||""} onChange={e=>set("regimenFiscal",e.target.value||undefined)} placeholder="Ej: Régimen Tradicional"/></div>
+                <div className="form-group"><label className="form-label">Actividad económica</label><input className="form-control" value={proveedor.actividadEconomica||""} onChange={e=>set("actividadEconomica",e.target.value||undefined)} placeholder="Código / descripción Hacienda"/></div>
+              </div>
+            )}
+
+            {seccion==="direcciones"&&<DireccionesSeccion direcciones={direcciones} onCambiar={list=>set("direcciones",list)}/>}
+
+            {seccion==="homologacion"&&(
+              <div className="form-group">
+                <label className="form-label">Estado de homologación</label>
+                <select className="form-control" value={proveedor.homologacion} onChange={e=>set("homologacion",e.target.value)} disabled={homologEfectiva==="Bloqueado"}>
+                  <option>Pendiente</option><option>En Evaluación</option><option>Aprobado</option><option>Aprobado Condicionado</option><option>Suspendido</option>
+                </select>
+                {homologEfectiva==="Bloqueado"?
+                  <div style={{fontSize:11,color:"#EF4444",marginTop:4}}>🚫 Bloqueado automáticamente por documentos vencidos — regulariza los documentos en la pestaña Documentos para poder cambiar este estado manualmente.</div>
+                  :<div style={{fontSize:11,color:"#9CA3AF",marginTop:4}}>Distinto del estado administrativo (Activo/Inactivo) — ver pestaña Configuración.</div>}
+              </div>
+            )}
+
+            {seccion==="configuracion"&&(
+              <div>
+                <div className="form-group"><label className="form-label">Categorías que suministra</label>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {categorias.map(c=>(
+                      <span key={c.id} className={`badge ${proveedor.categorias.includes(c.id)?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>toggleCategoria(c.id)}>{c.icono} {c.nombre}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="toggle-row">
+                  <span style={{fontSize:12.5}}>Proveedor activo</span>
+                  <div className={`toggle ${proveedor.activo?"on":""}`} onClick={()=>set("activo",!proveedor.activo)}/>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="toggle-row">
-          <span style={{fontSize:12.5}}>Proveedor activo</span>
-          <div className={`toggle ${proveedor.activo?"on":""}`} onClick={()=>set("activo",!proveedor.activo)}/>
-        </div>
-        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:14,flexShrink:0}}>
           <button className="btn btn-secondary" onClick={onCerrar}>Cerrar</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactosSeccion({contactos,onCambiar}:{contactos:ContactoProveedor[];onCambiar:(list:ContactoProveedor[])=>void}) {
+  const [f,setF]=useState({nombre:"",cargo:"",correo:"",telefono:""});
+  const agregar=()=>{
+    if(!f.nombre.trim()) return;
+    onCambiar([...contactos,{id:`CT-${Date.now()}`,...f,principal:contactos.length===0}]);
+    setF({nombre:"",cargo:"",correo:"",telefono:""});
+  };
+  const quitar=(id:string)=>onCambiar(contactos.filter(c=>c.id!==id));
+  const marcarPrincipal=(id:string)=>onCambiar(contactos.map(c=>({...c,principal:c.id===id})));
+  return (
+    <div>
+      {contactos.map(c=>(
+        <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #F3F4F6"}}>
+          <div>
+            <div style={{fontSize:12.5,fontWeight:600}}>{c.nombre} {c.principal&&<span className="badge badge-info" style={{fontSize:8,marginLeft:4}}>Principal</span>}</div>
+            <div style={{fontSize:11,color:"#6B7280"}}>{c.cargo} · {c.correo} · {c.telefono}</div>
+          </div>
+          <div style={{display:"flex",gap:4}}>
+            {!c.principal&&<button className="btn btn-ghost btn-sm" onClick={()=>marcarPrincipal(c.id)}>Marcar principal</button>}
+            <button className="btn btn-ghost btn-sm" onClick={()=>quitar(c.id)}>✕</button>
+          </div>
+        </div>
+      ))}
+      {contactos.length===0&&<div style={{fontSize:11,color:"#9CA3AF",marginBottom:10}}>Sin contactos registrados</div>}
+      <div className="card" style={{marginTop:10}}>
+        <div className="card-title" style={{fontSize:12}}>Agregar contacto</div>
+        <div className="g2">
+          <div className="form-group"><label className="form-label">Nombre</label><input className="form-control" value={f.nombre} onChange={e=>setF(p=>({...p,nombre:e.target.value}))}/></div>
+          <div className="form-group"><label className="form-label">Cargo / función</label><input className="form-control" value={f.cargo} onChange={e=>setF(p=>({...p,cargo:e.target.value}))} placeholder="Ej: Ventas, Cobros, Logística"/></div>
+        </div>
+        <div className="g2">
+          <div className="form-group"><label className="form-label">Correo</label><input className="form-control" value={f.correo} onChange={e=>setF(p=>({...p,correo:e.target.value}))}/></div>
+          <div className="form-group"><label className="form-label">Teléfono</label><input className="form-control" value={f.telefono} onChange={e=>setF(p=>({...p,telefono:e.target.value}))}/></div>
+        </div>
+        <button className="btn btn-primary btn-sm" disabled={!f.nombre.trim()} onClick={agregar}>➕ Agregar contacto</button>
+      </div>
+    </div>
+  );
+}
+
+function BancariaSeccion({cuentas,onCambiar,registrarAuditoria,auditoria}:{cuentas:CuentaBancariaProveedor[];onCambiar:(list:CuentaBancariaProveedor[])=>void;registrarAuditoria:(descripcion:string)=>void;auditoria:AuditoriaProveedor[]}) {
+  const [f,setF]=useState({banco:"",iban:"",moneda:"CRC",titular:""});
+  const mascara=(iban:string)=>iban.length>4?`****${iban.slice(-4)}`:iban;
+  const agregar=()=>{
+    if(!f.banco.trim()||!f.iban.trim()) return;
+    onCambiar([...cuentas,{id:`CB-${Date.now()}`,...f,principal:cuentas.length===0}]);
+    registrarAuditoria(`Cuenta bancaria agregada: ${f.banco} ${mascara(f.iban)} (${f.moneda})`);
+    setF({banco:"",iban:"",moneda:"CRC",titular:""});
+  };
+  const quitar=(id:string)=>{
+    const c=cuentas.find(x=>x.id===id);
+    onCambiar(cuentas.filter(x=>x.id!==id));
+    if(c) registrarAuditoria(`Cuenta bancaria eliminada: ${c.banco} ${mascara(c.iban)}`);
+  };
+  const marcarPrincipal=(id:string)=>onCambiar(cuentas.map(c=>({...c,principal:c.id===id})));
+  return (
+    <div>
+      {cuentas.map(c=>(
+        <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #F3F4F6"}}>
+          <div>
+            <div style={{fontSize:12.5,fontWeight:600}}>{c.banco} {c.principal&&<span className="badge badge-info" style={{fontSize:8,marginLeft:4}}>Principal</span>}</div>
+            <div style={{fontSize:11,color:"#6B7280",fontFamily:"monospace"}}>{mascara(c.iban)} · {c.moneda} · {c.titular}</div>
+          </div>
+          <div style={{display:"flex",gap:4}}>
+            {!c.principal&&<button className="btn btn-ghost btn-sm" onClick={()=>marcarPrincipal(c.id)}>Marcar principal</button>}
+            <button className="btn btn-ghost btn-sm" onClick={()=>quitar(c.id)}>✕</button>
+          </div>
+        </div>
+      ))}
+      {cuentas.length===0&&<div style={{fontSize:11,color:"#9CA3AF",marginBottom:10}}>Sin cuentas bancarias registradas</div>}
+      <div className="card" style={{marginTop:10}}>
+        <div className="card-title" style={{fontSize:12}}>Agregar cuenta bancaria</div>
+        <div className="g2">
+          <div className="form-group"><label className="form-label">Banco</label><input className="form-control" value={f.banco} onChange={e=>setF(p=>({...p,banco:e.target.value}))}/></div>
+          <div className="form-group"><label className="form-label">IBAN / N° cuenta</label><input className="form-control" value={f.iban} onChange={e=>setF(p=>({...p,iban:e.target.value}))}/></div>
+        </div>
+        <div className="g2">
+          <div className="form-group"><label className="form-label">Moneda</label>
+            <select className="form-control" value={f.moneda} onChange={e=>setF(p=>({...p,moneda:e.target.value}))}>
+              <option value="CRC">CRC — Colones</option><option value="USD">USD — Dólares</option>
+            </select>
+          </div>
+          <div className="form-group"><label className="form-label">Titular</label><input className="form-control" value={f.titular} onChange={e=>setF(p=>({...p,titular:e.target.value}))}/></div>
+        </div>
+        <button className="btn btn-primary btn-sm" disabled={!f.banco.trim()||!f.iban.trim()} onClick={agregar}>➕ Agregar cuenta</button>
+      </div>
+      {auditoria.length>0&&(
+        <div style={{marginTop:14}}>
+          <div className="card-title" style={{fontSize:12}}>Auditoría de cambios bancarios</div>
+          {auditoria.map(a=>(
+            <div key={a.id} style={{fontSize:11,color:"#6B7280",padding:"5px 0",borderBottom:"1px solid #F3F4F6"}}>{a.fecha} — {a.descripcion} <span style={{color:"#9CA3AF"}}>({a.usuario})</span></div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DireccionesSeccion({direcciones,onCambiar}:{direcciones:DireccionProveedor[];onCambiar:(list:DireccionProveedor[])=>void}) {
+  const [f,setF]=useState<{tipo:DireccionProveedor["tipo"];provincia:string;canton:string;senas:string}>({tipo:"Fiscal",provincia:"",canton:"",senas:""});
+  const agregar=()=>{
+    if(!f.provincia.trim()||!f.senas.trim()) return;
+    onCambiar([...direcciones,{id:`DIR-${Date.now()}`,...f}]);
+    setF({tipo:"Fiscal",provincia:"",canton:"",senas:""});
+  };
+  const quitar=(id:string)=>onCambiar(direcciones.filter(d=>d.id!==id));
+  return (
+    <div>
+      {direcciones.map(d=>(
+        <div key={d.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #F3F4F6"}}>
+          <div>
+            <div style={{fontSize:12.5,fontWeight:600}}>{d.tipo} <span style={{fontWeight:400,color:"#6B7280"}}>— {d.provincia}, {d.canton}</span></div>
+            <div style={{fontSize:11,color:"#6B7280"}}>{d.senas}</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={()=>quitar(d.id)}>✕</button>
+        </div>
+      ))}
+      {direcciones.length===0&&<div style={{fontSize:11,color:"#9CA3AF",marginBottom:10}}>Sin direcciones registradas</div>}
+      <div className="card" style={{marginTop:10}}>
+        <div className="card-title" style={{fontSize:12}}>Agregar dirección</div>
+        <div className="g3">
+          <div className="form-group"><label className="form-label">Tipo</label>
+            <select className="form-control" value={f.tipo} onChange={e=>setF(p=>({...p,tipo:e.target.value as DireccionProveedor["tipo"]}))}>
+              <option>Fiscal</option><option>Entrega</option><option>Otra</option>
+            </select>
+          </div>
+          <div className="form-group"><label className="form-label">Provincia</label><input className="form-control" value={f.provincia} onChange={e=>setF(p=>({...p,provincia:e.target.value}))}/></div>
+          <div className="form-group"><label className="form-label">Cantón</label><input className="form-control" value={f.canton} onChange={e=>setF(p=>({...p,canton:e.target.value}))}/></div>
+        </div>
+        <div className="form-group"><label className="form-label">Señas exactas</label><input className="form-control" value={f.senas} onChange={e=>setF(p=>({...p,senas:e.target.value}))}/></div>
+        <button className="btn btn-primary btn-sm" disabled={!f.provincia.trim()||!f.senas.trim()} onClick={agregar}>➕ Agregar dirección</button>
       </div>
     </div>
   );
