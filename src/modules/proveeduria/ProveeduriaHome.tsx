@@ -16,6 +16,7 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
     {icon:"🏢",name:"Proveedores",desc:"Directorio y condiciones",sub:`${activos.length} activos`,view:"proveedores" as View},
     {icon:"📋",name:"Órdenes de Compra",desc:"Ciclo completo de compra",sub:`${abiertas.length} abiertas`,badge:abiertas.length>0?`${abiertas.length}`:undefined,badgeColor:"#3B82F6",view:"ordenes-compra" as View},
     {icon:"➕",name:"Nueva Orden de Compra",desc:"Crear OC manual",sub:"Borrador o enviar directo",view:"nueva-oc" as View},
+    {icon:"📨",name:"Cotizaciones (RFQ)",desc:"Solicita y compara ofertas",sub:"Antes de comprar",view:"cotizaciones" as View},
     {icon:"🔄",name:"Reabastecimiento",desc:"Sugerencias desde Inventario",sub:"Genera OC automáticas",view:"reabasto" as View},
     {icon:"💳",name:"Cuentas por Pagar",desc:"Facturas de proveedores",sub:`${facturasProveedores.length} pendientes`,view:"cxp" as View},
     {icon:"🆚",name:"Comparador de Proveedores",desc:"Desempeño y precio lado a lado",sub:"Hasta 3 proveedores",view:"comparador" as View},

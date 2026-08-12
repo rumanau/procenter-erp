@@ -1,4 +1,4 @@
-import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio } from "../types";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor } from "../types";
 import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
 
 function mulberry32(seed: number) {
@@ -284,6 +284,52 @@ function generarDocumentos(): DocumentoProveedor[] {
 }
 
 export const DOCUMENTOS_PROVEEDOR_INIT: DocumentoProveedor[] = generarDocumentos();
+
+// ── Cotizaciones / RFQ ───────────────────────────────────────────
+export function siguienteFolioRFQ(solicitudes: SolicitudCotizacion[]): string {
+  return `RFQ-2024-${String(solicitudes.length + 1).padStart(3, "0")}`;
+}
+
+export function siguienteFolioOferta(ofertas: OfertaProveedor[]): string {
+  return `OF-2024-${String(ofertas.length + 1).padStart(3, "0")}`;
+}
+
+export function totalOferta(oferta: OfertaProveedor, rfq: SolicitudCotizacion): number {
+  return oferta.lineas.reduce((s, l) => {
+    const linea = rfq.lineas.find(x => x.articuloId === l.articuloId);
+    return s + (linea ? linea.cantidad * l.costoUnitario : 0);
+  }, 0);
+}
+
+export interface RecomendacionOferta {
+  proveedorId: string;
+  total: number;
+  plazoEntregaDias: number;
+  score: number;
+  evaluacion: EvaluacionProveedor;
+}
+
+// Recomienda la oferta con mejor balance de precio (40%), evaluación histórica del
+// proveedor (35%) y plazo de entrega (25%) — no necesariamente la más barata.
+export function recomendarOferta(
+  ofertas: OfertaProveedor[], rfq: SolicitudCotizacion, ordenesCompra: OrdenCompra[], recepciones: Recepcion[], evaluacionesServicio: EvaluacionServicio[]
+): RecomendacionOferta[] {
+  const datos = ofertas.map(o => ({
+    proveedorId: o.proveedorId,
+    total: totalOferta(o, rfq),
+    plazoEntregaDias: o.plazoEntregaDias,
+    evaluacion: calcularEvaluacion(o.proveedorId, ordenesCompra, recepciones, evaluacionesServicio),
+  }));
+  if (datos.length === 0) return [];
+  const minTotal = Math.min(...datos.map(d => d.total));
+  const minPlazo = Math.min(...datos.map(d => d.plazoEntregaDias));
+  return datos.map(d => {
+    const normPrecio = d.total > 0 ? Math.max(0, 100 - ((d.total - minTotal) / d.total) * 100) : 100;
+    const normPlazo = d.plazoEntregaDias > 0 ? Math.max(0, 100 - ((d.plazoEntregaDias - minPlazo) / d.plazoEntregaDias) * 100) : 100;
+    const score = Math.round(normPrecio * 0.40 + d.evaluacion.puntaje * 0.35 + normPlazo * 0.25);
+    return { ...d, score };
+  }).sort((a, b) => b.score - a.score);
+}
 
 export function estadoDocumento(vigenciaHasta?: string): EstadoDocumento {
   if (!vigenciaHasta) return "Vigente";

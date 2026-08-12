@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor } from "./types";
+import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, SolicitudCotizacion, OfertaProveedor } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";
@@ -42,6 +42,8 @@ import { Proveedores }         from "./modules/proveeduria/Proveedores";
 import { OrdenesCompra }       from "./modules/proveeduria/OrdenesCompra";
 import { NuevaOrdenCompra }    from "./modules/proveeduria/NuevaOrdenCompra";
 import { ComparadorProveedores } from "./modules/proveeduria/ComparadorProveedores";
+import { Cotizaciones }        from "./modules/proveeduria/Cotizaciones";
+import { NuevaCotizacion }     from "./modules/proveeduria/NuevaCotizacion";
 
 // módulos — BI & reportería
 import { BIReporteria }        from "./modules/bi/BIReporteria";
@@ -97,6 +99,8 @@ export default function App() {
   const [recepciones, setRecepciones] = useState<Recepcion[]>(RECEPCIONES_INIT);
   const [evaluacionesServicio, setEvaluacionesServicio] = useState<EvaluacionServicio[]>([]);
   const [devoluciones, setDevoluciones] = useState<DevolucionProveedor[]>([]);
+  const [solicitudesCotizacion, setSolicitudesCotizacion] = useState<SolicitudCotizacion[]>([]);
+  const [ofertasProveedor, setOfertasProveedor] = useState<OfertaProveedor[]>([]);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -132,6 +136,8 @@ export default function App() {
         {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} recepciones={recepciones} setRecepciones={setRecepciones} evaluacionesServicio={evaluacionesServicio} setEvaluacionesServicio={setEvaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} />}
         {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} />}
         {view === "comparador"    && <ComparadorProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} proveedorArticulos={proveedorArticulos} articulos={articulos} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} />}
+        {view === "cotizaciones"  && <Cotizaciones      setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} solicitudes={solicitudesCotizacion} setSolicitudes={setSolicitudesCotizacion} ofertas={ofertasProveedor} setOfertas={setOfertasProveedor} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} />}
+        {view === "nueva-cotizacion" && <NuevaCotizacion setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} solicitudes={solicitudesCotizacion} setSolicitudes={setSolicitudesCotizacion} />}
         {view === "bi"           && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "reportes"     && <GeneradorReportes />}
         {view === "bi-ejecutivo" && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}

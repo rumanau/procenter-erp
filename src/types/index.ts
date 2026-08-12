@@ -2,7 +2,7 @@ export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
   | "conteo" | "reabasto" | "valorizado" | "trazabilidad"
-  | "proveeduria" | "proveedores" | "ordenes-compra" | "nueva-oc" | "comparador"
+  | "proveeduria" | "proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"
   | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
@@ -583,6 +583,41 @@ export interface EvaluacionServicio {
   cumplimientoComercial: number;
   observaciones?: string;
   fecha: string;
+}
+
+export interface LineaRFQ {
+  articuloId: string;
+  cantidad: number;
+}
+
+export type EstadoRFQ = "Enviada" | "Con Ofertas" | "Adjudicada" | "Cancelada";
+
+export interface SolicitudCotizacion {
+  id: string;
+  fecha: string;
+  bodegaId: string;
+  lineas: LineaRFQ[];
+  proveedorIds: string[];
+  estado: EstadoRFQ;
+  observaciones?: string;
+  creadoPor: string;
+  ordenCompraId?: string;
+  proveedorAdjudicadoId?: string;
+}
+
+export interface LineaOferta {
+  articuloId: string;
+  costoUnitario: number;
+}
+
+export interface OfertaProveedor {
+  id: string;
+  rfqId: string;
+  proveedorId: string;
+  lineas: LineaOferta[];
+  plazoEntregaDias: number;
+  fecha: string;
+  observaciones?: string;
 }
 
 export interface ProveedorArticulo {

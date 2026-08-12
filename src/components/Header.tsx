@@ -4,7 +4,7 @@ import type { View, Company } from "../types";
 export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:View)=>void;company:Company;onSwitch:()=>void}) {
   const getModuleParent=(v:View):View=>{
     if(["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"].includes(v)) return "inventario";
-    if(["proveeduria","proveedores","ordenes-compra","nueva-oc","comparador"].includes(v)) return "proveeduria";
+    if(["proveeduria","proveedores","ordenes-compra","nueva-oc","comparador","cotizaciones","nueva-cotizacion"].includes(v)) return "proveeduria";
     if(["bi","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad","reportes"].includes(v)) return "bi";
     if(["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"].includes(v)) return "rrhh";
     if(["solicitudes","bandeja"].includes(v)) return "solicitudes";
@@ -26,6 +26,7 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     proveeduria:"Proveeduría",proveedores:"Proveeduría › Proveedores",
     "ordenes-compra":"Proveeduría › Órdenes de Compra","nueva-oc":"Proveeduría › Nueva Orden de Compra",
     "comparador":"Proveeduría › Comparador de Proveedores",
+    "cotizaciones":"Proveeduría › Cotizaciones (RFQ)","nueva-cotizacion":"Proveeduría › Nueva Solicitud de Cotización",
     bi:"BI & Reportería",reportes:"BI › Generador Reportes",
     solicitudes:"Solicitudes › Nueva Solicitud",bandeja:"Solicitudes › Bandeja de Gestión",
     "config-inv":"Configuración › Inventario",
