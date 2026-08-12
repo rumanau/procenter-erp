@@ -1,19 +1,57 @@
 import React, { useState } from "react";
-import type { View } from "../../types";
+import type { View, Articulo, MovimientoInventario, Bodega } from "../../types";
 import { CATALOGOS_INIT } from "../../data/catalogos";
+import { siguienteFolio } from "../../data/inventario";
 
-export function RegistrarSalida({setView}:{setView:(v:View)=>void}) {
+interface Linea { articuloId:string; qty:number; }
+const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
+
+export function RegistrarSalida({setView,articulos,setArticulos,movimientos,setMovimientos,bodegas,catalogos}:{setView:(v:View)=>void;articulos:Articulo[];setArticulos:React.Dispatch<React.SetStateAction<Articulo[]>>;movimientos:MovimientoInventario[];setMovimientos:React.Dispatch<React.SetStateAction<MovimientoInventario[]>>;bodegas:Bodega[];catalogos:typeof CATALOGOS_INIT}) {
   const [tipo,setTipo]=useState("consumo");
-  const [items,setItems]=useState([{cod:"INV-HR-00158",name:"Taladro DeWalt 20V",qty:1,disp:14}]);
+  const [bodegaId,setBodegaId]=useState(bodegas[0]?.id||"");
+  const [solicitante,setSolicitante]=useState(catalogos.responsablesAutorizados[0]?.nombre||"");
+  const [motivo,setMotivo]=useState("");
+  const [busqueda,setBusqueda]=useState("");
+  const [items,setItems]=useState<Linea[]>([]);
+  const [check,setCheck]=useState<Record<string,boolean>>({});
+
   const tiposSalida=[
     {id:"consumo",icon:"⚙️",label:"Consumo Operativo",bg:"#EFF6FF",border:"#BFDBFE",colorText:"#1D4ED8"},
     {id:"despacho",icon:"🚚",label:"Despacho",bg:"#ECFDF5",border:"#6EE7B7",colorText:"#065F46"},
     {id:"prestamo",icon:"🔄",label:"Préstamo",bg:"#FFF3ED",border:"#FED7AA",colorText:"#92400E"},
-    {id:"baja",icon:"🗑️",label:"Baja / Descarte",bg:"#FEF2F2",border:"#FCA5A5",colorText:"#991B1B"},
     {id:"muestra",icon:"🔬",label:"Muestra",bg:"#F5F3FF",border:"#C4B5FD",colorText:"#5B21B6"},
     {id:"merma",icon:"⚠️",label:"Merma",bg:"#FFFBEB",border:"#FDE68A",colorText:"#92400E"},
   ];
   const tipoActual=tiposSalida.find(t=>t.id===tipo)!;
+
+  const candidatos=articulos.filter(a=>a.activo&&a.bodegaId===bodegaId&&a.stock>0&&!items.some(i=>i.articuloId===a.id)&&(busqueda===""||`${a.nombre} ${a.id}`.toLowerCase().includes(busqueda.toLowerCase())));
+  const agregar=(a:Articulo)=>{setItems(p=>[...p,{articuloId:a.id,qty:1}]);setBusqueda("");};
+  const actualizar=(id:string,qty:number)=>{
+    const a=articulos.find(x=>x.id===id);
+    const max=a?a.stock:1;
+    setItems(p=>p.map(i=>i.articuloId===id?{...i,qty:Math.max(1,Math.min(max,qty))}:i));
+  };
+  const quitar=(id:string)=>setItems(p=>p.filter(i=>i.articuloId!==id));
+
+  const folio=siguienteFolio(movimientos,"salida");
+  const checklistItems=["Artículo físicamente disponible","Solicitante autorizado","Cantidad dentro del límite aprobado"];
+  const listo=checklistItems.every(c=>check[c])&&items.length>0;
+
+  const confirmar=()=>{
+    if(!listo) return;
+    setArticulos(prev=>prev.map(a=>{
+      const linea=items.find(i=>i.articuloId===a.id);
+      return linea?{...a,stock:Math.max(0,a.stock-linea.qty)}:a;
+    }));
+    const nuevos:MovimientoInventario[]=items.map((i,idx)=>{
+      const a=articulos.find(x=>x.id===i.articuloId)!;
+      return {id:idx===0?folio:`${folio}-${idx+1}`,tipo:"salida",articuloId:i.articuloId,cantidad:-i.qty,bodegaId,
+        costoUnitario:a.costoUnitario,contraparte:tipoActual.label,fecha:hoy(),usuario:solicitante,motivo};
+    });
+    setMovimientos(prev=>[...nuevos,...prev]);
+    alert(`✅ Salida registrada exitosamente!\n\nFolio: ${folio}\nTipo: ${tipoActual.label}\nArtículos: ${items.length} ítems despachados`);
+    setView("existencias");
+  };
 
   return (
     <div className="content">
@@ -36,51 +74,55 @@ export function RegistrarSalida({setView}:{setView:(v:View)=>void}) {
       <div className="g2" style={{alignItems:"start"}}>
         <div>
           <div className="card" style={{marginBottom:12}}>
+            <div className="card-title">Bodega de Salida</div>
+            <select className="form-control" value={bodegaId} onChange={e=>{setBodegaId(e.target.value);setItems([]);}}>
+              {bodegas.map(b=><option key={b.id} value={b.id}>{b.nombre}</option>)}
+            </select>
+          </div>
+          <div className="card" style={{marginBottom:12}}>
             <div className="card-title">Artículos a Despachar</div>
-            <div style={{display:"flex",gap:8,marginBottom:10}}>
-              <div className="header-search" style={{flex:1}}><span>🔍</span><input placeholder="Buscar artículo o código..." style={{border:"none",background:"transparent",outline:"none",flex:1,fontSize:"12.5px"}}/></div>
-              <button className="btn btn-primary btn-sm" onClick={()=>setItems(prev=>[...prev,{cod:"INV-CNS-00067",name:"Guantes Nitrilo T-L",qty:10,disp:200}])}>➕ Agregar</button>
+            <div style={{position:"relative",marginBottom:10}}>
+              <div className="header-search"><span>🔍</span><input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar artículo o código..." style={{border:"none",background:"transparent",outline:"none",flex:1,fontSize:"12.5px"}}/></div>
+              {busqueda&&candidatos.length>0&&(
+                <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid #E5E7EB",borderRadius:8,marginTop:4,zIndex:5,maxHeight:200,overflow:"auto",boxShadow:"0 4px 12px rgba(0,0,0,.1)"}}>
+                  {candidatos.slice(0,8).map(a=>(
+                    <div key={a.id} onClick={()=>agregar(a)} style={{padding:"8px 12px",cursor:"pointer",fontSize:12.5,borderBottom:"1px solid #F3F4F6"}} onMouseOver={e=>(e.currentTarget as HTMLDivElement).style.background="#F9FAFB"} onMouseOut={e=>(e.currentTarget as HTMLDivElement).style.background="#fff"}>
+                      <b>{a.id}</b> — {a.nombre} <span style={{color:"#10B981"}}>({a.stock} disp.)</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <table className="tbl">
-              <thead><tr><th>Código</th><th>Artículo</th><th>Disponible</th><th>Cantidad</th><th>Lote</th><th></th></tr></thead>
+              <thead><tr><th>Código</th><th>Artículo</th><th>Disponible</th><th>Cantidad</th><th></th></tr></thead>
               <tbody>
-                {items.map((item,i)=>(
-                  <tr key={i}>
-                    <td><b style={{fontSize:11.5,fontFamily:"monospace"}}>{item.cod}</b></td>
-                    <td style={{fontSize:12.5}}>{item.name}</td>
-                    <td><span style={{color:item.disp>10?"#10B981":"#EF4444",fontWeight:600}}>{item.disp} Pzas.</span></td>
-                    <td><input type="number" className="form-control" defaultValue={item.qty} min={1} max={item.disp} style={{width:60}}/></td>
-                    <td><input className="form-control" placeholder="Lote..." style={{width:80}}/></td>
-                    <td><button className="btn btn-ghost btn-sm" onClick={()=>setItems(prev=>prev.filter((_,j)=>j!==i))}>✕</button></td>
+                {items.map(item=>{
+                  const a=articulos.find(x=>x.id===item.articuloId)!;
+                  return (
+                  <tr key={item.articuloId}>
+                    <td><b style={{fontSize:11.5,fontFamily:"monospace"}}>{a.id}</b></td>
+                    <td style={{fontSize:12.5}}>{a.nombre}</td>
+                    <td><span style={{color:a.stock>10?"#10B981":"#EF4444",fontWeight:600}}>{a.stock} {a.unidad}</span></td>
+                    <td><input type="number" className="form-control" value={item.qty} min={1} max={a.stock} style={{width:60}} onChange={e=>actualizar(item.articuloId,parseInt(e.target.value)||1)}/></td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={()=>quitar(item.articuloId)}>✕</button></td>
                   </tr>
-                ))}
+                  );
+                })}
+                {items.length===0&&<tr><td colSpan={5} style={{textAlign:"center",color:"#9CA3AF",padding:14}}>Busca y agrega artículos con stock en {bodegas.find(b=>b.id===bodegaId)?.nombre}</td></tr>}
               </tbody>
             </table>
           </div>
-          {tipo==="prestamo"&&<div className="card" style={{marginBottom:12}}>
-            <div className="card-title">Datos del Préstamo</div>
-            <div className="g2">
-              <div className="form-group"><label className="form-label">Fecha Devolución</label><input type="date" className="form-control"/></div>
-              <div className="form-group"><label className="form-label">Empleado Responsable</label>
-                <select className="form-control">
-                  {CATALOGOS_INIT.responsablesAutorizados.map(r=><option key={r.id}>{r.nombre}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>}
           <div className="card" style={{marginBottom:12}}>
             <div className="card-title">Información General</div>
             <div className="g2">
               <div className="form-group"><label className="form-label">Solicitante</label>
-                <select className="form-control">
-                  {CATALOGOS_INIT.responsablesAutorizados.map(r=><option key={r.id}>{r.nombre}</option>)}
+                <select className="form-control" value={solicitante} onChange={e=>setSolicitante(e.target.value)}>
+                  {catalogos.responsablesAutorizados.map(r=><option key={r.id}>{r.nombre}</option>)}
                 </select>
               </div>
               <div className="form-group"><label className="form-label">Departamento / Proyecto</label><select className="form-control"><option>Mantenimiento</option><option>Producción</option><option>Administración</option></select></div>
             </div>
-            <div className="form-group"><label className="form-label">Bodega de Salida</label><select className="form-control">{CATALOGOS_INIT.bodegas.map(b=><option key={b.id}>{b.nombre}</option>)}</select></div>
-            <div className="form-group"><label className="form-label">Motivo / Descripción</label><textarea className="form-control" rows={3} placeholder="Describe el motivo de la salida..."/></div>
-            <div className="form-group"><label className="form-label">Adjuntos (Orden de trabajo, Vale, etc.)</label><div className="photo-box" style={{padding:12}}><span>📎</span><span style={{fontSize:11,color:"#6B7280",marginLeft:8}}>Adjuntar documentos</span></div></div>
+            <div className="form-group"><label className="form-label">Motivo / Descripción</label><textarea className="form-control" rows={3} placeholder="Describe el motivo de la salida..." value={motivo} onChange={e=>setMotivo(e.target.value)}/></div>
           </div>
         </div>
         <div>
@@ -88,29 +130,20 @@ export function RegistrarSalida({setView}:{setView:(v:View)=>void}) {
             <div className="panel-title" style={{marginBottom:8}}>Resumen de Salida</div>
             <div className="res-row"><span className="res-label">Tipo</span><span className="res-val" style={{color:tipoActual.colorText}}>{tipoActual.icon} {tipoActual.label}</span></div>
             <div className="res-row"><span className="res-label">Artículos</span><span className="res-val">{items.length} ítems</span></div>
-            <div className="res-row"><span className="res-label">Número Folio</span><span className="res-val" style={{fontFamily:"monospace",color:"#E8611A"}}>SAL-2024-{String(Math.floor(Math.random()*900)+100)}</span></div>
-            <div className="res-row"><span className="res-label">Bodega</span><span className="res-val">Bodega Central</span></div>
-          </div>
-          <div className="card" style={{marginBottom:12}}>
-            <div className="card-title" style={{fontSize:12}}>Artículos en salida</div>
-            {items.map((item,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:12}}>
-                <div style={{flex:1}}><b>{item.cod}</b><div style={{fontSize:10.5,color:"#6B7280"}}>{item.name}</div></div>
-                <span className="badge badge-warn">{item.qty} Pzas.</span>
-              </div>
-            ))}
+            <div className="res-row"><span className="res-label">Número Folio</span><span className="res-val" style={{fontFamily:"monospace",color:"#E8611A"}}>{folio}</span></div>
+            <div className="res-row"><span className="res-label">Bodega</span><span className="res-val">{bodegas.find(b=>b.id===bodegaId)?.nombre}</span></div>
           </div>
           <div className="card" style={{marginBottom:12,background:"#FFFBEB",border:"1px solid #FDE68A"}}>
             <div style={{fontSize:12,fontWeight:600,color:"#92400E",marginBottom:6}}>⚠ Verificación requerida</div>
             <div style={{display:"flex",flexDirection:"column",gap:4}}>
-              {["Artículo físicamente disponible","Solicitante autorizado","Documentación adjunta","Cantidad dentro del límite aprobado"].map(c=>(
-                <label key={c} style={{display:"flex",alignItems:"center",gap:6,fontSize:11.5}}><input type="checkbox"/>{c}</label>
+              {checklistItems.map(c=>(
+                <label key={c} style={{display:"flex",alignItems:"center",gap:6,fontSize:11.5}}><input type="checkbox" checked={!!check[c]} onChange={()=>setCheck(p=>({...p,[c]:!p[c]}))}/>{c}</label>
               ))}
             </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             <button className="btn btn-secondary" style={{width:"100%"}} onClick={()=>setView("inventario")}>Cancelar</button>
-            <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>alert(`✅ Salida registrada exitosamente!\n\nFolio: SAL-2024-042\nTipo: ${tipoActual.label}\nArtículos: ${items.length} ítems despachos`)}>📤 Confirmar Salida</button>
+            <button className="btn btn-primary" style={{width:"100%"}} disabled={!listo} onClick={confirmar}>📤 Confirmar Salida</button>
           </div>
         </div>
       </div>

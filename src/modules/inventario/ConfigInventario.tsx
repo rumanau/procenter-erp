@@ -1,19 +1,10 @@
 import React, { useState } from "react";
-import type { View } from "../../types";
+import type { View, Bodega, CategoriaInventario, Articulo } from "../../types";
 
-export function ConfigInventario({setView}:{setView:(v:View)=>void}) {
+export function ConfigInventario({setView,bodegas,setBodegas,categorias,setCategorias,articulos}:{setView:(v:View)=>void;bodegas:Bodega[];setBodegas:React.Dispatch<React.SetStateAction<Bodega[]>>;categorias:CategoriaInventario[];setCategorias:React.Dispatch<React.SetStateAction<CategoriaInventario[]>>;articulos:Articulo[]}) {
   const [tab,setTab]=useState("bodegas");
-  const [bodegas,setBodegas]=useState([
-    {id:1,nombre:"Bodega Central",tipo:"General",items:142,activa:true},
-    {id:2,nombre:"Bodega 2",tipo:"Frío",items:15,activa:true},
-    {id:3,nombre:"Bodega 3",tipo:"Peligroso",items:5,activa:false},
-  ]);
-  const [cats,setCats]=useState([
-    {id:1,nombre:"Herramientas",icon:"🔧",items:48,activa:true},
-    {id:2,nombre:"Consumibles",icon:"📦",items:62,activa:true},
-    {id:3,nombre:"Activos Fijos",icon:"🏭",items:12,activa:true},
-    {id:4,nombre:"Insumos / EPP",icon:"🦺",items:40,activa:true},
-  ]);
+  const itemsPorBodega=(id:string)=>articulos.filter(a=>a.activo&&a.bodegaId===id).length;
+  const itemsPorCat=(id:string)=>articulos.filter(a=>a.activo&&a.categoriaId===id).length;
   const tabs=[["bodegas","🏭 Bodegas"],["categorias","📂 Categorías"],["alertas","🔔 Alertas"],["flujos","🔄 Flujos de Aprobación"],["general","⚙️ General"]];
 
   return (
@@ -30,24 +21,24 @@ export function ConfigInventario({setView}:{setView:(v:View)=>void}) {
 
       {tab==="bodegas"&&<div>
         <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-          <button className="btn btn-primary btn-sm" onClick={()=>setBodegas(p=>[...p,{id:Date.now(),nombre:"Nueva Bodega",tipo:"General",items:0,activa:true}])}>➕ Nueva Bodega</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>setBodegas(p=>[...p,{id:`B${Date.now()}`,nombre:"Nueva Bodega",ubicacion:"",tipo:"General",encargado:"—",activa:true}])}>➕ Nueva Bodega</button>
         </div>
         {bodegas.map(b=>(
           <div key={b.id} className="card" style={{marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
             <div style={{width:40,height:40,background:b.activa?"#FFF3ED":"#F3F4F6",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🏭</div>
             <div style={{flex:1}}>
-              <input className="form-control" defaultValue={b.nombre} style={{fontWeight:600,marginBottom:4}}/>
-              <div style={{display:"flex",gap:8}}>
-                <select className="form-control" style={{width:120}} defaultValue={b.tipo}>
+              <input className="form-control" value={b.nombre} onChange={e=>setBodegas(p=>p.map(x=>x.id===b.id?{...x,nombre:e.target.value}:x))} style={{fontWeight:600,marginBottom:4}}/>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <select className="form-control" style={{width:120}} value={b.tipo} onChange={e=>setBodegas(p=>p.map(x=>x.id===b.id?{...x,tipo:e.target.value as Bodega["tipo"]}:x))}>
                   <option>General</option><option>Frío</option><option>Peligroso</option><option>Seco</option>
                 </select>
-                <span className="badge badge-info">{b.items} artículos</span>
+                <span className="badge badge-info">{itemsPorBodega(b.id)} artículos</span>
                 <span className={`badge ${b.activa?"badge-ok":"badge-gray"}`}>{b.activa?"Activa":"Inactiva"}</span>
               </div>
             </div>
             <div style={{display:"flex",gap:6}}>
               <button className="btn btn-ghost btn-sm" onClick={()=>setBodegas(p=>p.map(x=>x.id===b.id?{...x,activa:!x.activa}:x))}>{b.activa?"⏸ Desactivar":"▶ Activar"}</button>
-              <button className="btn btn-ghost btn-sm" onClick={()=>setBodegas(p=>p.filter(x=>x.id!==b.id))}>🗑</button>
+              <button className="btn btn-ghost btn-sm" disabled={itemsPorBodega(b.id)>0} title={itemsPorBodega(b.id)>0?"No se puede eliminar: tiene artículos asignados":""} onClick={()=>setBodegas(p=>p.filter(x=>x.id!==b.id))}>🗑</button>
             </div>
           </div>
         ))}
@@ -55,22 +46,22 @@ export function ConfigInventario({setView}:{setView:(v:View)=>void}) {
 
       {tab==="categorias"&&<div>
         <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-          <button className="btn btn-primary btn-sm" onClick={()=>setCats(p=>[...p,{id:Date.now(),nombre:"Nueva Categoría",icon:"📦",items:0,activa:true}])}>➕ Nueva Categoría</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>setCategorias(p=>[...p,{id:`C${Date.now()}`,nombre:"Nueva Categoría",prefijo:"NUE",icono:"📦",activa:true}])}>➕ Nueva Categoría</button>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
-          {cats.map(c=>(
+          {categorias.map(c=>(
             <div key={c.id} className="card" style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{fontSize:28}}>{c.icon}</div>
+              <div style={{fontSize:28}}>{c.icono}</div>
               <div style={{flex:1}}>
-                <input className="form-control" defaultValue={c.nombre} style={{fontWeight:600,marginBottom:4}}/>
+                <input className="form-control" value={c.nombre} onChange={e=>setCategorias(p=>p.map(x=>x.id===c.id?{...x,nombre:e.target.value}:x))} style={{fontWeight:600,marginBottom:4}}/>
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                  <span className="badge badge-info">{c.items} artículos</span>
+                  <span className="badge badge-info">{itemsPorCat(c.id)} artículos</span>
                   <span className={`badge ${c.activa?"badge-ok":"badge-gray"}`}>{c.activa?"Activa":"Inactiva"}</span>
                 </div>
               </div>
               <div style={{display:"flex",gap:4}}>
-                <button className="btn btn-ghost btn-sm" onClick={()=>setCats(p=>p.map(x=>x.id===c.id?{...x,activa:!x.activa}:x))}>{c.activa?"⏸":"▶"}</button>
-                <button className="btn btn-ghost btn-sm" onClick={()=>setCats(p=>p.filter(x=>x.id!==c.id))}>🗑</button>
+                <button className="btn btn-ghost btn-sm" onClick={()=>setCategorias(p=>p.map(x=>x.id===c.id?{...x,activa:!x.activa}:x))}>{c.activa?"⏸":"▶"}</button>
+                <button className="btn btn-ghost btn-sm" disabled={itemsPorCat(c.id)>0} title={itemsPorCat(c.id)>0?"No se puede eliminar: tiene artículos asignados":""} onClick={()=>setCategorias(p=>p.filter(x=>x.id!==c.id))}>🗑</button>
               </div>
             </div>
           ))}
@@ -81,9 +72,9 @@ export function ConfigInventario({setView}:{setView:(v:View)=>void}) {
         <div className="card" style={{marginBottom:12}}>
           <div className="card-title">Alertas de Stock</div>
           {[
-            {icon:"🔴",label:"Nivel Crítico",desc:"Notificar cuando el stock llegue a este nivel",val:"2",unit:"Pzas.",activa:true},
-            {icon:"🟡",label:"Bajo Mínimo",desc:"Notificar cuando el stock llegue al mínimo configurado",val:"5",unit:"Pzas.",activa:true},
-            {icon:"🔄",label:"Reorden Automático",desc:"Generar OC sugerida automáticamente",val:"8",unit:"Pzas.",activa:false},
+            {icon:"🔴",label:"Nivel Crítico",desc:"El sistema marca crítico cuando el stock cae por debajo del 50% del mínimo",val:"50",unit:"% del mín.",activa:true},
+            {icon:"🟡",label:"Bajo Mínimo",desc:"Notificar cuando el stock llegue al mínimo configurado por artículo",val:"100",unit:"% del mín.",activa:true},
+            {icon:"🔄",label:"Reorden Automático",desc:"Generar sugerencia de compra automáticamente",val:"8",unit:"Uds.",activa:false},
           ].map(a=>(
             <div key={a.label} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #F3F4F6"}}>
               <span style={{fontSize:20}}>{a.icon}</span>
@@ -141,13 +132,13 @@ export function ConfigInventario({setView}:{setView:(v:View)=>void}) {
             <select className="form-control"><option>FIFO</option><option>Promedio Ponderado</option><option>LIFO</option></select>
           </div>
           <div className="form-group"><label className="form-label">Moneda</label>
-            <select className="form-control"><option>MXN — Peso Mexicano</option><option>USD — Dólar</option><option>CRC — Colón Costarricense</option></select>
+            <select className="form-control"><option>CRC — Colón Costarricense</option><option>USD — Dólar</option></select>
           </div>
           <div className="form-group"><label className="form-label">Prefijo de Código Interno</label>
             <div className="g3">
               <input className="form-control" defaultValue="HER" placeholder="Cat."/>
               <input className="form-control" defaultValue="EQO" placeholder="Sub."/>
-              <div className="form-control" style={{background:"#F9FAFB",color:"#6B7280",fontSize:11.5}}>→ HER-EQO-000001</div>
+              <div className="form-control" style={{background:"#F9FAFB",color:"#6B7280",fontSize:11.5}}>→ HER-EQO-00001</div>
             </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:4}}>

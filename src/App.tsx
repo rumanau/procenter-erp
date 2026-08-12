@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company, AsientoContable } from "./types";
+import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";
 import { CATALOGOS_INIT } from "./data/catalogos";
 import { COMPANIES } from "./data/empresas";
 import { ASIENTOS_INIT } from "./data/finanzas";
+import { ARTICULOS_INIT, MOVIMIENTOS_INIT, BODEGAS_INIT, CATEGORIAS_INIT, PROVEEDORES_INIT } from "./data/inventario";
 
 // componentes compartidos
 import { Sidebar } from "./components/Sidebar";
@@ -76,6 +77,11 @@ export default function App() {
   const [catalogos, setCatalogos] = useState(CATALOGOS_INIT);
   const [empleados, setEmpleados] = useState(COLABORADORES_INIT);
   const [asientosContables, setAsientosContables] = useState<AsientoContable[]>(ASIENTOS_INIT);
+  const [articulos, setArticulos] = useState<Articulo[]>(ARTICULOS_INIT);
+  const [movimientosInv, setMovimientosInv] = useState<MovimientoInventario[]>(MOVIMIENTOS_INIT);
+  const [bodegas, setBodegas] = useState<Bodega[]>(BODEGAS_INIT);
+  const [categoriasInv, setCategoriasInv] = useState<CategoriaInventario[]>(CATEGORIAS_INIT);
+  const [proveedoresInv] = useState<ProveedorInventario[]>(PROVEEDORES_INIT);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -91,19 +97,19 @@ export default function App() {
         <Header view={view} setView={setView} company={company} onSwitch={() => setAppState("selector")} />
 
         {/* INVENTARIO */}
-        {view === "inventario"   && <InventarioHome    setView={setView} />}
-        {view === "existencias"  && <ConsultaExistencias setView={setView} />}
-        {view === "nuevo"        && <NuevoArticulo step={step} setStep={setStep} setView={setView} />}
-        {view === "entradas"     && <EntradasSalidas   setView={setView} />}
-        {view === "ingreso"      && <RegistrarIngreso  setView={setView} />}
-        {view === "salida"       && <RegistrarSalida   setView={setView} />}
-        {view === "traslado"     && <TrasladoBodegas   setView={setView} />}
-        {view === "ajuste"       && <AjusteInventario  setView={setView} />}
-        {view === "baja"         && <BajaDescarte      setView={setView} />}
-        {view === "conteo"       && <ConteoAuditoria   setView={setView} />}
-        {view === "reabasto"     && <Reabastecimiento  setView={setView} />}
-        {view === "valorizado"   && <InvValorizado />}
-        {view === "trazabilidad" && <Trazabilidad />}
+        {view === "inventario"   && <InventarioHome    setView={setView} articulos={articulos} movimientos={movimientosInv} />}
+        {view === "existencias"  && <ConsultaExistencias setView={setView} articulos={articulos} movimientos={movimientosInv} bodegas={bodegas} categorias={categoriasInv} proveedores={proveedoresInv} />}
+        {view === "nuevo"        && <NuevoArticulo step={step} setStep={setStep} setView={setView} articulos={articulos} setArticulos={setArticulos} bodegas={bodegas} categorias={categoriasInv} proveedores={proveedoresInv} />}
+        {view === "entradas"     && <EntradasSalidas   setView={setView} movimientos={movimientosInv} articulos={articulos} bodegas={bodegas} />}
+        {view === "ingreso"      && <RegistrarIngreso  setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} bodegas={bodegas} proveedores={proveedoresInv} />}
+        {view === "salida"       && <RegistrarSalida   setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} bodegas={bodegas} catalogos={catalogos} />}
+        {view === "traslado"     && <TrasladoBodegas   setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} bodegas={bodegas} catalogos={catalogos} />}
+        {view === "ajuste"       && <AjusteInventario  setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} />}
+        {view === "baja"         && <BajaDescarte      setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} />}
+        {view === "conteo"       && <ConteoAuditoria   setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} bodegas={bodegas} />}
+        {view === "reabasto"     && <Reabastecimiento  setView={setView} articulos={articulos} proveedores={proveedoresInv} />}
+        {view === "valorizado"   && <InvValorizado articulos={articulos} categorias={categoriasInv} />}
+        {view === "trazabilidad" && <Trazabilidad articulos={articulos} movimientos={movimientosInv} bodegas={bodegas} proveedores={proveedoresInv} />}
         {view === "bi"           && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "reportes"     && <GeneradorReportes />}
         {view === "bi-ejecutivo" && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
@@ -114,7 +120,7 @@ export default function App() {
         {/* SOLICITUDES & CONFIG */}
         {view === "solicitudes"  && <PortalSolicitudes setView={setView} />}
         {view === "bandeja"      && <BandejaGestion    setView={setView} />}
-        {view === "config-inv"   && <ConfigInventario  setView={setView} />}
+        {view === "config-inv"   && <ConfigInventario  setView={setView} bodegas={bodegas} setBodegas={setBodegas} categorias={categoriasInv} setCategorias={setCategoriasInv} articulos={articulos} />}
 
         {/* CONFIGURACIÓN GENERAL & RRHH */}
         {view === "config-gral"  && <ConfigGeneral    setView={setView} catalogos={catalogos} setCatalogos={setCatalogos} />}

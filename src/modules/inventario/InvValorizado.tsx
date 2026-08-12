@@ -1,14 +1,18 @@
 import React, { useState } from "react";
+import type { Articulo, CategoriaInventario } from "../../types";
 
-export function InvValorizado() {
+const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
+
+export function InvValorizado({articulos,categorias}:{articulos:Articulo[];categorias:CategoriaInventario[]}) {
   const [metodo,setMetodo]=useState<"fifo"|"prom"|"lifo">("fifo");
-  const items=[
-    {cat:"Herramientas",items:48,valor:324500,variacion:2.3},
-    {cat:"Consumibles",items:62,valor:187200,variacion:-1.1},
-    {cat:"Activos Fijos",items:12,valor:215000,variacion:0},
-    {cat:"Insumos / EPP",items:40,valor:115300,variacion:3.7},
-  ];
-  const total=items.reduce((s,i)=>s+i.valor,0);
+  const activos=articulos.filter(a=>a.activo);
+  const porCategoria=categorias.map(cat=>{
+    const items=activos.filter(a=>a.categoriaId===cat.id);
+    const valor=items.reduce((s,a)=>s+a.stock*a.costoUnitario,0);
+    return {cat:cat.nombre,items:items.length,valor};
+  }).filter(c=>c.items>0);
+  const total=porCategoria.reduce((s,i)=>s+i.valor,0);
+  const totalItems=activos.length;
 
   return (
     <div className="content">
@@ -29,8 +33,8 @@ export function InvValorizado() {
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-        {[["Valor Total",`$${(total/1000).toFixed(0)}K`,"#E8611A"],["Ítems totales","162","#1B1F2E"],["Categorías","4","#3B82F6"],["Variación mes","+1.8%","#10B981"]].map(([l,v,c])=>(
-          <div key={l} className="kpi"><div className="kpi-label">{l}</div><div className="kpi-value" style={{color:c as string}}>{v}</div></div>
+        {[["Valor Total",fmt(total),"#E8611A"],["Ítems totales",String(totalItems),"#1B1F2E"],["Categorías",String(porCategoria.length),"#3B82F6"],["Método activo",metodo.toUpperCase(),"#10B981"]].map(([l,v,c])=>(
+          <div key={l} className="kpi"><div className="kpi-label">{l}</div><div className="kpi-value" style={{color:c as string,fontSize:16}}>{v}</div></div>
         ))}
       </div>
       <div className="card" style={{marginBottom:12,padding:0,overflow:"hidden"}}>
@@ -38,26 +42,23 @@ export function InvValorizado() {
           <div className="card-title" style={{marginBottom:0}}>Valor por Categoría — Método: {metodo.toUpperCase()}</div>
         </div>
         <table className="tbl">
-          <thead><tr><th>Categoría</th><th>Ítems</th><th>Valor Stock</th><th>% del Total</th><th>Variación Mes</th><th>Valor Unit. Prom.</th></tr></thead>
+          <thead><tr><th>Categoría</th><th>Ítems</th><th>Valor Stock</th><th>% del Total</th><th>Valor Unit. Prom.</th></tr></thead>
           <tbody>
-            {items.map(item=>{
+            {porCategoria.map(item=>{
               const factor=metodo==="fifo"?1:metodo==="lifo"?0.97:0.985;
               const valorM=Math.round(item.valor*factor);
               return (
                 <tr key={item.cat}>
                   <td style={{fontWeight:600}}>{item.cat}</td>
                   <td>{item.items}</td>
-                  <td style={{fontWeight:700,color:"#E8611A"}}>${valorM.toLocaleString()}</td>
+                  <td style={{fontWeight:700,color:"#E8611A"}}>{fmt(valorM)}</td>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <div style={{width:60,height:5,background:"#E5E7EB",borderRadius:3,overflow:"hidden"}}>
-                        <div style={{width:`${Math.round(valorM/total*100)}%`,background:"#E8611A",height:"100%",borderRadius:3}}/>
-                      </div>
-                      <span style={{fontSize:11,color:"#6B7280"}}>{Math.round(valorM/total*100)}%</span>
+                      <div className="stock-bar" style={{width:60}}><div className="stock-bar-fill" style={{width:`${total?Math.round(valorM/total*100):0}%`,background:"#E8611A"}}/></div>
+                      <span style={{fontSize:11,color:"#6B7280"}}>{total?Math.round(valorM/total*100):0}%</span>
                     </div>
                   </td>
-                  <td><span style={{color:item.variacion>0?"#10B981":item.variacion<0?"#EF4444":"#6B7280",fontWeight:600}}>{item.variacion>0?"+":""}{item.variacion}%</span></td>
-                  <td style={{color:"#6B7280"}}>${Math.round(valorM/item.items).toLocaleString()}</td>
+                  <td style={{color:"#6B7280"}}>{fmt(item.items?valorM/item.items:0)}</td>
                 </tr>
               );
             })}
@@ -65,11 +66,10 @@ export function InvValorizado() {
           <tfoot>
             <tr style={{background:"#F9FAFB"}}>
               <td style={{fontWeight:700}}>TOTAL</td>
-              <td style={{fontWeight:700}}>162</td>
-              <td style={{fontWeight:700,color:"#E8611A",fontSize:14}}>${total.toLocaleString()}</td>
+              <td style={{fontWeight:700}}>{totalItems}</td>
+              <td style={{fontWeight:700,color:"#E8611A",fontSize:14}}>{fmt(total)}</td>
               <td style={{fontWeight:700}}>100%</td>
-              <td style={{fontWeight:700,color:"#10B981"}}>+1.8%</td>
-              <td style={{color:"#6B7280"}}>${Math.round(total/162).toLocaleString()}</td>
+              <td style={{color:"#6B7280"}}>{fmt(totalItems?total/totalItems:0)}</td>
             </tr>
           </tfoot>
         </table>

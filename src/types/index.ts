@@ -440,3 +440,70 @@ export interface RecursoDocumental {
   version: string;
   estado: "Activo" | "Archivado";
 }
+
+// ── Inventario & Proveeduría ──────────────────────────────────
+
+export interface Bodega {
+  id: string;
+  nombre: string;
+  ubicacion: string;
+  tipo: "General" | "Frío" | "Peligroso" | "Seco";
+  encargado: string;
+  activa: boolean;
+}
+
+export interface CategoriaInventario {
+  id: string;
+  nombre: string;
+  prefijo: string;
+  icono: string;
+  activa: boolean;
+}
+
+export interface ProveedorInventario {
+  id: string;
+  nombre: string;
+  cedulaJuridica: string;
+  contacto: string;
+  telefono: string;
+  condicion: string;
+  rating: "A+" | "A" | "B+" | "B" | "C";
+  categorias: string[];
+  activo: boolean;
+}
+
+export type EstadoStock = "ok" | "bajo" | "critico" | "agotado";
+
+export interface Articulo {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  categoriaId: string;
+  bodegaId: string;
+  unidad: string;
+  stock: number;
+  min: number;
+  max: number;
+  costoUnitario: number;
+  proveedorId: string;
+  metodoValuacion: "FIFO" | "Promedio" | "LIFO";
+  activo: boolean;
+  fechaCreacion: string;
+}
+
+export type TipoMovimientoInventario = "entrada" | "salida" | "traslado" | "ajuste" | "baja";
+
+export interface MovimientoInventario {
+  id: string;
+  tipo: TipoMovimientoInventario;
+  articuloId: string;
+  cantidad: number;
+  bodegaId: string;
+  bodegaDestinoId?: string;
+  costoUnitario: number;
+  contraparte: string;
+  fecha: string;
+  usuario: string;
+  motivo?: string;
+  referencia?: string;
+}
