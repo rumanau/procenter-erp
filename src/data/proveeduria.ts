@@ -365,6 +365,10 @@ export function proveedorBloqueado(proveedor: ProveedorInventario, documentos: D
   return homologacionEfectiva(proveedor, documentos) === "Bloqueado";
 }
 
+export function badgeHomologacion(e: EstadoHomologacionEfectivo): string {
+  return e === "Bloqueado" || e === "Suspendido" ? "badge-crit" : e === "Aprobado" ? "badge-ok" : e === "Aprobado Condicionado" || e === "En Evaluación" ? "badge-warn" : "badge-gray";
+}
+
 export function descripcionHomologacion(estado: EstadoHomologacionEfectivo): string {
   switch (estado) {
     case "Bloqueado": return "Bloqueado automáticamente por documentos vencidos — no puede recibir nuevas OC hasta regularizar";
