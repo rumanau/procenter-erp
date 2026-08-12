@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import type { View, Articulo, ProveedorInventario } from "../../types";
+import type { View, Articulo, ProveedorInventario, OrdenCompra, LineaOC } from "../../types";
 import { estadoStock } from "../../data/inventario";
-
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
+const hoy=(offsetDias=0)=>{const d=new Date();d.setDate(d.getDate()+offsetDias);return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});};
 
-export function Reabastecimiento({setView,articulos,proveedores}:{setView:(v:View)=>void;articulos:Articulo[];proveedores:ProveedorInventario[]}) {
+export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,setOrdenesCompra}:{setView:(v:View)=>void;articulos:Articulo[];proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>}) {
   const items=articulos.filter(a=>a.activo&&(estadoStock(a.stock,a.min)==="bajo"||estadoStock(a.stock,a.min)==="critico"||estadoStock(a.stock,a.min)==="agotado"));
   const [sel,setSel]=useState<Set<string>>(new Set(items.map(i=>i.id)));
   const [sugeridos,setSugeridos]=useState<Record<string,number>>({});
@@ -12,6 +12,31 @@ export function Reabastecimiento({setView,articulos,proveedores}:{setView:(v:Vie
   const sugeridoDe=(a:Articulo)=>sugeridos[a.id]??Math.max(a.max-a.stock,a.min);
   const total=items.filter(i=>sel.has(i.id)).reduce((s,i)=>s+sugeridoDe(i)*i.costoUnitario,0);
   const criticos=items.filter(a=>{const e=estadoStock(a.stock,a.min);return e==="critico"||e==="agotado";}).length;
+
+  const generarOC=()=>{
+    const seleccionados=items.filter(i=>sel.has(i.id));
+    if(seleccionados.length===0) return;
+    const grupos=new Map<string,Articulo[]>();
+    seleccionados.forEach(a=>{
+      const key=`${a.proveedorId}|${a.bodegaId}`;
+      grupos.set(key,[...(grupos.get(key)||[]),a]);
+    });
+    const nuevasOCs:OrdenCompra[]=[];
+    let contador=ordenesCompra.length;
+    grupos.forEach((arts,key)=>{
+      const [proveedorId,bodegaId]=key.split("|");
+      contador++;
+      const lineas:LineaOC[]=arts.map(a=>({articuloId:a.id,cantidad:sugeridoDe(a),costoUnitario:a.costoUnitario}));
+      nuevasOCs.push({
+        id:`OC-2024-${String(contador).padStart(3,"0")}`,
+        proveedorId,bodegaId,fecha:hoy(),fechaEntregaEsperada:hoy(7),
+        estado:"Enviada",lineas,observaciones:"Generada automáticamente desde Reabastecimiento",creadoPor:"Ronald",
+      });
+    });
+    setOrdenesCompra(prev=>[...nuevasOCs,...prev]);
+    alert(`✅ ${nuevasOCs.length} Orden(es) de Compra generada(s) y enviada(s).\n\n${nuevasOCs.map(o=>o.id).join(", ")}\nTotal: ${fmt(total)}`);
+    setView("ordenes-compra");
+  };
 
   return (
     <div className="content">
@@ -68,7 +93,7 @@ export function Reabastecimiento({setView,articulos,proveedores}:{setView:(v:Vie
       <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
         <button className="btn btn-secondary">📥 Exportar lista</button>
         <button className="btn btn-ghost" onClick={()=>setView("inventario")}>Cancelar</button>
-        <button className="btn btn-primary" disabled={sel.size===0} onClick={()=>alert(`✅ Solicitud de compra generada.\n${sel.size} artículos · Total: ${fmt(total)}\n\nLa gestión de Órdenes de Compra y Proveeduría se habilita en el próximo hito del módulo.`)}>📋 Generar Orden de Compra</button>
+        <button className="btn btn-primary" disabled={sel.size===0} onClick={generarOC}>📋 Generar Orden de Compra</button>
       </div>
     </div>
   );

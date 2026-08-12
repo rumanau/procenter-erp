@@ -4,6 +4,7 @@ import type { View, Company } from "../types";
 export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:View)=>void;company:Company;onSwitch:()=>void}) {
   const getModuleParent=(v:View):View=>{
     if(["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"].includes(v)) return "inventario";
+    if(["proveeduria","proveedores","ordenes-compra","nueva-oc"].includes(v)) return "proveeduria";
     if(["bi","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad","reportes"].includes(v)) return "bi";
     if(["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"].includes(v)) return "rrhh";
     if(["solicitudes","bandeja"].includes(v)) return "solicitudes";
@@ -13,7 +14,7 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     return "inventario";
   };
   const parent=getModuleParent(view);
-  const parentLabel:Record<View,string>={inventario:"Inventario & Proveeduría",bi:"BI & Reportería",rrhh:"Recursos Humanos",solicitudes:"Solicitudes","config-gral":"Configuración",empresas:"Empresas & Verticales",finanzas:"Contabilidad y Finanzas"} as any;
+  const parentLabel:Record<View,string>={inventario:"Inventario",proveeduria:"Proveeduría",bi:"BI & Reportería",rrhh:"Recursos Humanos",solicitudes:"Solicitudes","config-gral":"Configuración",empresas:"Empresas & Verticales",finanzas:"Contabilidad y Finanzas"} as any;
   const bc:Record<View,string>={
     inventario:"Inventario & Proveeduría",existencias:"Inventario › Consulta Existencias",
     nuevo:"Inventario › Nuevo Artículo",entradas:"Inventario › Entradas & Salidas",
@@ -21,7 +22,10 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     traslado:"Inventario › Traslado Bodegas",ajuste:"Inventario › Ajuste Inventario",
     baja:"Inventario › Baja / Descarte",conteo:"Inventario › Conteo / Auditoría",
     reabasto:"Inventario › Reabastecimiento",valorizado:"Inventario › Inv. Valorizado",
-    trazabilidad:"Inventario › Trazabilidad",bi:"BI & Reportería",reportes:"BI › Generador Reportes",
+    trazabilidad:"Inventario › Trazabilidad",
+    proveeduria:"Proveeduría",proveedores:"Proveeduría › Proveedores",
+    "ordenes-compra":"Proveeduría › Órdenes de Compra","nueva-oc":"Proveeduría › Nueva Orden de Compra",
+    bi:"BI & Reportería",reportes:"BI › Generador Reportes",
     solicitudes:"Solicitudes › Nueva Solicitud",bandeja:"Solicitudes › Bandeja de Gestión",
     "config-inv":"Configuración › Inventario",
     "config-gral":"Configuración › General & Catálogos",

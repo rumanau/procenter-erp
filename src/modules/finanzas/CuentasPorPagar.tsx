@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import type { View, Factura } from "../../types";
-import { FACTURAS_CXP_INIT, CUENTAS_BANCARIAS_INIT } from "../../data/finanzas";
+import { CUENTAS_BANCARIAS_INIT } from "../../data/finanzas";
 
-export function CuentasPorPagar({setView}:{setView:(v:View)=>void}) {
-  const [facturas,setFacturas]=useState<Factura[]>(FACTURAS_CXP_INIT);
+export function CuentasPorPagar({setView,facturas,setFacturas}:{setView:(v:View)=>void;facturas:Factura[];setFacturas:React.Dispatch<React.SetStateAction<Factura[]>>}) {
   const [filtro,setFiltro]=useState("todas");
   const [pagando,setPagando]=useState<string|null>(null);
   const [cuentaPago,setCuentaPago]=useState(CUENTAS_BANCARIAS_INIT[0].id);

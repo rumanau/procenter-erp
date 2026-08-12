@@ -4,6 +4,7 @@ import { ProcenterIsotipo } from "./Logo";
 
 const GRUPOS:Record<string,View[]>={
   inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"],
+  proveeduria:["proveeduria","proveedores","ordenes-compra","nueva-oc"],
   solicitudes:["solicitudes","bandeja"],
   bi:["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"],
   rrhh:["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"],
@@ -41,6 +42,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
   };
 
   const invActive=GRUPOS.inventario.includes(view);
+  const provActive=GRUPOS.proveeduria.includes(view);
   const biActive=GRUPOS.bi.includes(view);
   const solActive=GRUPOS.solicitudes.includes(view);
   const finanzasActive=GRUPOS.finanzas.includes(view);
@@ -66,7 +68,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
 
       <div className="nav-section">
         {!collapsed&&<div className="nav-section-label">Módulos</div>}
-        {ni("inventario","Inventario & Prov.","📦",invActive,undefined,"inventario")}
+        {ni("inventario","Inventario","📦",invActive,undefined,"inventario")}
         {ns("existencias","↳ Consulta Existencias","inventario")}
         {ns("nuevo","↳ Nuevo Artículo","inventario")}
         {ns("entradas","↳ Entradas & Salidas","inventario")}
@@ -79,6 +81,11 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ns("reabasto","↳ Reabastecimiento","inventario")}
         {ns("valorizado","↳ Inv. Valorizado","inventario")}
         {ns("trazabilidad","↳ Trazabilidad","inventario")}
+
+        {ni("proveeduria","Proveeduría","📋",provActive,undefined,"proveeduria")}
+        {ns("proveedores","↳ Proveedores","proveeduria")}
+        {ns("ordenes-compra","↳ Órdenes de Compra","proveeduria")}
+        {ns("nueva-oc","↳ Nueva Orden de Compra","proveeduria")}
 
         {ni("solicitudes","Solicitudes","📬",solActive,undefined,"solicitudes")}
         {ns("solicitudes","↳ Nueva Solicitud","solicitudes")}

@@ -2,6 +2,7 @@ export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
   | "conteo" | "reabasto" | "valorizado" | "trazabilidad"
+  | "proveeduria" | "proveedores" | "ordenes-compra" | "nueva-oc"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"
   | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
@@ -506,4 +507,27 @@ export interface MovimientoInventario {
   usuario: string;
   motivo?: string;
   referencia?: string;
+}
+
+// ── Proveeduría ────────────────────────────────────────────────
+
+export interface LineaOC {
+  articuloId: string;
+  cantidad: number;
+  costoUnitario: number;
+}
+
+export type EstadoOC = "Borrador" | "Enviada" | "Recibida" | "Facturada" | "Cancelada";
+
+export interface OrdenCompra {
+  id: string;
+  proveedorId: string;
+  bodegaId: string;
+  fecha: string;
+  fechaEntregaEsperada?: string;
+  estado: EstadoOC;
+  lineas: LineaOC[];
+  observaciones?: string;
+  facturaId?: string;
+  creadoPor: string;
 }

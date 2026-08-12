@@ -2,14 +2,15 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario } from "./types";
+import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";
 import { CATALOGOS_INIT } from "./data/catalogos";
 import { COMPANIES } from "./data/empresas";
-import { ASIENTOS_INIT } from "./data/finanzas";
+import { ASIENTOS_INIT, FACTURAS_CXP_INIT } from "./data/finanzas";
 import { ARTICULOS_INIT, MOVIMIENTOS_INIT, BODEGAS_INIT, CATEGORIAS_INIT, PROVEEDORES_INIT } from "./data/inventario";
+import { ORDENES_COMPRA_INIT } from "./data/proveeduria";
 
 // componentes compartidos
 import { Sidebar } from "./components/Sidebar";
@@ -34,6 +35,12 @@ import { Trazabilidad }        from "./modules/inventario/Trazabilidad";
 import { PortalSolicitudes }   from "./modules/inventario/PortalSolicitudes";
 import { BandejaGestion }      from "./modules/inventario/BandejaGestion";
 import { ConfigInventario }    from "./modules/inventario/ConfigInventario";
+
+// módulos — proveeduría
+import { ProveeduriaHome }     from "./modules/proveeduria/ProveeduriaHome";
+import { Proveedores }         from "./modules/proveeduria/Proveedores";
+import { OrdenesCompra }       from "./modules/proveeduria/OrdenesCompra";
+import { NuevaOrdenCompra }    from "./modules/proveeduria/NuevaOrdenCompra";
 
 // módulos — BI & reportería
 import { BIReporteria }        from "./modules/bi/BIReporteria";
@@ -81,7 +88,9 @@ export default function App() {
   const [movimientosInv, setMovimientosInv] = useState<MovimientoInventario[]>(MOVIMIENTOS_INIT);
   const [bodegas, setBodegas] = useState<Bodega[]>(BODEGAS_INIT);
   const [categoriasInv, setCategoriasInv] = useState<CategoriaInventario[]>(CATEGORIAS_INIT);
-  const [proveedoresInv] = useState<ProveedorInventario[]>(PROVEEDORES_INIT);
+  const [proveedoresInv, setProveedoresInv] = useState<ProveedorInventario[]>(PROVEEDORES_INIT);
+  const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompra[]>(ORDENES_COMPRA_INIT);
+  const [facturasCxp, setFacturasCxp] = useState<Factura[]>(FACTURAS_CXP_INIT);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -107,9 +116,15 @@ export default function App() {
         {view === "ajuste"       && <AjusteInventario  setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} />}
         {view === "baja"         && <BajaDescarte      setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} />}
         {view === "conteo"       && <ConteoAuditoria   setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} bodegas={bodegas} />}
-        {view === "reabasto"     && <Reabastecimiento  setView={setView} articulos={articulos} proveedores={proveedoresInv} />}
+        {view === "reabasto"     && <Reabastecimiento  setView={setView} articulos={articulos} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} />}
         {view === "valorizado"   && <InvValorizado articulos={articulos} categorias={categoriasInv} />}
         {view === "trazabilidad" && <Trazabilidad articulos={articulos} movimientos={movimientosInv} bodegas={bodegas} proveedores={proveedoresInv} />}
+
+        {/* PROVEEDURÍA */}
+        {view === "proveeduria"   && <ProveeduriaHome   setView={setView} ordenesCompra={ordenesCompra} proveedores={proveedoresInv} facturasCxp={facturasCxp} />}
+        {view === "proveedores"   && <Proveedores       setView={setView} proveedores={proveedoresInv} setProveedores={setProveedoresInv} articulos={articulos} ordenesCompra={ordenesCompra} categorias={categoriasInv} />}
+        {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} />}
+        {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} />}
         {view === "bi"           && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "reportes"     && <GeneradorReportes />}
         {view === "bi-ejecutivo" && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
@@ -146,7 +161,7 @@ export default function App() {
         {view === "finanzas"             && <FinanzasHome        setView={setView} asientos={asientosContables} />}
         {view === "libro-diario"         && <LibroDiario          setView={setView} asientos={asientosContables} setAsientos={setAsientosContables} />}
         {view === "cxc"                  && <CuentasPorCobrar     setView={setView} />}
-        {view === "cxp"                  && <CuentasPorPagar      setView={setView} />}
+        {view === "cxp"                  && <CuentasPorPagar      setView={setView} facturas={facturasCxp} setFacturas={setFacturasCxp} />}
         {view === "estados-financieros"  && <EstadosFinancieros   setView={setView} asientos={asientosContables} />}
         {view === "flujo-caja"           && <FlujoCaja            setView={setView} />}
         {view === "facturacion"          && <Facturacion          setView={setView} />}
