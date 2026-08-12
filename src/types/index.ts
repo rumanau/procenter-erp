@@ -461,6 +461,8 @@ export interface CategoriaInventario {
   activa: boolean;
 }
 
+export type EstadoHomologacion = "Pendiente" | "En Evaluación" | "Aprobado" | "Aprobado Condicionado" | "Suspendido";
+
 export interface ProveedorInventario {
   id: string;
   nombre: string;
@@ -471,6 +473,7 @@ export interface ProveedorInventario {
   rating: "A+" | "A" | "B+" | "B" | "C";
   categorias: string[];
   activo: boolean;
+  homologacion: EstadoHomologacion;
 }
 
 export type EstadoStock = "ok" | "bajo" | "critico" | "agotado";

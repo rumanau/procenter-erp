@@ -1,11 +1,15 @@
 import React, { useState } from "react";
-import type { View, Articulo, ProveedorInventario, OrdenCompra, LineaOC } from "../../types";
+import type { View, Articulo, ProveedorInventario, OrdenCompra, LineaOC, DocumentoProveedor } from "../../types";
 import { estadoStock } from "../../data/inventario";
+import { homologacionEfectiva } from "../../data/proveeduria";
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=(offsetDias=0)=>{const d=new Date();d.setDate(d.getDate()+offsetDias);return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});};
 
-export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,setOrdenesCompra}:{setView:(v:View)=>void;articulos:Articulo[];proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>}) {
-  const items=articulos.filter(a=>a.activo&&(estadoStock(a.stock,a.min)==="bajo"||estadoStock(a.stock,a.min)==="critico"||estadoStock(a.stock,a.min)==="agotado"));
+export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,setOrdenesCompra,documentosProveedor}:{setView:(v:View)=>void;articulos:Articulo[];proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;documentosProveedor:DocumentoProveedor[]}) {
+  const proveedorBloqueadoId=(id:string)=>{const p=proveedores.find(x=>x.id===id);return p?homologacionEfectiva(p,documentosProveedor)==="Bloqueado":false;};
+  const todosCandidatos=articulos.filter(a=>a.activo&&(estadoStock(a.stock,a.min)==="bajo"||estadoStock(a.stock,a.min)==="critico"||estadoStock(a.stock,a.min)==="agotado"));
+  const items=todosCandidatos.filter(a=>!proveedorBloqueadoId(a.proveedorId));
+  const excluidosPorBloqueo=todosCandidatos.length-items.length;
   const [sel,setSel]=useState<Set<string>>(new Set(items.map(i=>i.id)));
   const [sugeridos,setSugeridos]=useState<Record<string,number>>({});
   const toggle=(id:string)=>setSel(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -49,6 +53,11 @@ export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,se
           <div key={l} className="kpi"><div className="kpi-label">{l}</div><div className="kpi-value" style={{color:c as string,fontSize:16}}>{v}</div></div>
         ))}
       </div>
+      {excluidosPorBloqueo>0&&(
+        <div className="card" style={{marginBottom:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+          <div style={{fontSize:11.5,color:"#991B1B"}}>🚫 {excluidosPorBloqueo} artículo(s) con proveedor bloqueado por documentos vencidos no se sugieren aquí — regulariza al proveedor en su expediente para incluirlos.</div>
+        </div>
+      )}
       <div className="card" style={{marginBottom:12}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <div className="card-title" style={{marginBottom:0}}>Artículos Sugeridos para Reabastecimiento</div>

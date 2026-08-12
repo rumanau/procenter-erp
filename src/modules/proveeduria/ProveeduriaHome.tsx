@@ -1,16 +1,17 @@
 import React from "react";
-import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio } from "../../types";
+import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio, DocumentoProveedor } from "../../types";
 import { ModTile } from "../../components/ModTile";
-import { totalOC, calcularEvaluacion } from "../../data/proveeduria";
+import { totalOC, calcularEvaluacion, homologacionEfectiva } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[]}) {
+export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio,documentosProveedor}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[]}) {
   const abiertas=ordenesCompra.filter(o=>o.estado==="Borrador"||o.estado==="Pendiente Aprobación"||o.estado==="Enviada"||o.estado==="Parcialmente Recibida");
   const comprometido=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").reduce((s,o)=>s+totalOC(o),0);
   const activos=proveedores.filter(p=>p.activo);
   const cedulas=new Set(proveedores.map(p=>p.cedulaJuridica));
   const facturasProveedores=facturasCxp.filter(f=>cedulas.has(f.cedula)&&f.saldo>0);
+  const bloqueados=proveedores.filter(p=>homologacionEfectiva(p,documentosProveedor)==="Bloqueado");
 
   const tiles=[
     {icon:"🏢",name:"Proveedores",desc:"Directorio y condiciones",sub:`${activos.length} activos`,view:"proveedores" as View},
@@ -37,12 +38,13 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
             <button className="btn btn-sm" style={{background:"#E8611A",color:"#fff",border:"none"}} onClick={()=>setView("nueva-oc")}>➕ Nueva OC</button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:16}}>
           {[
             {l:"OCs abiertas",v:String(abiertas.length),sub:"Borrador + Enviada",c:"#3B82F6",pill:"kpi-info"},
             {l:"Monto comprometido",v:fmt(comprometido),sub:"Sin facturar aún",c:"#E8611A",pill:"kpi-warn"},
             {l:"Proveedores activos",v:String(activos.length),sub:`${proveedores.length} en directorio`,c:"#10B981",pill:"kpi-up"},
             {l:"Facturas CxP pendientes",v:String(facturasProveedores.length),sub:fmt(facturasProveedores.reduce((s,f)=>s+f.saldo,0)),c:"#EF4444",pill:"kpi-down"},
+            {l:"Proveedores bloqueados",v:String(bloqueados.length),sub:"Por documentos vencidos",c:"#EF4444",pill:"kpi-down"},
           ].map(k=>(
             <div key={k.l} className="kpi">
               <div className="kpi-label">{k.l}</div>
@@ -51,6 +53,12 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
             </div>
           ))}
         </div>
+        {bloqueados.length>0&&(
+          <div className="card" style={{marginBottom:16,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#991B1B",marginBottom:2}}>🚫 {bloqueados.length} proveedor(es) bloqueado(s) automáticamente</div>
+            <div style={{fontSize:11,color:"#991B1B"}}>{bloqueados.map(p=>p.nombre).join(", ")} — no pueden recibir nuevas Órdenes de Compra hasta regularizar sus documentos. <span style={{textDecoration:"underline",cursor:"pointer"}} onClick={()=>setView("proveedores")}>Ver proveedores →</span></div>
+          </div>
+        )}
         <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:10}}>Acciones del módulo</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
           {tiles.map(t=>(

@@ -30,14 +30,14 @@ export const CATEGORIAS_INIT: CategoriaInventario[] = [
 ];
 
 export const PROVEEDORES_INIT: ProveedorInventario[] = [
-  { id: "PV1", nombre: "TechnoSupply CR S.A.", cedulaJuridica: "3-101-334455", contacto: "ventas@technosupply.cr", telefono: "2233-4455", condicion: "30 días", rating: "A+", categorias: ["C1", "C4"], activo: true },
-  { id: "PV2", nombre: "MegaTools Ferretería", cedulaJuridica: "3-101-556611", contacto: "info@megatools.cr", telefono: "2245-7788", condicion: "Contado", rating: "A", categorias: ["C1", "C3"], activo: true },
-  { id: "PV3", nombre: "ElectroMayorista", cedulaJuridica: "3-101-667788", contacto: "compras@electromayorista.cr", telefono: "2260-1122", condicion: "60 días", rating: "B+", categorias: ["C4"], activo: true },
-  { id: "PV4", nombre: "InsumosCR S.A.", cedulaJuridica: "3-101-778823", contacto: "ventas@insumoscr.cr", telefono: "2272-3344", condicion: "15 días", rating: "A", categorias: ["C3", "C2"], activo: true },
-  { id: "PV5", nombre: "SafetyPro Equipos de Seguridad", cedulaJuridica: "3-101-889934", contacto: "ventas@safetypro.cr", telefono: "2288-9900", condicion: "30 días", rating: "A+", categorias: ["C5"], activo: true },
-  { id: "PV6", nombre: "Distribuidora del Norte", cedulaJuridica: "3-101-990045", contacto: "pedidos@distnorte.cr", telefono: "2299-0011", condicion: "30 días", rating: "B+", categorias: ["C2"], activo: true },
-  { id: "PV7", nombre: "Mobiliario Corporativo CR", cedulaJuridica: "3-101-101156", contacto: "ventas@mobiliariocr.cr", telefono: "2210-2233", condicion: "45 días", rating: "A", categorias: ["C6"], activo: true },
-  { id: "PV8", nombre: "CamTech Seguridad Electrónica", cedulaJuridica: "3-101-212267", contacto: "info@camtech.cr", telefono: "2221-3344", condicion: "30 días", rating: "A", categorias: ["C4", "C5"], activo: true },
+  { id: "PV1", nombre: "TechnoSupply CR S.A.", cedulaJuridica: "3-101-334455", contacto: "ventas@technosupply.cr", telefono: "2233-4455", condicion: "30 días", rating: "A+", categorias: ["C1", "C4"], activo: true, homologacion: "Aprobado" },
+  { id: "PV2", nombre: "MegaTools Ferretería", cedulaJuridica: "3-101-556611", contacto: "info@megatools.cr", telefono: "2245-7788", condicion: "Contado", rating: "A", categorias: ["C1", "C3"], activo: true, homologacion: "Aprobado" },
+  { id: "PV3", nombre: "ElectroMayorista", cedulaJuridica: "3-101-667788", contacto: "compras@electromayorista.cr", telefono: "2260-1122", condicion: "60 días", rating: "B+", categorias: ["C4"], activo: true, homologacion: "Aprobado Condicionado" },
+  { id: "PV4", nombre: "InsumosCR S.A.", cedulaJuridica: "3-101-778823", contacto: "ventas@insumoscr.cr", telefono: "2272-3344", condicion: "15 días", rating: "A", categorias: ["C3", "C2"], activo: true, homologacion: "Aprobado" },
+  { id: "PV5", nombre: "SafetyPro Equipos de Seguridad", cedulaJuridica: "3-101-889934", contacto: "ventas@safetypro.cr", telefono: "2288-9900", condicion: "30 días", rating: "A+", categorias: ["C5"], activo: true, homologacion: "Aprobado" },
+  { id: "PV6", nombre: "Distribuidora del Norte", cedulaJuridica: "3-101-990045", contacto: "pedidos@distnorte.cr", telefono: "2299-0011", condicion: "30 días", rating: "B+", categorias: ["C2"], activo: true, homologacion: "En Evaluación" },
+  { id: "PV7", nombre: "Mobiliario Corporativo CR", cedulaJuridica: "3-101-101156", contacto: "ventas@mobiliariocr.cr", telefono: "2210-2233", condicion: "45 días", rating: "A", categorias: ["C6"], activo: true, homologacion: "Pendiente" },
+  { id: "PV8", nombre: "CamTech Seguridad Electrónica", cedulaJuridica: "3-101-212267", contacto: "info@camtech.cr", telefono: "2221-3344", condicion: "30 días", rating: "A", categorias: ["C4", "C5"], activo: true, homologacion: "Aprobado" },
 ];
 
 interface Catalogo { catId: string; unidad: string; costoMin: number; costoMax: number; minBase: [number, number]; nombres: string[]; }

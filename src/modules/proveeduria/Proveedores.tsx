@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, type EvaluacionProveedor } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, EstadoHomologacion } from "../../types";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
-type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos";
+type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos"|"bloqueados";
 type OrdenPor="nombre"|"compras"|"deuda";
 type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"documentos"|"devoluciones"|"editar";
+
+export const badgeHomologacion=(e:EstadoHomologacionEfectivo)=>e==="Bloqueado"||e==="Suspendido"?"badge-crit":e==="Aprobado"?"badge-ok":e==="Aprobado Condicionado"||e==="En Evaluación"?"badge-warn":"badge-gray";
 
 export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
@@ -31,6 +33,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   const evalDe=(id:string)=>calcularEvaluacion(id,ordenesCompra,recepciones,evaluacionesServicio);
   const documentosDe=(id:string)=>documentosProveedor.filter(d=>d.proveedorId===id);
   const devolucionesDe=(id:string)=>devoluciones.filter(d=>d.proveedorId===id);
+  const homologDe=(id:string)=>{const p=proveedores.find(x=>x.id===id);return p?homologacionEfectiva(p,documentosProveedor):"Pendiente" as EstadoHomologacionEfectivo;};
   const esCritico=(id:string)=>{
     const hoy=new Date();
     const facturaVencida=facturasDe(id).some(f=>f.estado==="vencida");
@@ -43,12 +46,14 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   const comprasDelMes=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&(()=>{const f=parseFechaEsCR(o.fecha);return f.getMonth()===hoy.getMonth()&&f.getFullYear()===hoy.getFullYear();})()).reduce((s,o)=>s+totalOC(o),0);
   const cedulasProv=new Set(proveedores.map(p=>p.cedulaJuridica));
   const cxpTotalPendiente=facturasCxp.filter(f=>cedulasProv.has(f.cedula)).reduce((s,f)=>s+f.saldo,0);
+  const bloqueados=proveedores.filter(p=>homologDe(p.id)==="Bloqueado").length;
   const kpis=[
     {l:"Proveedores activos",v:String(proveedores.filter(p=>p.activo).length),c:"#10B981"},
     {l:"Órdenes abiertas",v:String(ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").length),c:"#3B82F6"},
     {l:"Compras del mes",v:fmt(comprasDelMes),c:"#E8611A"},
     {l:"CxP pendiente",v:fmt(cxpTotalPendiente),c:"#7C3AED"},
-    {l:"Proveedores críticos",v:String(proveedores.filter(p=>esCritico(p.id)).length),c:"#EF4444"},
+    {l:"Proveedores críticos",v:String(proveedores.filter(p=>esCritico(p.id)).length),c:"#F59E0B"},
+    {l:"Bloqueados por documentos",v:String(bloqueados),c:"#EF4444"},
   ];
 
   let filtrados=proveedores.filter(p=>{
@@ -57,6 +62,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
     if(filtro==="oc-abiertas"&&ocsAbiertasDe(p.id)===0) return false;
     if(filtro==="cxp"&&cxpPendienteDe(p.id)<=0) return false;
     if(filtro==="criticos"&&!esCritico(p.id)) return false;
+    if(filtro==="bloqueados"&&homologDe(p.id)!=="Bloqueado") return false;
     return true;
   });
   filtrados=[...filtrados].sort((a,b)=>{
@@ -74,7 +80,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
     setTab("resumen");
   };
 
-  const chips:[FiltroChip,string][]=[["todos","Todos"],["activos","Activos"],["oc-abiertas","Con OC abiertas"],["cxp","Con CxP"],["criticos","Críticos"]];
+  const chips:[FiltroChip,string][]=[["todos","Todos"],["activos","Activos"],["oc-abiertas","Con OC abiertas"],["cxp","Con CxP"],["criticos","Críticos"],["bloqueados","🚫 Bloqueados"]];
 
   return (
     <div className="content" style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -87,7 +93,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
         {kpis.map(k=>(
           <div key={k.l} className="kpi"><div className="kpi-label">{k.l}</div><div className="kpi-value" style={{color:k.c,fontSize:15}}>{k.v}</div></div>
         ))}
@@ -115,6 +121,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             const critico=esCritico(p.id);
             const ultima=ultimaCompraDe(p.id);
             const ev=evalDe(p.id);
+            const homolog=homologDe(p.id);
             const docsVencidos=documentosDe(p.id).filter(d=>estadoDocumento(d.vigenciaHasta)==="Vencido").length;
             const docsPorVencer=documentosDe(p.id).filter(d=>estadoDocumento(d.vigenciaHasta)==="Por vencer").length;
             const devsPendientes=devolucionesDe(p.id).filter(d=>d.estado==="Pendiente").length;
@@ -129,6 +136,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
                 </div>
               </div>
               <div style={{fontSize:10.5,color:"#6B7280",marginBottom:6}}>{p.cedulaJuridica} · {p.contacto}</div>
+              <div style={{marginBottom:6}}><span className={`badge ${badgeHomologacion(homolog)}`} style={{fontSize:9}} title={descripcionHomologacion(homolog)}>{homolog==="Bloqueado"?"🚫 ":""}Homologación: {homolog}</span></div>
               <div style={{fontSize:11,color:"#374151",marginBottom:6}}>
                 {itemsDe(p.id).length} artículos · {ocsAbiertasDe(p.id)} OC abiertas
                 {cxpPendienteDe(p.id)>0&&<> · <span style={{color:"#EF4444",fontWeight:600}}>{fmt(cxpPendienteDe(p.id))} CxP</span></>}
@@ -155,12 +163,26 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
                   <div style={{fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>🏢 {sel.nombre}
                     <span className="badge badge-info" title="Evaluación calculada">{evalDe(sel.id).grado}</span>
                     <span className={`badge ${sel.activo?"badge-ok":"badge-gray"}`}>{sel.activo?"Activo":"Inactivo"}</span>
+                    <span className={`badge ${badgeHomologacion(homologDe(sel.id))}`} title={descripcionHomologacion(homologDe(sel.id))}>{homologDe(sel.id)==="Bloqueado"?"🚫 Bloqueado":homologDe(sel.id)}</span>
                   </div>
                   <div style={{fontSize:11.5,color:"#6B7280",marginTop:2}}>{sel.cedulaJuridica} · {sel.contacto} · {sel.telefono}</div>
                 </div>
                 <button className="btn btn-secondary btn-sm" onClick={()=>setView("nueva-oc")}>➕ Nueva OC</button>
               </div>
             </div>
+
+            {homologDe(sel.id)==="Bloqueado"&&(
+              <div className="card" style={{marginBottom:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#991B1B",marginBottom:4}}>🚫 Proveedor bloqueado automáticamente</div>
+                <div style={{fontSize:11,color:"#991B1B",marginBottom:6}}>No puede recibir nuevas Órdenes de Compra hasta regularizar los siguientes documentos vencidos:</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {documentosVencidosDe(sel.id,documentosProveedor).map(d=>(
+                    <span key={d.id} className="badge badge-crit" style={{fontSize:9.5}}>{d.nombre} — venció {d.vigenciaHasta}</span>
+                  ))}
+                </div>
+                <button className="btn btn-secondary btn-sm" style={{marginTop:8}} onClick={()=>setTab("documentos")}>📄 Ir a Documentos</button>
+              </div>
+            )}
 
             <div className="tab-bar" style={{marginBottom:12}}>
               {([["resumen","Resumen"],["catalogo","Catálogo"],["ordenes","Órdenes"],["cxp","CxP"],["devoluciones","↩️ Devoluciones"],["documentos","📄 Documentos"],["editar","✏️ Editar"]] as [Tab,string][]).map(([id,label])=>(
@@ -174,7 +196,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             {tab==="cxp"&&<CxpTab facturas={facturasDe(sel.id)}/>}
             {tab==="devoluciones"&&<DevolucionesTab devoluciones={devolucionesDe(sel.id)} articulos={articulos} setDevoluciones={setDevoluciones}/>}
             {tab==="documentos"&&<DocumentosTab documentos={documentosDe(sel.id)} proveedorId={sel.id} setDocumentosProveedor={setDocumentosProveedor}/>}
-            {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)} evaluacion={evalDe(sel.id)}/>}
+            {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)} evaluacion={evalDe(sel.id)} homologEfectiva={homologDe(sel.id)}/>}
           </div>
         ):(
           <div className="card" style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#9CA3AF"}}>Selecciona un proveedor para ver su expediente</div>
@@ -488,7 +510,7 @@ function DocumentosTab({documentos,proveedorId,setDocumentosProveedor}:{document
   );
 }
 
-function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminado,evaluacion}:{proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;puedeEliminar:boolean;onEliminado:()=>void;evaluacion:EvaluacionProveedor}) {
+function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminado,evaluacion,homologEfectiva}:{proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;puedeEliminar:boolean;onEliminado:()=>void;evaluacion:EvaluacionProveedor;homologEfectiva:EstadoHomologacionEfectivo}) {
   const set=(campo:keyof ProveedorInventario,valor:any)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,[campo]:valor}:p));
   const toggleCategoria=(catId:string)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,categorias:p.categorias.includes(catId)?p.categorias.filter(c=>c!==catId):[...p.categorias,catId]}:p));
   return (
@@ -514,6 +536,15 @@ function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminad
           <span style={{fontSize:11,color:"#9CA3AF"}}>Calculada automáticamente a partir del historial de compras — ver pestaña Resumen</span>
         </div>
       </div>
+      <div className="form-group">
+        <label className="form-label">Estado de homologación</label>
+        <select className="form-control" value={proveedor.homologacion} onChange={e=>set("homologacion",e.target.value as EstadoHomologacion)} disabled={homologEfectiva==="Bloqueado"}>
+          <option>Pendiente</option><option>En Evaluación</option><option>Aprobado</option><option>Aprobado Condicionado</option><option>Suspendido</option>
+        </select>
+        {homologEfectiva==="Bloqueado"?
+          <div style={{fontSize:11,color:"#EF4444",marginTop:4}}>🚫 Bloqueado automáticamente por documentos vencidos — regulariza los documentos en la pestaña Documentos para poder cambiar este estado manualmente.</div>
+          :<div style={{fontSize:11,color:"#9CA3AF",marginTop:4}}>Distinto del estado administrativo (Activo/Inactivo) — un proveedor puede estar activo y no homologado, o inactivo y homologado.</div>}
+      </div>
       <div className="form-group"><label className="form-label">Categorías que suministra</label>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {categorias.map(c=>(
@@ -533,7 +564,7 @@ function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminad
 }
 
 function NuevoProveedorModal({categorias,onGuardar,onCerrar}:{categorias:CategoriaInventario[];onGuardar:(p:ProveedorInventario)=>void;onCerrar:()=>void}) {
-  const [f,setF]=useState<ProveedorInventario>({id:"",nombre:"",cedulaJuridica:"",contacto:"",telefono:"",condicion:"30 días",rating:"B",categorias:[],activo:true});
+  const [f,setF]=useState<ProveedorInventario>({id:"",nombre:"",cedulaJuridica:"",contacto:"",telefono:"",condicion:"30 días",rating:"B",categorias:[],activo:true,homologacion:"Pendiente"});
   const set=(campo:keyof ProveedorInventario,valor:any)=>setF(prev=>({...prev,[campo]:valor}));
   const toggleCategoria=(catId:string)=>setF(prev=>({...prev,categorias:prev.categorias.includes(catId)?prev.categorias.filter(c=>c!==catId):[...prev.categorias,catId]}));
   const valido=f.nombre.trim().length>2&&f.cedulaJuridica.trim().length>0;

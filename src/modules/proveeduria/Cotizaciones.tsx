@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, OfertaProveedor, LineaOferta, OrdenCompra, Recepcion, EvaluacionServicio, LineaOC } from "../../types";
-import { siguienteFolioOferta, siguienteFolioOC, recomendarOferta, totalOferta } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, OfertaProveedor, LineaOferta, OrdenCompra, Recepcion, EvaluacionServicio, LineaOC, DocumentoProveedor } from "../../types";
+import { siguienteFolioOferta, siguienteFolioOC, recomendarOferta, totalOferta, homologacionEfectiva } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 
-export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,setSolicitudes,ofertas,setOfertas,ordenesCompra,setOrdenesCompra,recepciones,evaluacionesServicio}:{
+export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,setSolicitudes,ofertas,setOfertas,ordenesCompra,setOrdenesCompra,recepciones,evaluacionesServicio,documentosProveedor}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];
   solicitudes:SolicitudCotizacion[];setSolicitudes:React.Dispatch<React.SetStateAction<SolicitudCotizacion[]>>;
   ofertas:OfertaProveedor[];setOfertas:React.Dispatch<React.SetStateAction<OfertaProveedor[]>>;
   ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;
-  recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];
+  recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[];
 }) {
   const [selId,setSelId]=useState<string|null>(null);
   const [modalOferta,setModalOferta]=useState<{rfq:SolicitudCotizacion;proveedorId:string}|null>(null);
@@ -38,6 +38,11 @@ export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,
   const adjudicar=(rfq:SolicitudCotizacion,proveedorId:string)=>{
     const oferta=ofertas.find(o=>o.rfqId===rfq.id&&o.proveedorId===proveedorId);
     if(!oferta) return;
+    const proveedor=proveedores.find(p=>p.id===proveedorId);
+    if(proveedor&&homologacionEfectiva(proveedor,documentosProveedor)==="Bloqueado"){
+      alert(`🚫 No se puede adjudicar a ${provNom(proveedorId)}: quedó bloqueado por documentos vencidos desde que se registró su oferta. Regulariza sus documentos o adjudica a otro proveedor.`);
+      return;
+    }
     if(!window.confirm(`¿Adjudicar la cotización ${rfq.id} a ${provNom(proveedorId)}? Se creará una Orden de Compra real.`)) return;
     const folioOC=siguienteFolioOC(ordenesCompra);
     const lineasOC:LineaOC[]=rfq.lineas.map(l=>{

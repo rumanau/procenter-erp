@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Bodega, Articulo, OrdenCompra, LineaOC } from "../../types";
-import { siguienteFolioOC, nivelAprobacion } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Bodega, Articulo, OrdenCompra, LineaOC, DocumentoProveedor } from "../../types";
+import { siguienteFolioOC, nivelAprobacion, homologacionEfectiva } from "../../data/proveeduria";
 import { CATALOGOS_INIT } from "../../data/catalogos";
 
 const hoy=(offsetDias=0)=>{const d=new Date();d.setDate(d.getDate()+offsetDias);return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});};
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesCompra,setOrdenesCompra}:{setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>}) {
-  const [proveedorId,setProveedorId]=useState(proveedores[0]?.id||"");
+export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesCompra,setOrdenesCompra,documentosProveedor}:{setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;documentosProveedor:DocumentoProveedor[]}) {
+  const disponibles=proveedores.filter(p=>p.activo&&homologacionEfectiva(p,documentosProveedor)!=="Bloqueado");
+  const bloqueados=proveedores.filter(p=>p.activo&&homologacionEfectiva(p,documentosProveedor)==="Bloqueado");
+  const [proveedorId,setProveedorId]=useState(disponibles[0]?.id||"");
   const [bodegaId,setBodegaId]=useState(bodegas[0]?.id||"");
   const [centroCosto,setCentroCosto]=useState(CATALOGOS_INIT.areas[0]?.nombre||"");
   const [proyecto,setProyecto]=useState("");
@@ -69,8 +71,9 @@ export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesC
             <div className="g2">
               <div className="form-group"><label className="form-label">Proveedor</label>
                 <select className="form-control" value={proveedorId} onChange={e=>setProveedorId(e.target.value)}>
-                  {proveedores.filter(p=>p.activo).map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  {disponibles.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
+                {bloqueados.length>0&&<div style={{fontSize:10,color:"#EF4444",marginTop:4}}>🚫 {bloqueados.length} proveedor(es) no aparecen por estar bloqueados (documentos vencidos): {bloqueados.map(p=>p.nombre).join(", ")}</div>}
               </div>
               <div className="form-group"><label className="form-label">Bodega Destino</label>
                 <select className="form-control" value={bodegaId} onChange={e=>{setBodegaId(e.target.value);setLineas([]);}}>

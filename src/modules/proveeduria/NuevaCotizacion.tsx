@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, LineaRFQ } from "../../types";
-import { siguienteFolioRFQ } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, LineaRFQ, DocumentoProveedor } from "../../types";
+import { siguienteFolioRFQ, homologacionEfectiva } from "../../data/proveeduria";
 
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 
-export function NuevaCotizacion({setView,proveedores,bodegas,articulos,solicitudes,setSolicitudes}:{
+export function NuevaCotizacion({setView,proveedores,bodegas,articulos,solicitudes,setSolicitudes,documentosProveedor}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];
-  solicitudes:SolicitudCotizacion[];setSolicitudes:React.Dispatch<React.SetStateAction<SolicitudCotizacion[]>>;
+  solicitudes:SolicitudCotizacion[];setSolicitudes:React.Dispatch<React.SetStateAction<SolicitudCotizacion[]>>;documentosProveedor:DocumentoProveedor[];
 }) {
   const [bodegaId,setBodegaId]=useState(bodegas[0]?.id||"");
   const [busqueda,setBusqueda]=useState("");
@@ -86,12 +86,16 @@ export function NuevaCotizacion({setView,proveedores,bodegas,articulos,solicitud
             <div className="card-title">Invitar proveedores ({proveedorIds.length})</div>
             <div style={{fontSize:11,color:"#9CA3AF",marginBottom:8}}>Selecciona al menos 2 para poder comparar ofertas</div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {proveedores.filter(p=>p.activo).map(p=>(
-                <label key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",border:`1.5px solid ${proveedorIds.includes(p.id)?"#E8611A":"#E5E7EB"}`,borderRadius:8,cursor:"pointer",background:proveedorIds.includes(p.id)?"#FFF3ED":"#fff"}}>
-                  <input type="checkbox" checked={proveedorIds.includes(p.id)} onChange={()=>toggleProveedor(p.id)}/>
+              {proveedores.filter(p=>p.activo).map(p=>{
+                const bloqueado=homologacionEfectiva(p,documentosProveedor)==="Bloqueado";
+                return (
+                <label key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",border:`1.5px solid ${proveedorIds.includes(p.id)?"#E8611A":"#E5E7EB"}`,borderRadius:8,cursor:bloqueado?"not-allowed":"pointer",background:proveedorIds.includes(p.id)?"#FFF3ED":bloqueado?"#F9FAFB":"#fff",opacity:bloqueado?0.6:1}}>
+                  <input type="checkbox" checked={proveedorIds.includes(p.id)} disabled={bloqueado} onChange={()=>toggleProveedor(p.id)}/>
                   <span style={{fontSize:12}}>{p.nombre}</span>
+                  {bloqueado&&<span className="badge badge-crit" style={{fontSize:8.5,marginLeft:"auto"}}>🚫 Bloqueado</span>}
                 </label>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div className="resumen" style={{marginBottom:12}}>

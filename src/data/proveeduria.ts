@@ -1,4 +1,4 @@
-import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor } from "../types";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor, ProveedorInventario, EstadoHomologacion } from "../types";
 import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
 
 function mulberry32(seed: number) {
@@ -340,4 +340,38 @@ export function estadoDocumento(vigenciaHasta?: string): EstadoDocumento {
   if (v < hoyD) return "Vencido";
   if (v <= en30dias) return "Por vencer";
   return "Vigente";
+}
+
+// ── Homologación de proveedor ───────────────────────────────────
+// El estado administrativo (activo/inactivo) es independiente del estado de
+// homologación: un proveedor puede estar activo pero no homologado, o
+// homologado pero temporalmente inactivo. La homologación se asigna
+// manualmente (Pendiente → En Evaluación → Aprobado/Aprobado Condicionado),
+// salvo "Bloqueado", que nunca se asigna a mano: se calcula automáticamente
+// cuando el proveedor tiene al menos un documento vencido, y en ese estado
+// no puede recibir nuevas Órdenes de Compra hasta regularizar sus documentos.
+export type EstadoHomologacionEfectivo = EstadoHomologacion | "Bloqueado";
+
+export function documentosVencidosDe(proveedorId: string, documentos: DocumentoProveedor[]): DocumentoProveedor[] {
+  return documentos.filter(d => d.proveedorId === proveedorId && estadoDocumento(d.vigenciaHasta) === "Vencido");
+}
+
+export function homologacionEfectiva(proveedor: ProveedorInventario, documentos: DocumentoProveedor[]): EstadoHomologacionEfectivo {
+  if (documentosVencidosDe(proveedor.id, documentos).length > 0) return "Bloqueado";
+  return proveedor.homologacion;
+}
+
+export function proveedorBloqueado(proveedor: ProveedorInventario, documentos: DocumentoProveedor[]): boolean {
+  return homologacionEfectiva(proveedor, documentos) === "Bloqueado";
+}
+
+export function descripcionHomologacion(estado: EstadoHomologacionEfectivo): string {
+  switch (estado) {
+    case "Bloqueado": return "Bloqueado automáticamente por documentos vencidos — no puede recibir nuevas OC hasta regularizar";
+    case "Pendiente": return "Aún no inicia el proceso de homologación";
+    case "En Evaluación": return "En proceso de evaluación por Proveeduría";
+    case "Aprobado": return "Homologado sin restricciones";
+    case "Aprobado Condicionado": return "Homologado con condiciones — requiere seguimiento";
+    case "Suspendido": return "Homologación suspendida manualmente";
+  }
 }
