@@ -2,7 +2,7 @@ export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
   | "conteo" | "reabasto" | "valorizado" | "trazabilidad"
-  | "proveeduria" | "proveedores" | "ordenes-compra" | "nueva-oc"
+  | "proveeduria" | "proveedores" | "ordenes-compra" | "nueva-oc" | "comparador"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"
   | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
@@ -531,4 +531,22 @@ export interface OrdenCompra {
   observaciones?: string;
   facturaId?: string;
   creadoPor: string;
+}
+
+export interface ProveedorArticulo {
+  id: string;
+  articuloId: string;
+  proveedorId: string;
+  costoUnitario: number;
+  leadTimeDias: number;
+}
+
+export type EstadoDocumento = "Vigente" | "Por vencer" | "Vencido";
+
+export interface DocumentoProveedor {
+  id: string;
+  proveedorId: string;
+  tipo: string;
+  nombre: string;
+  vigenciaHasta?: string;
 }

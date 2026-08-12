@@ -1,15 +1,16 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, type EvaluacionProveedor } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor } from "../../types";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, type EvaluacionProveedor } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos";
 type OrdenPor="nombre"|"compras"|"deuda";
-type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"editar";
+type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"documentos"|"editar";
 
-export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp}:{
+export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
   articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[];facturasCxp:Factura[];
+  proveedorArticulos:ProveedorArticulo[];documentosProveedor:DocumentoProveedor[];setDocumentosProveedor:React.Dispatch<React.SetStateAction<DocumentoProveedor[]>>;
 }) {
   const [busqueda,setBusqueda]=useState("");
   const [filtro,setFiltro]=useState<FiltroChip>("todos");
@@ -26,11 +27,13 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   const comprasDe=(id:string)=>ocsDe(id).filter(o=>o.estado!=="Cancelada").reduce((s,o)=>s+totalOC(o),0);
   const ultimaCompraDe=(id:string)=>{const ocs=ocsDe(id).filter(o=>o.estado!=="Cancelada");return ocs.length?[...ocs].sort((a,b)=>b.id.localeCompare(a.id))[0]:null;};
   const evalDe=(id:string)=>calcularEvaluacion(id,ordenesCompra);
+  const documentosDe=(id:string)=>documentosProveedor.filter(d=>d.proveedorId===id);
   const esCritico=(id:string)=>{
     const hoy=new Date();
     const facturaVencida=facturasDe(id).some(f=>f.estado==="vencida");
     const ocAtrasada=ocsDe(id).some(o=>o.estado==="Enviada"&&o.fechaEntregaEsperada&&parseFechaEsCR(o.fechaEntregaEsperada)<hoy);
-    return facturaVencida||ocAtrasada;
+    const documentoVencido=documentosDe(id).some(d=>estadoDocumento(d.vigenciaHasta)==="Vencido");
+    return facturaVencida||ocAtrasada||documentoVencido;
   };
 
   const hoy=new Date();
@@ -76,6 +79,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
         <div><div className="page-title">Proveedores</div><div className="page-subtitle">Gestión, desempeño, compras y cuentas por pagar</div></div>
         <div style={{display:"flex",gap:6}}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setView("proveeduria")}>← Proveeduría</button>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setView("comparador")}>🆚 Comparar</button>
           <button className="btn btn-primary btn-sm" onClick={()=>setModalNuevo(true)}>➕ Nuevo Proveedor</button>
         </div>
       </div>
@@ -108,6 +112,8 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             const critico=esCritico(p.id);
             const ultima=ultimaCompraDe(p.id);
             const ev=evalDe(p.id);
+            const docsVencidos=documentosDe(p.id).filter(d=>estadoDocumento(d.vigenciaHasta)==="Vencido").length;
+            const docsPorVencer=documentosDe(p.id).filter(d=>estadoDocumento(d.vigenciaHasta)==="Por vencer").length;
             return (
             <div key={p.id} className="card" onClick={()=>{setSelId(p.id);setTab("resumen");}}
               style={{marginBottom:8,cursor:"pointer",border:selId===p.id?"2px solid #E8611A":"1px solid #E5E7EB"}}>
@@ -122,6 +128,8 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
               <div style={{fontSize:11,color:"#374151",marginBottom:6}}>
                 {itemsDe(p.id).length} artículos · {ocsAbiertasDe(p.id)} OC abiertas
                 {cxpPendienteDe(p.id)>0&&<> · <span style={{color:"#EF4444",fontWeight:600}}>{fmt(cxpPendienteDe(p.id))} CxP</span></>}
+                {docsVencidos>0&&<span className="badge badge-crit" style={{fontSize:8.5,marginLeft:6}}>📄 {docsVencidos} vencido{docsVencidos>1?"s":""}</span>}
+                {docsVencidos===0&&docsPorVencer>0&&<span className="badge badge-warn" style={{fontSize:8.5,marginLeft:6}}>📄 Por vencer</span>}
                 {critico&&<span className="badge badge-crit" style={{fontSize:8.5,marginLeft:6}}>⚠ Atención</span>}
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
@@ -150,15 +158,16 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
             </div>
 
             <div className="tab-bar" style={{marginBottom:12}}>
-              {([["resumen","Resumen"],["catalogo","Catálogo"],["ordenes","Órdenes"],["cxp","CxP"],["editar","✏️ Editar"]] as [Tab,string][]).map(([id,label])=>(
+              {([["resumen","Resumen"],["catalogo","Catálogo"],["ordenes","Órdenes"],["cxp","CxP"],["documentos","📄 Documentos"],["editar","✏️ Editar"]] as [Tab,string][]).map(([id,label])=>(
                 <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{label}</div>
               ))}
             </div>
 
             {tab==="resumen"&&<ResumenTab proveedor={sel} comprasTotal={comprasDe(sel.id)} cxpPendiente={cxpPendienteDe(sel.id)} ocAbiertas={ocsAbiertasDe(sel.id)} nItems={itemsDe(sel.id).length} categorias={categorias} ocs={ocsDe(sel.id)} facturas={facturasDe(sel.id)} evaluacion={evalDe(sel.id)}/>}
-            {tab==="catalogo"&&<CatalogoTab items={itemsDe(sel.id)} categorias={categorias} ordenesCompra={ocsDe(sel.id)}/>}
+            {tab==="catalogo"&&<CatalogoTab items={itemsDe(sel.id)} categorias={categorias} ordenesCompra={ocsDe(sel.id)} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
             {tab==="ordenes"&&<OrdenesTab ocs={ocsDe(sel.id)}/>}
             {tab==="cxp"&&<CxpTab facturas={facturasDe(sel.id)}/>}
+            {tab==="documentos"&&<DocumentosTab documentos={documentosDe(sel.id)} proveedorId={sel.id} setDocumentosProveedor={setDocumentosProveedor}/>}
             {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)} evaluacion={evalDe(sel.id)}/>}
           </div>
         ):(
@@ -234,22 +243,25 @@ function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categ
   );
 }
 
-function CatalogoTab({items,categorias,ordenesCompra}:{items:Articulo[];categorias:CategoriaInventario[];ordenesCompra:OrdenCompra[]}) {
+function CatalogoTab({items,categorias,ordenesCompra,proveedorArticulos,proveedores}:{items:Articulo[];categorias:CategoriaInventario[];ordenesCompra:OrdenCompra[];proveedorArticulos:ProveedorArticulo[];proveedores:ProveedorInventario[]}) {
   const historicoDe=(articuloId:string)=>{
     const precios:number[]=[];
     ordenesCompra.forEach(o=>o.lineas.forEach(l=>{if(l.articuloId===articuloId) precios.push(l.costoUnitario);}));
     return precios;
   };
+  const alternativosDe=(articuloId:string)=>proveedorArticulos.filter(pa=>pa.articuloId===articuloId);
   return (
     <div className="card" style={{padding:0,overflow:"hidden"}}>
       <table className="tbl">
-        <thead><tr><th>Código</th><th>Artículo</th><th>Categoría</th><th>Stock</th><th>Costo actual</th><th>Tendencia</th></tr></thead>
+        <thead><tr><th>Código</th><th>Artículo</th><th>Categoría</th><th>Stock</th><th>Costo actual</th><th>Tendencia</th><th>Otros proveedores</th></tr></thead>
         <tbody>
           {items.map(a=>{
             const historico=historicoDe(a.id);
             const anteriores=historico.filter(p=>p!==a.costoUnitario);
             const promAnterior=anteriores.length?anteriores.reduce((s,p)=>s+p,0)/anteriores.length:null;
             const variacion=promAnterior?((a.costoUnitario-promAnterior)/promAnterior)*100:null;
+            const alternativos=alternativosDe(a.id);
+            const masBarato=alternativos.length?alternativos.reduce((min,x)=>x.costoUnitario<min.costoUnitario?x:min):null;
             return (
             <tr key={a.id}>
               <td><b style={{fontSize:11.5,fontFamily:"monospace"}}>{a.id}</b></td>
@@ -263,10 +275,17 @@ function CatalogoTab({items,categorias,ordenesCompra}:{items:Articulo[];categori
                     {variacion>0?"▲":variacion<0?"▼":"—"} {Math.abs(variacion).toFixed(1)}%
                   </span>}
               </td>
+              <td>
+                {alternativos.length===0?<span style={{fontSize:10.5,color:"#9CA3AF"}}>—</span>:
+                  <span style={{fontSize:10.5}}>
+                    {alternativos.length} alternativo{alternativos.length>1?"s":""}
+                    {masBarato&&masBarato.costoUnitario<a.costoUnitario&&<span className="badge badge-ok" style={{fontSize:8,marginLeft:4}} title={proveedores.find(p=>p.id===masBarato.proveedorId)?.nombre}>desde {fmt(masBarato.costoUnitario)}</span>}
+                  </span>}
+              </td>
             </tr>
             );
           })}
-          {items.length===0&&<tr><td colSpan={6} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Este proveedor no suministra artículos activos</td></tr>}
+          {items.length===0&&<tr><td colSpan={7} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Este proveedor no suministra artículos activos</td></tr>}
         </tbody>
       </table>
     </div>
@@ -323,6 +342,61 @@ function CxpTab({facturas}:{facturas:Factura[]}) {
             {facturas.length===0&&<tr><td colSpan={6} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin facturas en Cuentas por Pagar</td></tr>}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function DocumentosTab({documentos,proveedorId,setDocumentosProveedor}:{documentos:DocumentoProveedor[];proveedorId:string;setDocumentosProveedor:React.Dispatch<React.SetStateAction<DocumentoProveedor[]>>}) {
+  const [nombre,setNombre]=useState("");
+  const [tipo,setTipo]=useState("Certificación");
+  const [vigenciaHasta,setVigenciaHasta]=useState("");
+
+  const badgeCl=(e:string)=>e==="Vigente"?"badge-ok":e==="Por vencer"?"badge-warn":"badge-crit";
+  const agregar=()=>{
+    if(!nombre.trim()) return;
+    setDocumentosProveedor(prev=>[...prev,{id:`DOC-${Date.now()}`,proveedorId,tipo,nombre:nombre.trim(),vigenciaHasta:vigenciaHasta||undefined}]);
+    setNombre("");setVigenciaHasta("");
+  };
+
+  return (
+    <div>
+      <div className="card" style={{marginBottom:12,padding:0,overflow:"hidden"}}>
+        <table className="tbl">
+          <thead><tr><th>Tipo</th><th>Documento</th><th>Vigencia</th><th>Estado</th></tr></thead>
+          <tbody>
+            {documentos.map(d=>{
+              const estado=estadoDocumento(d.vigenciaHasta);
+              return (
+                <tr key={d.id}>
+                  <td style={{fontSize:11.5,color:"#6B7280"}}>{d.tipo}</td>
+                  <td style={{fontSize:12.5}}>{d.nombre}</td>
+                  <td style={{fontSize:11.5}}>{d.vigenciaHasta||"Sin vencimiento"}</td>
+                  <td><span className={`badge ${badgeCl(estado)}`}>{estado}</span></td>
+                </tr>
+              );
+            })}
+            {documentos.length===0&&<tr><td colSpan={4} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin documentos registrados</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <div className="card">
+        <div className="card-title" style={{fontSize:12}}>Agregar documento</div>
+        <div className="g3">
+          <div className="form-group"><label className="form-label">Tipo</label>
+            <select className="form-control" value={tipo} onChange={e=>setTipo(e.target.value)}>
+              <option>Personería jurídica</option><option>Bancario</option><option>Certificación</option><option>Permiso</option><option>Contrato</option><option>Otro</option>
+            </select>
+          </div>
+          <div className="form-group"><label className="form-label">Nombre del documento</label><input className="form-control" value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej: Póliza de responsabilidad civil"/></div>
+          <div className="form-group"><label className="form-label">Vigente hasta (opcional)</label><input type="date" className="form-control" onChange={e=>{
+            if(!e.target.value){setVigenciaHasta("");return;}
+            const [y,m,d]=e.target.value.split("-");
+            const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+            setVigenciaHasta(`${d} ${meses[parseInt(m)-1]} ${y}`);
+          }}/></div>
+        </div>
+        <button className="btn btn-primary btn-sm" disabled={!nombre.trim()} onClick={agregar}>➕ Agregar documento</button>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura } from "./types";
+import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura, ProveedorArticulo, DocumentoProveedor } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";
@@ -10,7 +10,7 @@ import { CATALOGOS_INIT } from "./data/catalogos";
 import { COMPANIES } from "./data/empresas";
 import { ASIENTOS_INIT, FACTURAS_CXP_INIT } from "./data/finanzas";
 import { ARTICULOS_INIT, MOVIMIENTOS_INIT, BODEGAS_INIT, CATEGORIAS_INIT, PROVEEDORES_INIT } from "./data/inventario";
-import { ORDENES_COMPRA_INIT } from "./data/proveeduria";
+import { ORDENES_COMPRA_INIT, PROVEEDOR_ARTICULO_INIT, DOCUMENTOS_PROVEEDOR_INIT } from "./data/proveeduria";
 
 // componentes compartidos
 import { Sidebar } from "./components/Sidebar";
@@ -41,6 +41,7 @@ import { ProveeduriaHome }     from "./modules/proveeduria/ProveeduriaHome";
 import { Proveedores }         from "./modules/proveeduria/Proveedores";
 import { OrdenesCompra }       from "./modules/proveeduria/OrdenesCompra";
 import { NuevaOrdenCompra }    from "./modules/proveeduria/NuevaOrdenCompra";
+import { ComparadorProveedores } from "./modules/proveeduria/ComparadorProveedores";
 
 // módulos — BI & reportería
 import { BIReporteria }        from "./modules/bi/BIReporteria";
@@ -91,6 +92,8 @@ export default function App() {
   const [proveedoresInv, setProveedoresInv] = useState<ProveedorInventario[]>(PROVEEDORES_INIT);
   const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompra[]>(ORDENES_COMPRA_INIT);
   const [facturasCxp, setFacturasCxp] = useState<Factura[]>(FACTURAS_CXP_INIT);
+  const [proveedorArticulos] = useState<ProveedorArticulo[]>(PROVEEDOR_ARTICULO_INIT);
+  const [documentosProveedor, setDocumentosProveedor] = useState<DocumentoProveedor[]>(DOCUMENTOS_PROVEEDOR_INIT);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -122,9 +125,10 @@ export default function App() {
 
         {/* PROVEEDURÍA */}
         {view === "proveeduria"   && <ProveeduriaHome   setView={setView} ordenesCompra={ordenesCompra} proveedores={proveedoresInv} facturasCxp={facturasCxp} />}
-        {view === "proveedores"   && <Proveedores       setView={setView} proveedores={proveedoresInv} setProveedores={setProveedoresInv} articulos={articulos} ordenesCompra={ordenesCompra} categorias={categoriasInv} facturasCxp={facturasCxp} />}
+        {view === "proveedores"   && <Proveedores       setView={setView} proveedores={proveedoresInv} setProveedores={setProveedoresInv} articulos={articulos} ordenesCompra={ordenesCompra} categorias={categoriasInv} facturasCxp={facturasCxp} proveedorArticulos={proveedorArticulos} documentosProveedor={documentosProveedor} setDocumentosProveedor={setDocumentosProveedor} />}
         {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} />}
         {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} />}
+        {view === "comparador"    && <ComparadorProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} proveedorArticulos={proveedorArticulos} articulos={articulos} />}
         {view === "bi"           && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "reportes"     && <GeneradorReportes />}
         {view === "bi-ejecutivo" && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}

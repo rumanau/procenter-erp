@@ -1,5 +1,15 @@
-import type { OrdenCompra, EstadoOC, LineaOC } from "../types";
-import { ARTICULOS_INIT } from "./inventario";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento } from "../types";
+import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
+
+function mulberry32(seed: number) {
+  let a = seed;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const hoy = (offsetDias = 0) => {
   const d = new Date();
@@ -111,4 +121,66 @@ export function calcularEvaluacion(proveedorId: string, ordenesCompra: OrdenComp
   const grado = puntaje >= 93 ? "A+" : puntaje >= 85 ? "A" : puntaje >= 75 ? "B+" : puntaje >= 65 ? "B" : "C";
 
   return { puntaje, grado, entregaPct, estabilidadPrecio, confiabilidad, nRecibidas: recibidas.length, conDatos: recibidas.length > 0 || cvProm !== null };
+}
+
+// ── Multi-proveedor por artículo ────────────────────────────────
+// Para cada artículo, ofrece 1-2 proveedores alternativos (misma categoría,
+// proveedor distinto al principal) con su propio costo y lead time, para
+// poder comparar precio real entre proveedores de un mismo artículo.
+function generarProveedorArticulo(): ProveedorArticulo[] {
+  const rng = mulberry32(7);
+  const entradas: ProveedorArticulo[] = [];
+  let seq = 0;
+  ARTICULOS_INIT.forEach(articulo => {
+    const alternativos = PROVEEDORES_INIT.filter(p => p.activo && p.id !== articulo.proveedorId && p.categorias.includes(articulo.categoriaId));
+    if (alternativos.length === 0) return;
+    const nAlt = alternativos.length > 1 && rng() > 0.5 ? 2 : 1;
+    alternativos.slice(0, nAlt).forEach(prov => {
+      seq++;
+      const factor = 0.88 + rng() * 0.27; // -12% a +15% vs el costo del proveedor principal
+      entradas.push({
+        id: `PA-${seq}`,
+        articuloId: articulo.id,
+        proveedorId: prov.id,
+        costoUnitario: Math.round((articulo.costoUnitario * factor) / 5) * 5,
+        leadTimeDias: 2 + Math.floor(rng() * 9),
+      });
+    });
+  });
+  return entradas;
+}
+
+export const PROVEEDOR_ARTICULO_INIT: ProveedorArticulo[] = generarProveedorArticulo();
+
+// ── Documentos del proveedor ────────────────────────────────────
+function generarDocumentos(): DocumentoProveedor[] {
+  const rng = mulberry32(13);
+  const docs: DocumentoProveedor[] = [];
+  let seq = 0;
+  PROVEEDORES_INIT.forEach(p => {
+    seq++;
+    docs.push({ id: `DOC-${seq}`, proveedorId: p.id, tipo: "Personería jurídica", nombre: "Certificación de personería jurídica" });
+    seq++;
+    docs.push({ id: `DOC-${seq}`, proveedorId: p.id, tipo: "Bancario", nombre: "Constancia de cuenta bancaria" });
+    seq++;
+    const diasIso = Math.floor(rng() * 400) - 20; // algunos vencidos, algunos por vencer, la mayoría vigentes
+    docs.push({ id: `DOC-${seq}`, proveedorId: p.id, tipo: "Certificación", nombre: "Certificación ISO 9001", vigenciaHasta: hoy(diasIso) });
+    seq++;
+    const diasSan = Math.floor(rng() * 400) - 15;
+    docs.push({ id: `DOC-${seq}`, proveedorId: p.id, tipo: "Permiso", nombre: "Permiso sanitario de funcionamiento", vigenciaHasta: hoy(diasSan) });
+  });
+  return docs;
+}
+
+export const DOCUMENTOS_PROVEEDOR_INIT: DocumentoProveedor[] = generarDocumentos();
+
+export function estadoDocumento(vigenciaHasta?: string): EstadoDocumento {
+  if (!vigenciaHasta) return "Vigente";
+  const hoyD = new Date();
+  const v = parseFechaEsCR(vigenciaHasta);
+  const en30dias = new Date(hoyD);
+  en30dias.setDate(en30dias.getDate() + 30);
+  if (v < hoyD) return "Vencido";
+  if (v <= en30dias) return "Por vencer";
+  return "Vigente";
 }
