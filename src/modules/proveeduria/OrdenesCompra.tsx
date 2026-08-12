@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo, EvaluacionServicio, DevolucionProveedor } from "../../types";
-import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, type ResumenLineaRecepcion } from "../../data/proveeduria";
+import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, nivelAprobacion, type ResumenLineaRecepcion } from "../../data/proveeduria";
 import { siguienteFolio } from "../../data/inventario";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
@@ -33,10 +33,16 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
   const recepcionesDeSel=sel?recepciones.filter(r=>r.ordenCompraId===sel.id).sort((a,b)=>b.id.localeCompare(a.id)):[];
   const diasDif=sel?diasDiferenciaEntrega(sel):null;
 
-  const badgeCl=(e:EstadoOC)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":"badge-gray";
+  const badgeCl=(e:EstadoOC)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":e==="Pendiente Aprobación"?"badge-purple":"badge-gray";
 
   const enviar=(oc:OrdenCompra)=>{
-    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Enviada"}:o));
+    const nivel=nivelAprobacion(totalOC(oc));
+    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:nivel==="Ninguno"?"Enviada":"Pendiente Aprobación"}:o));
+  };
+
+  const aprobar=(oc:OrdenCompra)=>{
+    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Enviada",aprobadoPor:"Ronald",fechaAprobacion:hoy()}:o));
+    alert(`✅ Orden ${oc.id} aprobada y enviada al proveedor.`);
   };
 
   const confirmarRecepcion=(oc:OrdenCompra,fecha:string,lineas:LineaRecepcion[],observaciones:string)=>{
@@ -125,7 +131,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
         </div>
         <div className="card" style={{marginBottom:12,padding:"10px 14px"}}>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {(["","Borrador","Enviada","Parcialmente Recibida","Recibida","Facturada","Cancelada"] as const).map(e=>(
+            {(["","Borrador","Pendiente Aprobación","Enviada","Parcialmente Recibida","Recibida","Facturada","Cancelada"] as const).map(e=>(
               <span key={e||"todas"} className={`badge ${filtro===e?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>setFiltro(e)}>{e||"Todas"} {e&&`(${ordenesCompra.filter(o=>o.estado===e).length})`}</span>
             ))}
           </div>
@@ -162,8 +168,14 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
             <div className="res-row"><span className="res-label">Proveedor</span><span className="res-val">{proveedorSel?.nombre}</span></div>
             <div className="res-row"><span className="res-label">Bodega destino</span><span className="res-val">{bodNom(sel.bodegaId)}</span></div>
             <div className="res-row"><span className="res-label">Fecha OC</span><span className="res-val">{sel.fecha}</span></div>
-            {sel.fechaEntregaEsperada&&<div className="res-row"><span className="res-label">Entrega esperada</span><span className="res-val">{sel.fechaEntregaEsperada}</span></div>}
+            {sel.centroCosto&&<div className="res-row"><span className="res-label">Centro de costo</span><span className="res-val">{sel.centroCosto}</span></div>}
+            {sel.proyecto&&<div className="res-row"><span className="res-label">Proyecto</span><span className="res-val">{sel.proyecto}</span></div>}
+            <div className="res-row"><span className="res-label">Moneda</span><span className="res-val">{sel.moneda||"CRC"}</span></div>
+            <div className="res-row"><span className="res-label">Comprador</span><span className="res-val">{sel.creadoPor}</span></div>
+            {sel.fechaRequerida&&<div className="res-row"><span className="res-label">Fecha requerida</span><span className="res-val">{sel.fechaRequerida}</span></div>}
+            {sel.fechaEntregaEsperada&&<div className="res-row"><span className="res-label">Comprometida por proveedor</span><span className="res-val">{sel.fechaEntregaEsperada}</span></div>}
             {sel.fechaRecepcion&&<div className="res-row"><span className="res-label">Recibida completa el</span><span className="res-val">{sel.fechaRecepcion}</span></div>}
+            {sel.aprobadoPor&&<div className="res-row"><span className="res-label">Aprobada por</span><span className="res-val">{sel.aprobadoPor} · {sel.fechaAprobacion}</span></div>}
             {diasDif!==null&&(
               <div className="res-row"><span className="res-label">Resultado</span>
                 <span className="res-val" style={{color:diasDif>0?"#EF4444":diasDif<0?"#10B981":"#10B981",fontWeight:700}}>
@@ -204,12 +216,19 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
             })}
           </div>}
 
+          {sel.estado==="Pendiente Aprobación"&&(
+            <div className="card" style={{marginBottom:10,background:"#F5F3FF",border:"1px solid #C4B5FD"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#5B21B6"}}>⏳ Requiere aprobación de {nivelAprobacion(totalOC(sel))}</div>
+              <div style={{fontSize:11,color:"#5B21B6"}}>Monto {fmt(totalOC(sel))} supera el límite de compra directa (₡250.000).</div>
+            </div>
+          )}
           <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10}}>
             {sel.estado==="Borrador"&&<button className="btn btn-primary btn-sm" onClick={()=>enviar(sel)}>📨 Enviar al Proveedor</button>}
+            {sel.estado==="Pendiente Aprobación"&&<button className="btn btn-success btn-sm" onClick={()=>aprobar(sel)}>✅ Aprobar y Enviar</button>}
             {(sel.estado==="Enviada"||sel.estado==="Parcialmente Recibida")&&<button className="btn btn-primary btn-sm" onClick={()=>setModalRecepcion(sel)}>📦 Registrar Recepción</button>}
             {sel.estado==="Recibida"&&<button className="btn btn-success btn-sm" onClick={()=>facturar(sel)}>🧾 Generar Factura (CxP)</button>}
             {sel.estado==="Facturada"&&<button className="btn btn-secondary btn-sm" onClick={()=>setView("cxp")}>💳 Ver en Cuentas por Pagar</button>}
-            {(sel.estado==="Borrador"||sel.estado==="Enviada")&&<button className="btn btn-ghost btn-sm" onClick={()=>cancelar(sel)}>✕ Cancelar Orden</button>}
+            {(sel.estado==="Borrador"||sel.estado==="Enviada"||sel.estado==="Pendiente Aprobación")&&<button className="btn btn-ghost btn-sm" onClick={()=>cancelar(sel)}>✕ Cancelar Orden</button>}
           </div>
         </div>
       )}

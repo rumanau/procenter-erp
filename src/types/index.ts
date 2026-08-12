@@ -517,20 +517,27 @@ export interface LineaOC {
   costoUnitario: number;
 }
 
-export type EstadoOC = "Borrador" | "Enviada" | "Parcialmente Recibida" | "Recibida" | "Facturada" | "Cancelada";
+export type EstadoOC = "Borrador" | "Pendiente Aprobación" | "Enviada" | "Parcialmente Recibida" | "Recibida" | "Facturada" | "Cancelada";
+export type NivelAprobacion = "Ninguno" | "Jefatura" | "Gerencia";
 
 export interface OrdenCompra {
   id: string;
   proveedorId: string;
   bodegaId: string;
   fecha: string;
+  fechaRequerida?: string;
   fechaEntregaEsperada?: string;
   fechaRecepcion?: string;
+  centroCosto?: string;
+  proyecto?: string;
+  moneda?: string;
   estado: EstadoOC;
   lineas: LineaOC[];
   observaciones?: string;
   facturaId?: string;
   creadoPor: string;
+  aprobadoPor?: string;
+  fechaAprobacion?: string;
 }
 
 export type MotivoRechazo = "Producto defectuoso" | "Especificación incorrecta" | "Daño de transporte" | "Producto equivocado" | "Empaque deficiente" | "Otro";

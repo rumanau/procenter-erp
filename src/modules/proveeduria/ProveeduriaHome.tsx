@@ -6,7 +6,7 @@ import { totalOC, calcularEvaluacion } from "../../data/proveeduria";
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
 export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[]}) {
-  const abiertas=ordenesCompra.filter(o=>o.estado==="Borrador"||o.estado==="Enviada"||o.estado==="Parcialmente Recibida");
+  const abiertas=ordenesCompra.filter(o=>o.estado==="Borrador"||o.estado==="Pendiente Aprobación"||o.estado==="Enviada"||o.estado==="Parcialmente Recibida");
   const comprometido=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").reduce((s,o)=>s+totalOC(o),0);
   const activos=proveedores.filter(p=>p.activo);
   const cedulas=new Set(proveedores.map(p=>p.cedulaJuridica));
@@ -66,7 +66,7 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
             <div key={oc.id} style={{padding:"7px 0",borderBottom:"1px solid #F3F4F6"}}>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
                 <b style={{fontFamily:"monospace",color:"#E8611A",fontSize:11}}>{oc.id}</b>
-                <span className={`badge ${oc.estado==="Facturada"?"badge-ok":oc.estado==="Cancelada"?"badge-gray":oc.estado==="Recibida"?"badge-info":oc.estado==="Parcialmente Recibida"?"badge-warn":"badge-warn"}`} style={{fontSize:9}}>{oc.estado}</span>
+                <span className={`badge ${oc.estado==="Facturada"?"badge-ok":oc.estado==="Cancelada"?"badge-gray":oc.estado==="Recibida"?"badge-info":oc.estado==="Pendiente Aprobación"?"badge-purple":"badge-warn"}`} style={{fontSize:9}}>{oc.estado}</span>
               </div>
               <div style={{fontSize:10.5,color:"#6B7280"}}>{prov?.nombre} · {fmt(totalOC(oc))}</div>
             </div>

@@ -188,7 +188,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
 
 function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categorias,ocs,facturas,evaluacion}:{proveedor:ProveedorInventario;comprasTotal:number;cxpPendiente:number;ocAbiertas:number;nItems:number;categorias:CategoriaInventario[];ocs:OrdenCompra[];facturas:Factura[];evaluacion:EvaluacionProveedor}) {
   const recientes=[...ocs].sort((a,b)=>b.id.localeCompare(a.id)).slice(0,4);
-  const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":"badge-gray";
+  const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":e==="Pendiente Aprobación"?"badge-purple":"badge-gray";
   const barColor=(v:number)=>v>=85?"#10B981":v>=70?"#F59E0B":"#EF4444";
   const [verDesglose,setVerDesglose]=useState(false);
   return (
@@ -341,7 +341,7 @@ function CatalogoTab({items,categorias,ordenesCompra,proveedorArticulos,proveedo
 }
 
 function OrdenesTab({ocs}:{ocs:OrdenCompra[]}) {
-  const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":"badge-gray";
+  const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":e==="Pendiente Aprobación"?"badge-purple":"badge-gray";
   const ordenadas=[...ocs].sort((a,b)=>b.id.localeCompare(a.id));
   return (
     <div className="card" style={{padding:0,overflow:"hidden"}}>

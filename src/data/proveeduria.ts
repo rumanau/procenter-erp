@@ -98,6 +98,14 @@ export function totalOC(oc: OrdenCompra): number {
   return oc.lineas.reduce((s, l) => s + l.cantidad * l.costoUnitario, 0);
 }
 
+// Umbral de aprobación por monto — bajo ₡250.000 el comprador envía directo;
+// entre ₡250.001 y ₡1.000.000 requiere Jefatura; sobre ₡1.000.000, Gerencia.
+export function nivelAprobacion(monto: number): "Ninguno" | "Jefatura" | "Gerencia" {
+  if (monto <= 250000) return "Ninguno";
+  if (monto <= 1000000) return "Jefatura";
+  return "Gerencia";
+}
+
 export interface ResumenLineaRecepcion {
   articuloId: string;
   solicitado: number;

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Bodega, Articulo, OrdenCompra, LineaOC } from "../../types";
-import { siguienteFolioOC } from "../../data/proveeduria";
+import { siguienteFolioOC, nivelAprobacion } from "../../data/proveeduria";
+import { CATALOGOS_INIT } from "../../data/catalogos";
 
 const hoy=(offsetDias=0)=>{const d=new Date();d.setDate(d.getDate()+offsetDias);return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});};
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
@@ -8,6 +9,11 @@ const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesCompra,setOrdenesCompra}:{setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>}) {
   const [proveedorId,setProveedorId]=useState(proveedores[0]?.id||"");
   const [bodegaId,setBodegaId]=useState(bodegas[0]?.id||"");
+  const [centroCosto,setCentroCosto]=useState(CATALOGOS_INIT.areas[0]?.nombre||"");
+  const [proyecto,setProyecto]=useState("");
+  const [moneda,setMoneda]=useState("CRC");
+  const [fechaRequerida,setFechaRequerida]=useState(hoy(5));
+  const [fechaComprometida,setFechaComprometida]=useState(hoy(7));
   const [observaciones,setObservaciones]=useState("");
   const [busqueda,setBusqueda]=useState("");
   const [lineas,setLineas]=useState<LineaOC[]>([]);
@@ -22,15 +28,31 @@ export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesC
   const total=lineas.reduce((s,l)=>s+l.cantidad*l.costoUnitario,0);
   const folio=siguienteFolioOC(ordenesCompra);
   const listo=lineas.length>0&&!!proveedorId&&!!bodegaId;
+  const nivel=nivelAprobacion(total);
+
+  const fechaInput=(valor:string,setValor:(s:string)=>void)=>(
+    <input type="date" className="form-control" onChange={e=>{
+      if(!e.target.value) return;
+      const [y,m,d]=e.target.value.split("-");
+      const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+      setValor(`${d} ${meses[parseInt(m)-1]} ${y}`);
+    }}/>
+  );
 
   const guardar=(enviar:boolean)=>{
     if(!listo) return;
+    const requiereAprobacion=enviar&&nivel!=="Ninguno";
     const nueva:OrdenCompra={
-      id:folio,proveedorId,bodegaId,fecha:hoy(),fechaEntregaEsperada:hoy(7),
-      estado:enviar?"Enviada":"Borrador",lineas,observaciones,creadoPor:"Ronald",
+      id:folio,proveedorId,bodegaId,fecha:hoy(),fechaRequerida,fechaEntregaEsperada:fechaComprometida,
+      centroCosto,proyecto:proyecto||undefined,moneda,
+      estado:!enviar?"Borrador":requiereAprobacion?"Pendiente Aprobación":"Enviada",
+      lineas,observaciones,creadoPor:"Ronald",
     };
     setOrdenesCompra(prev=>[nueva,...prev]);
-    alert(`✅ Orden de Compra ${folio} guardada como ${nueva.estado}.\n\nProveedor: ${proveedor?.nombre}\n${lineas.length} artículo(s) · ${fmt(total)}`);
+    const msg=requiereAprobacion
+      ?`✅ Orden de Compra ${folio} enviada a aprobación de ${nivel}.\n\nMonto: ${fmt(total)} supera el límite de compra directa.\nProveedor: ${proveedor?.nombre}`
+      :`✅ Orden de Compra ${folio} guardada como ${nueva.estado}.\n\nProveedor: ${proveedor?.nombre}\n${lineas.length} artículo(s) · ${fmt(total)}`;
+    alert(msg);
     setView("ordenes-compra");
   };
 
@@ -56,7 +78,30 @@ export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesC
                 </select>
               </div>
             </div>
-            <div className="form-group"><label className="form-label">Condiciones de Pago</label><div className="form-control" style={{background:"#F9FAFB",color:"#6B7280"}}>{proveedor?.condicion||"—"}</div></div>
+            <div className="g3">
+              <div className="form-group"><label className="form-label">Centro de Costo</label>
+                <select className="form-control" value={centroCosto} onChange={e=>setCentroCosto(e.target.value)}>
+                  {CATALOGOS_INIT.areas.map(a=><option key={a.id} value={a.nombre}>{a.nombre}</option>)}
+                </select>
+              </div>
+              <div className="form-group"><label className="form-label">Proyecto (opcional)</label>
+                <select className="form-control" value={proyecto} onChange={e=>setProyecto(e.target.value)}>
+                  <option value="">Sin proyecto asociado</option>
+                  {CATALOGOS_INIT.proyectos.filter(p=>p.activo).map(p=><option key={p.id} value={p.nombre}>{p.nombre} — {p.descripcion}</option>)}
+                </select>
+              </div>
+              <div className="form-group"><label className="form-label">Moneda</label>
+                <select className="form-control" value={moneda} onChange={e=>setMoneda(e.target.value)}>
+                  <option value="CRC">CRC — Colones</option>
+                  <option value="USD">USD — Dólares</option>
+                </select>
+              </div>
+            </div>
+            <div className="g3">
+              <div className="form-group"><label className="form-label">Fecha requerida</label>{fechaInput(fechaRequerida,setFechaRequerida)}</div>
+              <div className="form-group"><label className="form-label">Fecha comprometida por proveedor</label>{fechaInput(fechaComprometida,setFechaComprometida)}</div>
+              <div className="form-group"><label className="form-label">Condiciones de Pago</label><div className="form-control" style={{background:"#F9FAFB",color:"#6B7280"}}>{proveedor?.condicion||"—"}</div></div>
+            </div>
           </div>
           <div className="card" style={{marginBottom:12}}>
             <div className="card-title">Artículos a Solicitar</div>
@@ -104,12 +149,19 @@ export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesC
             <div className="res-row"><span className="res-label">Artículos</span><span className="res-val">{lineas.length}</span></div>
             <div className="res-row"><span className="res-label">Total</span><span className="res-val" style={{color:"#10B981",fontWeight:700}}>{fmt(total)}</span></div>
             <div className="res-row"><span className="res-label">Bodega destino</span><span className="res-val">{bodegas.find(b=>b.id===bodegaId)?.nombre}</span></div>
-            <div className="res-row"><span className="res-label">Entrega esperada</span><span className="res-val">{hoy(7)}</span></div>
+            <div className="res-row"><span className="res-label">Fecha requerida</span><span className="res-val">{fechaRequerida}</span></div>
+            <div className="res-row"><span className="res-label">Comprometida por proveedor</span><span className="res-val">{fechaComprometida}</span></div>
           </div>
+          {nivel!=="Ninguno"&&(
+            <div className="card" style={{marginBottom:12,background:"#FFFBEB",border:"1px solid #FDE68A"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#92400E",marginBottom:4}}>⚠ Requiere aprobación de {nivel}</div>
+              <div style={{fontSize:11,color:"#92400E"}}>Este monto supera el límite de compra directa (₡250.000). Al enviar, la orden quedará "Pendiente Aprobación" hasta que {nivel.toLowerCase()} la apruebe.</div>
+            </div>
+          )}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             <button className="btn btn-secondary" style={{width:"100%"}} onClick={()=>setView("ordenes-compra")}>Cancelar</button>
             <button className="btn btn-secondary" style={{width:"100%"}} disabled={!listo} onClick={()=>guardar(false)}>💾 Guardar como Borrador</button>
-            <button className="btn btn-primary" style={{width:"100%"}} disabled={!listo} onClick={()=>guardar(true)}>📨 Guardar y Enviar</button>
+            <button className="btn btn-primary" style={{width:"100%"}} disabled={!listo} onClick={()=>guardar(true)}>{nivel==="Ninguno"?"📨 Guardar y Enviar":`📤 Enviar a Aprobación (${nivel})`}</button>
           </div>
         </div>
       </div>
