@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, OrdenCompra, ProveedorArticulo, Articulo } from "../../types";
+import type { View, ProveedorInventario, OrdenCompra, ProveedorArticulo, Articulo, Recepcion, EvaluacionServicio } from "../../types";
 import { calcularEvaluacion } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function ComparadorProveedores({setView,proveedores,ordenesCompra,proveedorArticulos,articulos}:{
-  setView:(v:View)=>void;proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];proveedorArticulos:ProveedorArticulo[];articulos:Articulo[];
+export function ComparadorProveedores({setView,proveedores,ordenesCompra,proveedorArticulos,articulos,recepciones,evaluacionesServicio}:{
+  setView:(v:View)=>void;proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];proveedorArticulos:ProveedorArticulo[];articulos:Articulo[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];
 }) {
   const [seleccionados,setSeleccionados]=useState<string[]>([]);
   const toggle=(id:string)=>setSeleccionados(prev=>prev.includes(id)?prev.filter(x=>x!==id):prev.length<3?[...prev,id]:prev);
@@ -20,7 +20,7 @@ export function ComparadorProveedores({setView,proveedores,ordenesCompra,proveed
   };
   const nCatalogo=(id:string)=>articulos.filter(a=>a.activo&&a.proveedorId===id).length;
 
-  const evals=provsSel.map(p=>({p,ev:calcularEvaluacion(p.id,ordenesCompra)}));
+  const evals=provsSel.map(p=>({p,ev:calcularEvaluacion(p.id,ordenesCompra,recepciones,evaluacionesServicio)}));
   const mejorId=evals.length?evals.reduce((a,b)=>b.ev.puntaje>a.ev.puntaje?b:a).p.id:null;
 
   const preciosPorArticulo=(articuloId:string)=>provsSel.map(p=>{
@@ -63,9 +63,11 @@ export function ComparadorProveedores({setView,proveedores,ordenesCompra,proveed
             ))}</tr></thead>
             <tbody>
               <tr><td>Evaluación</td>{evals.map(({p,ev})=><td key={p.id}><span className="badge badge-info">{ev.grado}</span> <b>{ev.puntaje}</b></td>)}</tr>
-              <tr><td>Entrega a tiempo</td>{evals.map(({p,ev})=><td key={p.id}>{ev.entregaPct}%</td>)}</tr>
-              <tr><td>Estabilidad de precio</td>{evals.map(({p,ev})=><td key={p.id}>{ev.estabilidadPrecio}%</td>)}</tr>
-              <tr><td>Confiabilidad de suministro</td>{evals.map(({p,ev})=><td key={p.id}>{ev.confiabilidad}%</td>)}</tr>
+              <tr><td>Entrega a tiempo (25%)</td>{evals.map(({p,ev})=><td key={p.id}>{ev.entregaPct}%</td>)}</tr>
+              <tr><td>Cumplimiento de cantidad (20%)</td>{evals.map(({p,ev})=><td key={p.id}>{ev.cantidadPct}%</td>)}</tr>
+              <tr><td>Calidad (25%)</td>{evals.map(({p,ev})=><td key={p.id}>{ev.calidadPct}%</td>)}</tr>
+              <tr><td>Precio (15%)</td>{evals.map(({p,ev})=><td key={p.id}>{ev.precioPct}%</td>)}</tr>
+              <tr><td>Servicio (15%)</td>{evals.map(({p,ev})=><td key={p.id}>{ev.servicioPct}%</td>)}</tr>
               <tr><td>Artículos en catálogo</td>{provsSel.map(p=><td key={p.id}>{nCatalogo(p.id)}</td>)}</tr>
               <tr><td>Lead time promedio</td>{provsSel.map(p=>{const lt=leadTimeProm(p.id);return <td key={p.id}>{lt!==null?`${lt} días`:"—"}</td>;})}</tr>
               <tr><td>Condición de pago</td>{provsSel.map(p=><td key={p.id}>{p.condicion}</td>)}</tr>

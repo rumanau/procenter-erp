@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo } from "../../types";
+import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo, EvaluacionServicio } from "../../types";
 import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, type ResumenLineaRecepcion } from "../../data/proveeduria";
 import { siguienteFolio } from "../../data/inventario";
 
@@ -8,16 +8,18 @@ const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short"
 const fmtFecha=(d:Date)=>d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 const MOTIVOS_RECHAZO:MotivoRechazo[]=["Producto defectuoso","Especificación incorrecta","Daño de transporte","Producto equivocado","Empaque deficiente","Otro"];
 
-export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones}:{
+export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones,evaluacionesServicio,setEvaluacionesServicio}:{
   setView:(v:View)=>void;ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;
   proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];setArticulos:React.Dispatch<React.SetStateAction<Articulo[]>>;
   movimientos:MovimientoInventario[];setMovimientos:React.Dispatch<React.SetStateAction<MovimientoInventario[]>>;
   facturasCxp:Factura[];setFacturasCxp:React.Dispatch<React.SetStateAction<Factura[]>>;
   recepciones:Recepcion[];setRecepciones:React.Dispatch<React.SetStateAction<Recepcion[]>>;
+  evaluacionesServicio:EvaluacionServicio[];setEvaluacionesServicio:React.Dispatch<React.SetStateAction<EvaluacionServicio[]>>;
 }) {
   const [filtro,setFiltro]=useState<EstadoOC|"">("");
   const [selId,setSelId]=useState<string|null>(null);
   const [modalRecepcion,setModalRecepcion]=useState<OrdenCompra|null>(null);
+  const [modalServicio,setModalServicio]=useState<OrdenCompra|null>(null);
 
   const provNom=(id:string)=>proveedores.find(p=>p.id===id)?.nombre||id;
   const bodNom=(id:string)=>bodegas.find(b=>b.id===id)?.nombre||id;
@@ -70,6 +72,13 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
     const totalRechazado=lineas.reduce((s,l)=>s+l.cantidadRechazada,0);
     alert(`✅ Recepción ${folioRec} registrada.\n\n${totalAceptado} unidad(es) aceptada(s)${totalRechazado>0?`, ${totalRechazado} rechazada(s)`:""}.\nEstado de la orden: ${completa?"Recibida completa":"Parcialmente Recibida"}.`);
     setModalRecepcion(null);
+    setModalServicio(oc);
+  };
+
+  const guardarServicio=(oc:OrdenCompra,atencion:number,respuesta:number,cumplimientoComercial:number,observaciones:string)=>{
+    const nueva:EvaluacionServicio={id:`SERV-${Date.now()}`,proveedorId:oc.proveedorId,ordenCompraId:oc.id,atencion,respuesta,cumplimientoComercial,observaciones:observaciones||undefined,fecha:hoy()};
+    setEvaluacionesServicio(prev=>[...prev,nueva]);
+    setModalServicio(null);
   };
 
   const facturar=(oc:OrdenCompra)=>{
@@ -202,6 +211,68 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
           onCerrar={()=>setModalRecepcion(null)}
         />
       )}
+
+      {modalServicio&&(
+        <EvaluarServicioModal
+          oc={modalServicio}
+          proveedorNombre={provNom(modalServicio.proveedorId)}
+          onGuardar={(atencion,respuesta,cumplimiento,obs)=>guardarServicio(modalServicio,atencion,respuesta,cumplimiento,obs)}
+          onOmitir={()=>setModalServicio(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Estrellas({valor,onChange}:{valor:number;onChange:(v:number)=>void}) {
+  return (
+    <div style={{display:"flex",gap:2}}>
+      {[1,2,3,4,5].map(n=>(
+        <span key={n} onClick={()=>onChange(n)} style={{cursor:"pointer",fontSize:20,color:n<=valor?"#F59E0B":"#E5E7EB"}}>★</span>
+      ))}
+    </div>
+  );
+}
+
+function EvaluarServicioModal({oc,proveedorNombre,onGuardar,onOmitir}:{
+  oc:OrdenCompra;proveedorNombre:string;onGuardar:(atencion:number,respuesta:number,cumplimiento:number,observaciones:string)=>void;onOmitir:()=>void;
+}) {
+  const [atencion,setAtencion]=useState(4);
+  const [respuesta,setRespuesta]=useState(4);
+  const [cumplimiento,setCumplimiento]=useState(4);
+  const [observaciones,setObservaciones]=useState("");
+
+  return (
+    <div className="modal-overlay" onClick={onOmitir}>
+      <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div><div className="modal-title">Evaluar servicio del proveedor</div><div className="modal-sub">{proveedorNombre} · {oc.id} · opcional</div></div>
+          <div className="modal-close" onClick={onOmitir}>✕</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div>
+            <div style={{fontSize:12.5,fontWeight:600,marginBottom:6}}>Atención y comunicación</div>
+            <Estrellas valor={atencion} onChange={setAtencion}/>
+          </div>
+          <div>
+            <div style={{fontSize:12.5,fontWeight:600,marginBottom:6}}>Respuesta ante problemas</div>
+            <Estrellas valor={respuesta} onChange={setRespuesta}/>
+          </div>
+          <div>
+            <div style={{fontSize:12.5,fontWeight:600,marginBottom:6}}>Cumplimiento comercial</div>
+            <Estrellas valor={cumplimiento} onChange={setCumplimiento}/>
+          </div>
+          <div className="form-group" style={{margin:0}}>
+            <label className="form-label">Observaciones</label>
+            <textarea className="form-control" rows={2} value={observaciones} onChange={e=>setObservaciones(e.target.value)} placeholder="Ej: Respondió rápidamente al faltante de unidades."/>
+          </div>
+        </div>
+        <div style={{fontSize:10,color:"#9CA3AF",marginTop:10}}>Esta calificación pesa solo el 15% de la evaluación total del proveedor — el resto se calcula de datos reales de compras.</div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:14}}>
+          <button className="btn btn-ghost" onClick={onOmitir}>Omitir</button>
+          <button className="btn btn-primary" onClick={()=>onGuardar(atencion,respuesta,cumplimiento,observaciones)}>Guardar Evaluación</button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, type EvaluacionProveedor } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio } from "../../types";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, type EvaluacionProveedor } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos";
 type OrdenPor="nombre"|"compras"|"deuda";
 type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"documentos"|"editar";
 
-export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor}:{
+export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
   articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[];facturasCxp:Factura[];
   proveedorArticulos:ProveedorArticulo[];documentosProveedor:DocumentoProveedor[];setDocumentosProveedor:React.Dispatch<React.SetStateAction<DocumentoProveedor[]>>;
+  recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];
 }) {
   const [busqueda,setBusqueda]=useState("");
   const [filtro,setFiltro]=useState<FiltroChip>("todos");
@@ -26,7 +27,7 @@ export function Proveedores({setView,proveedores,setProveedores,articulos,ordene
   const cxpPendienteDe=(id:string)=>facturasDe(id).reduce((s,f)=>s+f.saldo,0);
   const comprasDe=(id:string)=>ocsDe(id).filter(o=>o.estado!=="Cancelada").reduce((s,o)=>s+totalOC(o),0);
   const ultimaCompraDe=(id:string)=>{const ocs=ocsDe(id).filter(o=>o.estado!=="Cancelada");return ocs.length?[...ocs].sort((a,b)=>b.id.localeCompare(a.id))[0]:null;};
-  const evalDe=(id:string)=>calcularEvaluacion(id,ordenesCompra);
+  const evalDe=(id:string)=>calcularEvaluacion(id,ordenesCompra,recepciones,evaluacionesServicio);
   const documentosDe=(id:string)=>documentosProveedor.filter(d=>d.proveedorId===id);
   const esCritico=(id:string)=>{
     const hoy=new Date();
@@ -184,6 +185,7 @@ function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categ
   const recientes=[...ocs].sort((a,b)=>b.id.localeCompare(a.id)).slice(0,4);
   const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":"badge-gray";
   const barColor=(v:number)=>v>=85?"#10B981":v>=70?"#F59E0B":"#EF4444";
+  const [verDesglose,setVerDesglose]=useState(false);
   return (
     <div>
       <div className="g4" style={{marginBottom:14}}>
@@ -200,16 +202,18 @@ function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categ
             <span className="badge badge-info">{evaluacion.grado}</span>
           </div>
         </div>
-        {[["Entrega a tiempo",evaluacion.entregaPct],["Estabilidad de precio",evaluacion.estabilidadPrecio],["Confiabilidad de suministro",evaluacion.confiabilidad]].map(([l,v])=>(
-          <div key={l as string} style={{marginBottom:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:"#374151",fontWeight:600}}>{l}</span><span>{v}%</span></div>
-            <div className="stock-bar"><div className="stock-bar-fill" style={{width:`${v}%`,background:barColor(v as number)}}/></div>
+        {evaluacion.criterios.map(c=>(
+          <div key={c.nombre} style={{marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:"#374151",fontWeight:600}}>{c.nombre} <span style={{color:"#9CA3AF",fontWeight:400}}>({c.peso}%)</span></span><span>{c.resultado}%</span></div>
+            <div className="stock-bar"><div className="stock-bar-fill" style={{width:`${c.resultado}%`,background:barColor(c.resultado)}}/></div>
           </div>
         ))}
-        <div style={{fontSize:10,color:"#9CA3AF",marginTop:8}}>
-          {evaluacion.conDatos?`Calculado a partir de ${evaluacion.nRecibidas} recepción(es) y el historial de precios registrado.`:"Aún sin historial de recepciones — se muestra un puntaje neutro hasta la primera orden recibida."}
+        <div style={{fontSize:10,color:"#9CA3AF",marginTop:8,marginBottom:10}}>
+          {evaluacion.conDatos?`Calculado a partir de ${evaluacion.nRecibidas} orden(es) completa(s), ${evaluacion.nRecepciones} recepción(es) y ${evaluacion.nServicio} evaluación(es) de servicio.`:"Aún sin historial suficiente — se muestran valores neutros hasta la primera recepción."}
         </div>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setVerDesglose(true)}>¿Por qué es {evaluacion.grado}?</button>
       </div>
+      {verDesglose&&<EvaluacionDetalleModal proveedor={proveedor} evaluacion={evaluacion} onCerrar={()=>setVerDesglose(false)}/>}
       <div className="g2" style={{alignItems:"start"}}>
         <div className="card">
           <div className="card-title">Información comercial</div>
@@ -237,6 +241,45 @@ function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categ
               <span className={`badge ${f.estado==="pagada"?"badge-ok":f.estado==="vencida"?"badge-crit":"badge-warn"}`} style={{fontSize:9}}>{f.estado}</span>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EvaluacionDetalleModal({proveedor,evaluacion,onCerrar}:{proveedor:ProveedorInventario;evaluacion:EvaluacionProveedor;onCerrar:()=>void}) {
+  return (
+    <div className="modal-overlay" onClick={onCerrar}>
+      <div className="modal" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div><div className="modal-title">¿Por qué {proveedor.nombre} es {evaluacion.grado}?</div><div className="modal-sub">{evaluacion.puntaje} / 100 — {descripcionGrado(evaluacion.grado)}</div></div>
+          <div className="modal-close" onClick={onCerrar}>✕</div>
+        </div>
+        <table className="tbl">
+          <thead><tr><th>Criterio</th><th>Resultado</th><th>Peso</th><th>Aporte</th></tr></thead>
+          <tbody>
+            {evaluacion.criterios.map(c=>(
+              <tr key={c.nombre}>
+                <td style={{fontSize:12}}>{c.nombre}</td>
+                <td>{c.resultado}%</td>
+                <td>{c.peso}%</td>
+                <td style={{fontWeight:600,color:"#E8611A"}}>{(c.resultado*c.peso/100).toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{background:"#F9FAFB"}}>
+              <td colSpan={3} style={{fontWeight:700,textAlign:"right",paddingRight:8}}>Resultado</td>
+              <td style={{fontWeight:700,color:"#E8611A"}}>{evaluacion.puntaje}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div style={{textAlign:"center",marginTop:14,padding:"10px",background:"#FFF3ED",borderRadius:8}}>
+          <span style={{fontSize:16,fontWeight:800,color:"#E8611A"}}>{evaluacion.grado}</span>
+          <span style={{fontSize:12,color:"#6B7280",marginLeft:8}}>{descripcionGrado(evaluacion.grado)}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+          <button className="btn btn-secondary" onClick={onCerrar}>Cerrar</button>
         </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 import React from "react";
-import type { View, OrdenCompra, ProveedorInventario, Factura } from "../../types";
+import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio } from "../../types";
 import { ModTile } from "../../components/ModTile";
 import { totalOC, calcularEvaluacion } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[]}) {
+export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[]}) {
   const abiertas=ordenesCompra.filter(o=>o.estado==="Borrador"||o.estado==="Enviada"||o.estado==="Parcialmente Recibida");
   const comprometido=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").reduce((s,o)=>s+totalOC(o),0);
   const activos=proveedores.filter(p=>p.activo);
@@ -80,7 +80,7 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp}:
         }).slice(0,5).map(p=>(
           <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}>
             <div style={{fontSize:11.5,fontWeight:600}}>{p.nombre}</div>
-            <span className="badge badge-info" style={{fontSize:9}} title="Evaluación calculada">{calcularEvaluacion(p.id,ordenesCompra).grado}</span>
+            <span className="badge badge-info" style={{fontSize:9}} title="Evaluación calculada">{calcularEvaluacion(p.id,ordenesCompra,recepciones,evaluacionesServicio).grado}</span>
           </div>
         ))}
       </div>

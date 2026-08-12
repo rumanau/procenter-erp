@@ -1,4 +1,4 @@
-import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion } from "../types";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio } from "../types";
 import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
 
 function mulberry32(seed: number) {
@@ -136,28 +136,55 @@ export function parseFechaEsCR(s: string): Date {
   return new Date(parseInt(y) || 1970, mi >= 0 ? mi : 0, parseInt(d) || 1);
 }
 
+export interface CriterioEvaluacion { nombre: string; resultado: number; peso: number; }
+
 export interface EvaluacionProveedor {
   puntaje: number;
   grado: string;
   entregaPct: number;
-  estabilidadPrecio: number;
-  confiabilidad: number;
+  cantidadPct: number;
+  calidadPct: number;
+  precioPct: number;
+  servicioPct: number;
+  criterios: CriterioEvaluacion[];
   nRecibidas: number;
+  nRecepciones: number;
+  nServicio: number;
   conDatos: boolean;
 }
 
-// Evaluación calculada a partir de historial real de OCs — sin campos manuales.
-// Entrega a tiempo (45%): % de recepciones que llegaron en la fecha esperada o antes.
-// Estabilidad de precio (30%): qué tan poco varía el costo del mismo artículo entre órdenes (coef. de variación).
-// Confiabilidad de suministro (25%): % de órdenes no canceladas sobre el total enviado.
-// Sin historial suficiente, cada dimensión usa un valor neutro (ni premia ni penaliza).
-export function calcularEvaluacion(proveedorId: string, ordenesCompra: OrdenCompra[]): EvaluacionProveedor {
-  const ocsProveedor = ordenesCompra.filter(o => o.proveedorId === proveedorId);
-  const noBorrador = ocsProveedor.filter(o => o.estado !== "Borrador");
+export function descripcionGrado(grado: string): string {
+  return grado === "A+" ? "Excelente" : grado === "A" ? "Muy bueno" : grado === "B+" ? "Bueno" : grado === "B" ? "Aceptable" : "Requiere seguimiento";
+}
 
-  const recibidas = ocsProveedor.filter(o => o.fechaRecepcion && o.fechaEntregaEsperada);
-  const aTiempo = recibidas.filter(o => parseFechaEsCR(o.fechaRecepcion!) <= parseFechaEsCR(o.fechaEntregaEsperada!));
-  const entregaPct = recibidas.length ? Math.round((aTiempo.length / recibidas.length) * 100) : 75;
+// Evaluación calculada a partir de historial real — sin campos manuales, salvo Servicio.
+// Entrega a tiempo (25%): % de OCs que llegaron completas en la fecha esperada o antes.
+// Cumplimiento de cantidad (20%): recibido/solicitado promedio por OC con recepciones.
+// Calidad (25%): aceptado/recibido acumulado en todas las recepciones.
+// Precio (15%): qué tan poco varía el costo del mismo artículo entre órdenes (coef. de variación).
+// Servicio (15%): promedio de evaluaciones manuales de atención/respuesta/cumplimiento tras cada recepción.
+// Sin historial suficiente, cada dimensión usa un valor neutro (ni premia ni penaliza).
+export function calcularEvaluacion(proveedorId: string, ordenesCompra: OrdenCompra[], recepciones: Recepcion[], evaluacionesServicio: EvaluacionServicio[]): EvaluacionProveedor {
+  const ocsProveedor = ordenesCompra.filter(o => o.proveedorId === proveedorId);
+  const idsOC = new Set(ocsProveedor.map(o => o.id));
+  const recepcionesProveedor = recepciones.filter(r => idsOC.has(r.ordenCompraId));
+
+  const completas = ocsProveedor.filter(o => o.fechaRecepcion && o.fechaEntregaEsperada);
+  const aTiempo = completas.filter(o => parseFechaEsCR(o.fechaRecepcion!) <= parseFechaEsCR(o.fechaEntregaEsperada!));
+  const entregaPct = completas.length ? Math.round((aTiempo.length / completas.length) * 100) : 75;
+
+  const ocsConRecepcion = ocsProveedor.filter(o => recepcionesProveedor.some(r => r.ordenCompraId === o.id));
+  const cumplimientos = ocsConRecepcion.map(o => {
+    const totalSolicitado = o.lineas.reduce((s, l) => s + l.cantidad, 0);
+    const totalRecibido = recepcionesProveedor.filter(r => r.ordenCompraId === o.id)
+      .reduce((s, r) => s + r.lineas.reduce((s2, l) => s2 + l.cantidadRecibida, 0), 0);
+    return totalSolicitado ? Math.min(100, (totalRecibido / totalSolicitado) * 100) : 100;
+  });
+  const cantidadPct = cumplimientos.length ? Math.round(cumplimientos.reduce((a, b) => a + b, 0) / cumplimientos.length) : 80;
+
+  let totalRecibidoUnidades = 0, totalAceptadoUnidades = 0;
+  recepcionesProveedor.forEach(r => r.lineas.forEach(l => { totalRecibidoUnidades += l.cantidadRecibida; totalAceptadoUnidades += l.cantidadAceptada; }));
+  const calidadPct = totalRecibidoUnidades > 0 ? Math.round((totalAceptadoUnidades / totalRecibidoUnidades) * 100) : 85;
 
   const preciosPorArticulo = new Map<string, number[]>();
   ocsProveedor.forEach(o => o.lineas.forEach(l => {
@@ -171,15 +198,28 @@ export function calcularEvaluacion(proveedorId: string, ordenesCompra: OrdenComp
     coeficientes.push(media ? Math.sqrt(varianza) / media : 0);
   });
   const cvProm = coeficientes.length ? coeficientes.reduce((a, b) => a + b, 0) / coeficientes.length : null;
-  const estabilidadPrecio = cvProm === null ? 78 : Math.round(Math.max(0, Math.min(100, 100 - cvProm * 300)));
+  const precioPct = cvProm === null ? 78 : Math.round(Math.max(0, Math.min(100, 100 - cvProm * 300)));
 
-  const canceladas = noBorrador.filter(o => o.estado === "Cancelada").length;
-  const confiabilidad = noBorrador.length ? Math.round(((noBorrador.length - canceladas) / noBorrador.length) * 100) : 80;
+  const evalsServicio = evaluacionesServicio.filter(e => e.proveedorId === proveedorId);
+  const servicioPct = evalsServicio.length
+    ? Math.round(evalsServicio.reduce((s, e) => s + (e.atencion + e.respuesta + e.cumplimientoComercial) / 3, 0) / evalsServicio.length * 20)
+    : 75;
 
-  const puntaje = Math.round(entregaPct * 0.45 + estabilidadPrecio * 0.30 + confiabilidad * 0.25);
+  const criterios: CriterioEvaluacion[] = [
+    { nombre: "Entrega a tiempo", resultado: entregaPct, peso: 25 },
+    { nombre: "Cumplimiento de cantidad", resultado: cantidadPct, peso: 20 },
+    { nombre: "Calidad", resultado: calidadPct, peso: 25 },
+    { nombre: "Precio", resultado: precioPct, peso: 15 },
+    { nombre: "Servicio", resultado: servicioPct, peso: 15 },
+  ];
+  const puntaje = Math.round(criterios.reduce((s, c) => s + c.resultado * (c.peso / 100), 0));
   const grado = puntaje >= 93 ? "A+" : puntaje >= 85 ? "A" : puntaje >= 75 ? "B+" : puntaje >= 65 ? "B" : "C";
 
-  return { puntaje, grado, entregaPct, estabilidadPrecio, confiabilidad, nRecibidas: recibidas.length, conDatos: recibidas.length > 0 || cvProm !== null };
+  return {
+    puntaje, grado, entregaPct, cantidadPct, calidadPct, precioPct, servicioPct, criterios,
+    nRecibidas: completas.length, nRecepciones: recepcionesProveedor.length, nServicio: evalsServicio.length,
+    conDatos: completas.length > 0 || recepcionesProveedor.length > 0 || cvProm !== null || evalsServicio.length > 0,
+  };
 }
 
 // ── Multi-proveedor por artículo ────────────────────────────────

@@ -552,6 +552,17 @@ export interface Recepcion {
   recibidoPor: string;
 }
 
+export interface EvaluacionServicio {
+  id: string;
+  proveedorId: string;
+  ordenCompraId: string;
+  atencion: number;
+  respuesta: number;
+  cumplimientoComercial: number;
+  observaciones?: string;
+  fecha: string;
+}
+
 export interface ProveedorArticulo {
   id: string;
   articuloId: string;
