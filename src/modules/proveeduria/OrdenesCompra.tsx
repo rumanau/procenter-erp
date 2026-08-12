@@ -1,20 +1,23 @@
 import React, { useState } from "react";
-import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC } from "../../types";
-import { totalOC } from "../../data/proveeduria";
+import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo } from "../../types";
+import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, type ResumenLineaRecepcion } from "../../data/proveeduria";
 import { siguienteFolio } from "../../data/inventario";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 const fmtFecha=(d:Date)=>d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
+const MOTIVOS_RECHAZO:MotivoRechazo[]=["Producto defectuoso","Especificación incorrecta","Daño de transporte","Producto equivocado","Empaque deficiente","Otro"];
 
-export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp}:{
+export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones}:{
   setView:(v:View)=>void;ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;
   proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];setArticulos:React.Dispatch<React.SetStateAction<Articulo[]>>;
   movimientos:MovimientoInventario[];setMovimientos:React.Dispatch<React.SetStateAction<MovimientoInventario[]>>;
   facturasCxp:Factura[];setFacturasCxp:React.Dispatch<React.SetStateAction<Factura[]>>;
+  recepciones:Recepcion[];setRecepciones:React.Dispatch<React.SetStateAction<Recepcion[]>>;
 }) {
   const [filtro,setFiltro]=useState<EstadoOC|"">("");
   const [selId,setSelId]=useState<string|null>(null);
+  const [modalRecepcion,setModalRecepcion]=useState<OrdenCompra|null>(null);
 
   const provNom=(id:string)=>proveedores.find(p=>p.id===id)?.nombre||id;
   const bodNom=(id:string)=>bodegas.find(b=>b.id===id)?.nombre||id;
@@ -24,27 +27,49 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
   const filtradas=ordenadas.filter(o=>filtro===""||o.estado===filtro);
   const sel=ordenesCompra.find(o=>o.id===selId)||null;
   const proveedorSel=sel?proveedores.find(p=>p.id===sel.proveedorId):null;
+  const recepcionesDeSel=sel?recepciones.filter(r=>r.ordenCompraId===sel.id).sort((a,b)=>b.id.localeCompare(a.id)):[];
+  const diasDif=sel?diasDiferenciaEntrega(sel):null;
 
-  const badgeCl=(e:EstadoOC)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Enviada"?"badge-warn":"badge-gray";
+  const badgeCl=(e:EstadoOC)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Parcialmente Recibida"?"badge-warn":e==="Enviada"?"badge-warn":"badge-gray";
 
   const enviar=(oc:OrdenCompra)=>{
     setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Enviada"}:o));
   };
 
-  const recibir=(oc:OrdenCompra)=>{
+  const confirmarRecepcion=(oc:OrdenCompra,fecha:string,lineas:LineaRecepcion[],observaciones:string)=>{
     const proveedor=proveedores.find(p=>p.id===oc.proveedorId);
+    const folioRec=siguienteFolioRecepcion(recepciones);
+    const nuevaRecepcion:Recepcion={id:folioRec,ordenCompraId:oc.id,fecha,lineas,observaciones:observaciones||undefined,recibidoPor:"Ronald"};
+
     setArticulos(prev=>prev.map(a=>{
-      const linea=oc.lineas.find(l=>l.articuloId===a.id);
-      return linea?{...a,stock:a.stock+linea.cantidad,costoUnitario:linea.costoUnitario}:a;
+      const l=lineas.find(x=>x.articuloId===a.id);
+      return l&&l.cantidadAceptada>0?{...a,stock:a.stock+l.cantidadAceptada}:a;
     }));
-    const folio=siguienteFolio(movimientos,"entrada");
-    const nuevosMovs:MovimientoInventario[]=oc.lineas.map((l,idx)=>({
-      id:idx===0?folio:`${folio}-${idx+1}`,tipo:"entrada",articuloId:l.articuloId,cantidad:l.cantidad,bodegaId:oc.bodegaId,
-      costoUnitario:l.costoUnitario,contraparte:proveedor?.nombre||"—",fecha:hoy(),usuario:"Ronald",referencia:oc.id,
-    }));
-    setMovimientos(prev=>[...nuevosMovs,...prev]);
-    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Recibida",fechaRecepcion:hoy()}:o));
-    alert(`✅ Mercancía de ${oc.id} recibida.\n\nStock actualizado en ${bodNom(oc.bodegaId)}: ${oc.lineas.length} artículo(s).`);
+
+    const aceptadas=lineas.filter(l=>l.cantidadAceptada>0);
+    if(aceptadas.length>0){
+      const folioMov=siguienteFolio(movimientos,"entrada");
+      const nuevosMovs:MovimientoInventario[]=aceptadas.map((l,idx)=>{
+        const linOC=oc.lineas.find(x=>x.articuloId===l.articuloId)!;
+        return {id:idx===0?folioMov:`${folioMov}-${idx+1}`,tipo:"entrada",articuloId:l.articuloId,cantidad:l.cantidadAceptada,bodegaId:oc.bodegaId,
+          costoUnitario:linOC.costoUnitario,contraparte:proveedor?.nombre||"—",fecha,usuario:"Ronald",referencia:`${oc.id} · ${folioRec}`};
+      });
+      setMovimientos(prev=>[...nuevosMovs,...prev]);
+    }
+
+    setRecepciones(prev=>[nuevaRecepcion,...prev]);
+
+    const resumenPrevio=resumenRecepcionOC(oc,recepciones);
+    const completa=resumenPrevio.every(r=>{
+      const li=lineas.find(x=>x.articuloId===r.articuloId);
+      return r.recibido+(li?li.cantidadRecibida:0)>=r.solicitado;
+    });
+    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:completa?"Recibida":"Parcialmente Recibida",fechaRecepcion:completa?fecha:o.fechaRecepcion}:o));
+
+    const totalAceptado=lineas.reduce((s,l)=>s+l.cantidadAceptada,0);
+    const totalRechazado=lineas.reduce((s,l)=>s+l.cantidadRechazada,0);
+    alert(`✅ Recepción ${folioRec} registrada.\n\n${totalAceptado} unidad(es) aceptada(s)${totalRechazado>0?`, ${totalRechazado} rechazada(s)`:""}.\nEstado de la orden: ${completa?"Recibida completa":"Parcialmente Recibida"}.`);
+    setModalRecepcion(null);
   };
 
   const facturar=(oc:OrdenCompra)=>{
@@ -71,7 +96,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
     <div style={{display:"flex",flex:1,overflow:"hidden"}}>
       <div className="content" style={{flex:1}}>
         <div className="page-header">
-          <div><div className="page-title">Órdenes de Compra</div><div className="page-subtitle">Ciclo completo: Borrador → Enviada → Recibida → Facturada</div></div>
+          <div><div className="page-title">Órdenes de Compra</div><div className="page-subtitle">Ciclo completo: Borrador → Enviada → Recibida (parcial o total) → Facturada</div></div>
           <div style={{display:"flex",gap:6}}>
             <button className="btn btn-secondary btn-sm" onClick={()=>setView("proveeduria")}>← Proveeduría</button>
             <button className="btn btn-primary btn-sm" onClick={()=>setView("nueva-oc")}>➕ Nueva OC</button>
@@ -79,7 +104,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
         </div>
         <div className="card" style={{marginBottom:12,padding:"10px 14px"}}>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {(["","Borrador","Enviada","Recibida","Facturada","Cancelada"] as const).map(e=>(
+            {(["","Borrador","Enviada","Parcialmente Recibida","Recibida","Facturada","Cancelada"] as const).map(e=>(
               <span key={e||"todas"} className={`badge ${filtro===e?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>setFiltro(e)}>{e||"Todas"} {e&&`(${ordenesCompra.filter(o=>o.estado===e).length})`}</span>
             ))}
           </div>
@@ -106,7 +131,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
       </div>
 
       {sel&&(
-        <div style={{width:320,background:"#fff",borderLeft:"1px solid #E5E7EB",padding:16,overflow:"auto",flexShrink:0}}>
+        <div style={{width:340,background:"#fff",borderLeft:"1px solid #E5E7EB",padding:16,overflow:"auto",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontSize:13,fontWeight:700}}>Detalle de Orden</div>
             <button className="btn btn-ghost btn-sm" onClick={()=>setSelId(null)}>✕</button>
@@ -115,9 +140,16 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
             <div className="res-row"><span className="res-label">Folio</span><span className="res-val" style={{fontFamily:"monospace",color:"#E8611A"}}>{sel.id}</span></div>
             <div className="res-row"><span className="res-label">Proveedor</span><span className="res-val">{proveedorSel?.nombre}</span></div>
             <div className="res-row"><span className="res-label">Bodega destino</span><span className="res-val">{bodNom(sel.bodegaId)}</span></div>
-            <div className="res-row"><span className="res-label">Fecha</span><span className="res-val">{sel.fecha}</span></div>
+            <div className="res-row"><span className="res-label">Fecha OC</span><span className="res-val">{sel.fecha}</span></div>
             {sel.fechaEntregaEsperada&&<div className="res-row"><span className="res-label">Entrega esperada</span><span className="res-val">{sel.fechaEntregaEsperada}</span></div>}
-            {sel.fechaRecepcion&&<div className="res-row"><span className="res-label">Recibida el</span><span className="res-val">{sel.fechaRecepcion}</span></div>}
+            {sel.fechaRecepcion&&<div className="res-row"><span className="res-label">Recibida completa el</span><span className="res-val">{sel.fechaRecepcion}</span></div>}
+            {diasDif!==null&&(
+              <div className="res-row"><span className="res-label">Resultado</span>
+                <span className="res-val" style={{color:diasDif>0?"#EF4444":diasDif<0?"#10B981":"#10B981",fontWeight:700}}>
+                  {diasDif>0?`🔴 ${diasDif} día(s) tarde`:diasDif<0?`🟢 ${Math.abs(diasDif)} día(s) adelantado`:"🟢 A tiempo"}
+                </span>
+              </div>
+            )}
             <div className="res-row"><span className="res-label">Estado</span><span className={`badge ${badgeCl(sel.estado)}`}>{sel.estado}</span></div>
             {sel.facturaId&&<div className="res-row"><span className="res-label">Factura CxP</span><span className="res-val" style={{color:"#10B981"}}>{sel.facturaId}</span></div>}
           </div>
@@ -134,15 +166,128 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
           <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",fontWeight:700,fontSize:13}}>
             <span>Total</span><span style={{color:"#E8611A"}}>{fmt(totalOC(sel))}</span>
           </div>
+
+          {recepcionesDeSel.length>0&&<div style={{marginTop:6,marginBottom:10}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#6B7280",marginBottom:6}}>RECEPCIONES REGISTRADAS ({recepcionesDeSel.length})</div>
+            {recepcionesDeSel.map(r=>{
+              const aceptado=r.lineas.reduce((s,l)=>s+l.cantidadAceptada,0);
+              const rechazado=r.lineas.reduce((s,l)=>s+l.cantidadRechazada,0);
+              return (
+                <div key={r.id} style={{padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:11}}>
+                  <div style={{display:"flex",justifyContent:"space-between"}}>
+                    <b style={{fontFamily:"monospace",color:"#3B82F6"}}>{r.id}</b><span style={{color:"#6B7280"}}>{r.fecha}</span>
+                  </div>
+                  <div style={{color:"#374151"}}>{aceptado} aceptada(s){rechazado>0&&<span style={{color:"#EF4444"}}> · {rechazado} rechazada(s)</span>}</div>
+                </div>
+              );
+            })}
+          </div>}
+
           <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10}}>
             {sel.estado==="Borrador"&&<button className="btn btn-primary btn-sm" onClick={()=>enviar(sel)}>📨 Enviar al Proveedor</button>}
-            {sel.estado==="Enviada"&&<button className="btn btn-primary btn-sm" onClick={()=>recibir(sel)}>📥 Marcar como Recibida</button>}
+            {(sel.estado==="Enviada"||sel.estado==="Parcialmente Recibida")&&<button className="btn btn-primary btn-sm" onClick={()=>setModalRecepcion(sel)}>📦 Registrar Recepción</button>}
             {sel.estado==="Recibida"&&<button className="btn btn-success btn-sm" onClick={()=>facturar(sel)}>🧾 Generar Factura (CxP)</button>}
             {sel.estado==="Facturada"&&<button className="btn btn-secondary btn-sm" onClick={()=>setView("cxp")}>💳 Ver en Cuentas por Pagar</button>}
             {(sel.estado==="Borrador"||sel.estado==="Enviada")&&<button className="btn btn-ghost btn-sm" onClick={()=>cancelar(sel)}>✕ Cancelar Orden</button>}
           </div>
         </div>
       )}
+
+      {modalRecepcion&&(
+        <RegistrarRecepcionModal
+          oc={modalRecepcion}
+          resumen={resumenRecepcionOC(modalRecepcion,recepciones)}
+          articulos={articulos}
+          onConfirmar={(fecha,lineas,obs)=>confirmarRecepcion(modalRecepcion,fecha,lineas,obs)}
+          onCerrar={()=>setModalRecepcion(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function RegistrarRecepcionModal({oc,resumen,articulos,onConfirmar,onCerrar}:{
+  oc:OrdenCompra;resumen:ResumenLineaRecepcion[];articulos:Articulo[];
+  onConfirmar:(fecha:string,lineas:LineaRecepcion[],observaciones:string)=>void;onCerrar:()=>void;
+}) {
+  const [fecha,setFecha]=useState(hoy());
+  const [observaciones,setObservaciones]=useState("");
+  const [valores,setValores]=useState<Record<string,{recibida:number;aceptada:number;motivo:MotivoRechazo}>>(()=>{
+    const init:Record<string,{recibida:number;aceptada:number;motivo:MotivoRechazo}>={};
+    resumen.forEach(r=>{init[r.articuloId]={recibida:r.pendiente,aceptada:r.pendiente,motivo:"Producto defectuoso"};});
+    return init;
+  });
+
+  const setCampo=(articuloId:string,campo:"recibida"|"aceptada",val:number)=>{
+    setValores(prev=>{
+      const actual=prev[articuloId];
+      const recibida=campo==="recibida"?Math.max(0,val):actual.recibida;
+      const aceptada=campo==="aceptada"?Math.max(0,Math.min(val,recibida)):Math.min(actual.aceptada,recibida);
+      return {...prev,[articuloId]:{...actual,recibida,aceptada}};
+    });
+  };
+  const setMotivo=(articuloId:string,motivo:MotivoRechazo)=>setValores(prev=>({...prev,[articuloId]:{...prev[articuloId],motivo}}));
+
+  const totalRecibiendo=Object.values(valores).reduce((s,v)=>s+v.recibida,0);
+  const listo=totalRecibiendo>0;
+
+  const confirmar=()=>{
+    const lineas:LineaRecepcion[]=resumen.map(r=>{
+      const v=valores[r.articuloId];
+      const rechazada=Math.max(0,v.recibida-v.aceptada);
+      return {articuloId:r.articuloId,cantidadRecibida:v.recibida,cantidadAceptada:v.aceptada,cantidadRechazada:rechazada,motivoRechazo:rechazada>0?v.motivo:undefined};
+    }).filter(l=>l.cantidadRecibida>0);
+    onConfirmar(fecha,lineas,observaciones);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onCerrar}>
+      <div className="modal" style={{maxWidth:720}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div><div className="modal-title">Registrar Recepción — {oc.id}</div><div className="modal-sub">Cantidad recibida, aceptada y rechazada por artículo</div></div>
+          <div className="modal-close" onClick={onCerrar}>✕</div>
+        </div>
+        <table className="tbl">
+          <thead><tr><th>Artículo</th><th>Solicitado</th><th>Ya recibido</th><th>Pendiente</th><th>Recibiendo ahora</th><th>Aceptado</th><th>Motivo si rechaza</th></tr></thead>
+          <tbody>
+            {resumen.map(r=>{
+              const v=valores[r.articuloId];
+              const art=articulos.find(a=>a.id===r.articuloId);
+              const rechazada=Math.max(0,v.recibida-v.aceptada);
+              return (
+                <tr key={r.articuloId}>
+                  <td style={{fontSize:12}}>{art?.nombre||r.articuloId}</td>
+                  <td>{r.solicitado}</td>
+                  <td style={{color:"#6B7280"}}>{r.recibido}</td>
+                  <td><b style={{color:r.pendiente>0?"#F59E0B":"#10B981"}}>{r.pendiente}</b></td>
+                  <td><input type="number" className="form-control" style={{width:70}} min={0} max={r.pendiente} value={v.recibida} onChange={e=>setCampo(r.articuloId,"recibida",parseInt(e.target.value)||0)}/></td>
+                  <td><input type="number" className="form-control" style={{width:70}} min={0} max={v.recibida} value={v.aceptada} onChange={e=>setCampo(r.articuloId,"aceptada",parseInt(e.target.value)||0)}/></td>
+                  <td>
+                    {rechazada>0?(
+                      <select className="form-control" style={{fontSize:11}} value={v.motivo} onChange={e=>setMotivo(r.articuloId,e.target.value as MotivoRechazo)}>
+                        {MOTIVOS_RECHAZO.map(m=><option key={m}>{m}</option>)}
+                      </select>
+                    ):<span style={{color:"#D1D5DB",fontSize:11}}>—</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="g2" style={{marginTop:12}}>
+          <div className="form-group"><label className="form-label">Fecha de recepción</label><input type="date" className="form-control" onChange={e=>{
+            if(!e.target.value) return;
+            const [y,m,d]=e.target.value.split("-");
+            const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+            setFecha(`${d} ${meses[parseInt(m)-1]} ${y}`);
+          }}/></div>
+          <div className="form-group"><label className="form-label">Observaciones</label><input className="form-control" value={observaciones} onChange={e=>setObservaciones(e.target.value)} placeholder="Estado del embarque, incidencias..."/></div>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:14}}>
+          <button className="btn btn-secondary" onClick={onCerrar}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!listo} onClick={confirmar}>📦 Confirmar Recepción</button>
+        </div>
+      </div>
     </div>
   );
 }

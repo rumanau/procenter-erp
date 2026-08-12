@@ -517,7 +517,7 @@ export interface LineaOC {
   costoUnitario: number;
 }
 
-export type EstadoOC = "Borrador" | "Enviada" | "Recibida" | "Facturada" | "Cancelada";
+export type EstadoOC = "Borrador" | "Enviada" | "Parcialmente Recibida" | "Recibida" | "Facturada" | "Cancelada";
 
 export interface OrdenCompra {
   id: string;
@@ -531,6 +531,25 @@ export interface OrdenCompra {
   observaciones?: string;
   facturaId?: string;
   creadoPor: string;
+}
+
+export type MotivoRechazo = "Producto defectuoso" | "Especificación incorrecta" | "Daño de transporte" | "Producto equivocado" | "Empaque deficiente" | "Otro";
+
+export interface LineaRecepcion {
+  articuloId: string;
+  cantidadRecibida: number;
+  cantidadAceptada: number;
+  cantidadRechazada: number;
+  motivoRechazo?: MotivoRechazo;
+}
+
+export interface Recepcion {
+  id: string;
+  ordenCompraId: string;
+  fecha: string;
+  lineas: LineaRecepcion[];
+  observaciones?: string;
+  recibidoPor: string;
 }
 
 export interface ProveedorArticulo {

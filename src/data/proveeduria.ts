@@ -1,4 +1,4 @@
-import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento } from "../types";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion } from "../types";
 import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
 
 function mulberry32(seed: number) {
@@ -61,12 +61,71 @@ function generarOrdenes(): OrdenCompra[] {
 
 export const ORDENES_COMPRA_INIT: OrdenCompra[] = generarOrdenes();
 
+// Recepciones semilla: reconstruye en el nuevo formato estructurado las
+// órdenes que ya nacieron como "Recibida"/"Facturada" en ORDENES_COMPRA_INIT,
+// para que su pestaña de recepciones no aparezca vacía por ser datos previos.
+function generarRecepcionesIniciales(): Recepcion[] {
+  const recepciones: Recepcion[] = [];
+  let seq = 0;
+  ORDENES_COMPRA_INIT.filter(o => o.estado === "Recibida" || o.estado === "Facturada").forEach(o => {
+    seq++;
+    const lineas: LineaRecepcion[] = o.lineas.map(l => ({
+      articuloId: l.articuloId,
+      cantidadRecibida: l.cantidad,
+      cantidadAceptada: l.cantidad,
+      cantidadRechazada: 0,
+    }));
+    recepciones.push({ id: `REC-${seq}`, ordenCompraId: o.id, fecha: o.fechaRecepcion || o.fecha, lineas, recibidoPor: "Ronald" });
+  });
+  return recepciones;
+}
+
+export const RECEPCIONES_INIT: Recepcion[] = generarRecepcionesIniciales();
+
 export function siguienteFolioOC(ordenes: OrdenCompra[]): string {
   return `OC-2024-${String(ordenes.length + 1).padStart(3, "0")}`;
 }
 
+export function siguienteFolioRecepcion(recepciones: Recepcion[]): string {
+  return `REC-${recepciones.length + 1}`;
+}
+
 export function totalOC(oc: OrdenCompra): number {
   return oc.lineas.reduce((s, l) => s + l.cantidad * l.costoUnitario, 0);
+}
+
+export interface ResumenLineaRecepcion {
+  articuloId: string;
+  solicitado: number;
+  recibido: number;
+  aceptado: number;
+  rechazado: number;
+  pendiente: number;
+}
+
+// Agrega todas las recepciones registradas contra una OC, línea por línea.
+export function resumenRecepcionOC(oc: OrdenCompra, recepciones: Recepcion[]): ResumenLineaRecepcion[] {
+  const deEstaOC = recepciones.filter(r => r.ordenCompraId === oc.id);
+  return oc.lineas.map(l => {
+    let recibido = 0, aceptado = 0, rechazado = 0;
+    deEstaOC.forEach(r => {
+      const lr = r.lineas.find(x => x.articuloId === l.articuloId);
+      if (lr) { recibido += lr.cantidadRecibida; aceptado += lr.cantidadAceptada; rechazado += lr.cantidadRechazada; }
+    });
+    return { articuloId: l.articuloId, solicitado: l.cantidad, recibido, aceptado, rechazado, pendiente: Math.max(0, l.cantidad - recibido) };
+  });
+}
+
+export function ocCompleta(oc: OrdenCompra, recepciones: Recepcion[]): boolean {
+  return resumenRecepcionOC(oc, recepciones).every(r => r.pendiente === 0);
+}
+
+// Diferencia en días entre la fecha comprometida y la fecha en que la OC quedó
+// completamente recibida. Positivo = tarde, negativo = adelantada, 0 = puntual.
+export function diasDiferenciaEntrega(oc: OrdenCompra): number | null {
+  if (!oc.fechaRecepcion || !oc.fechaEntregaEsperada) return null;
+  const ms = parseFechaEsCR(oc.fechaRecepcion).getTime() - parseFechaEsCR(oc.fechaEntregaEsperada).getTime();
+  return Math.round(ms / 86400000);
 }
 
 const MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
