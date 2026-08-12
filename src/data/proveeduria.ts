@@ -57,3 +57,11 @@ export function siguienteFolioOC(ordenes: OrdenCompra[]): string {
 export function totalOC(oc: OrdenCompra): number {
   return oc.lineas.reduce((s, l) => s + l.cantidad * l.costoUnitario, 0);
 }
+
+const MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+export function parseFechaEsCR(s: string): Date {
+  const [d, m, y] = s.replace(".", "").split(" ");
+  const mi = MESES_ES.indexOf((m || "").toLowerCase());
+  return new Date(parseInt(y) || 1970, mi >= 0 ? mi : 0, parseInt(d) || 1);
+}

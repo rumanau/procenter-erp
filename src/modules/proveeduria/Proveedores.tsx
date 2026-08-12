@@ -1,79 +1,380 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario } from "../../types";
+import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura } from "../../types";
+import { totalOC, parseFechaEsCR } from "../../data/proveeduria";
 
-export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias}:{setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[]}) {
+const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
+type FiltroChip="todos"|"activos"|"oc-abiertas"|"cxp"|"criticos";
+type OrdenPor="nombre"|"compras"|"deuda";
+type Tab="resumen"|"catalogo"|"ordenes"|"cxp"|"editar";
+
+export function Proveedores({setView,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp}:{
+  setView:(v:View)=>void;proveedores:ProveedorInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;
+  articulos:Articulo[];ordenesCompra:OrdenCompra[];categorias:CategoriaInventario[];facturasCxp:Factura[];
+}) {
   const [busqueda,setBusqueda]=useState("");
+  const [filtro,setFiltro]=useState<FiltroChip>("todos");
+  const [ordenPor,setOrdenPor]=useState<OrdenPor>("nombre");
+  const [selId,setSelId]=useState<string|null>(proveedores[0]?.id??null);
+  const [tab,setTab]=useState<Tab>("resumen");
+  const [modalNuevo,setModalNuevo]=useState(false);
 
-  const itemsDe=(id:string)=>articulos.filter(a=>a.activo&&a.proveedorId===id).length;
-  const ocsAbiertasDe=(id:string)=>ordenesCompra.filter(o=>o.proveedorId===id&&o.estado!=="Cancelada"&&o.estado!=="Facturada").length;
-  const puedeEliminar=(id:string)=>itemsDe(id)===0&&ocsAbiertasDe(id)===0;
-
-  const filtrados=proveedores.filter(p=>busqueda===""||`${p.nombre} ${p.cedulaJuridica}`.toLowerCase().includes(busqueda.toLowerCase()));
-
-  const set=(id:string,campo:keyof ProveedorInventario,valor:any)=>setProveedores(prev=>prev.map(p=>p.id===id?{...p,[campo]:valor}:p));
-  const toggleCategoria=(id:string,catId:string)=>setProveedores(prev=>prev.map(p=>p.id===id?{...p,categorias:p.categorias.includes(catId)?p.categorias.filter(c=>c!==catId):[...p.categorias,catId]}:p));
-
-  const nuevoProveedor=()=>{
-    const nuevo:ProveedorInventario={id:`PV${Date.now()}`,nombre:"Nuevo Proveedor",cedulaJuridica:"",contacto:"",telefono:"",condicion:"30 días",rating:"B",categorias:[],activo:true};
-    setProveedores(prev=>[nuevo,...prev]);
+  const itemsDe=(id:string)=>articulos.filter(a=>a.activo&&a.proveedorId===id);
+  const ocsDe=(id:string)=>ordenesCompra.filter(o=>o.proveedorId===id);
+  const ocsAbiertasDe=(id:string)=>ocsDe(id).filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").length;
+  const facturasDe=(id:string)=>{const p=proveedores.find(x=>x.id===id);return p?facturasCxp.filter(f=>f.cedula===p.cedulaJuridica):[];};
+  const cxpPendienteDe=(id:string)=>facturasDe(id).reduce((s,f)=>s+f.saldo,0);
+  const comprasDe=(id:string)=>ocsDe(id).filter(o=>o.estado!=="Cancelada").reduce((s,o)=>s+totalOC(o),0);
+  const ultimaCompraDe=(id:string)=>{const ocs=ocsDe(id).filter(o=>o.estado!=="Cancelada");return ocs.length?[...ocs].sort((a,b)=>b.id.localeCompare(a.id))[0]:null;};
+  const esCritico=(id:string)=>{
+    const hoy=new Date();
+    const facturaVencida=facturasDe(id).some(f=>f.estado==="vencida");
+    const ocAtrasada=ocsDe(id).some(o=>o.estado==="Enviada"&&o.fechaEntregaEsperada&&parseFechaEsCR(o.fechaEntregaEsperada)<hoy);
+    return facturaVencida||ocAtrasada;
   };
 
+  const hoy=new Date();
+  const comprasDelMes=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&(()=>{const f=parseFechaEsCR(o.fecha);return f.getMonth()===hoy.getMonth()&&f.getFullYear()===hoy.getFullYear();})()).reduce((s,o)=>s+totalOC(o),0);
+  const cedulasProv=new Set(proveedores.map(p=>p.cedulaJuridica));
+  const cxpTotalPendiente=facturasCxp.filter(f=>cedulasProv.has(f.cedula)).reduce((s,f)=>s+f.saldo,0);
+  const kpis=[
+    {l:"Proveedores activos",v:String(proveedores.filter(p=>p.activo).length),c:"#10B981"},
+    {l:"Órdenes abiertas",v:String(ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").length),c:"#3B82F6"},
+    {l:"Compras del mes",v:fmt(comprasDelMes),c:"#E8611A"},
+    {l:"CxP pendiente",v:fmt(cxpTotalPendiente),c:"#7C3AED"},
+    {l:"Proveedores críticos",v:String(proveedores.filter(p=>esCritico(p.id)).length),c:"#EF4444"},
+  ];
+
+  let filtrados=proveedores.filter(p=>{
+    if(busqueda&&!(`${p.nombre} ${p.cedulaJuridica} ${p.contacto}`.toLowerCase().includes(busqueda.toLowerCase()))) return false;
+    if(filtro==="activos"&&!p.activo) return false;
+    if(filtro==="oc-abiertas"&&ocsAbiertasDe(p.id)===0) return false;
+    if(filtro==="cxp"&&cxpPendienteDe(p.id)<=0) return false;
+    if(filtro==="criticos"&&!esCritico(p.id)) return false;
+    return true;
+  });
+  filtrados=[...filtrados].sort((a,b)=>{
+    if(ordenPor==="compras") return comprasDe(b.id)-comprasDe(a.id);
+    if(ordenPor==="deuda") return cxpPendienteDe(b.id)-cxpPendienteDe(a.id);
+    return a.nombre.localeCompare(b.nombre);
+  });
+
+  const sel=proveedores.find(p=>p.id===selId)||null;
+
+  const nuevoProveedor=(p:ProveedorInventario)=>{
+    setProveedores(prev=>[p,...prev]);
+    setSelId(p.id);
+    setModalNuevo(false);
+    setTab("resumen");
+  };
+
+  const chips:[FiltroChip,string][]=[["todos","Todos"],["activos","Activos"],["oc-abiertas","Con OC abiertas"],["cxp","Con CxP"],["criticos","Críticos"]];
+
   return (
-    <div className="content">
+    <div className="content" style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div className="page-header">
-        <div><div className="page-title">Proveedores</div><div className="page-subtitle">Directorio unificado · Vinculado a Inventario y Cuentas por Pagar</div></div>
+        <div><div className="page-title">Proveedores</div><div className="page-subtitle">Gestión, desempeño, compras y cuentas por pagar</div></div>
         <div style={{display:"flex",gap:6}}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setView("proveeduria")}>← Proveeduría</button>
-          <button className="btn btn-primary btn-sm" onClick={nuevoProveedor}>➕ Nuevo Proveedor</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>setModalNuevo(true)}>➕ Nuevo Proveedor</button>
         </div>
       </div>
-      <div className="card" style={{marginBottom:12,padding:"10px 14px"}}>
-        <div className="header-search"><span>🔍</span><input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar por nombre o cédula jurídica..." style={{border:"none",background:"transparent",outline:"none",flex:1,fontSize:"12.5px"}}/></div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+        {kpis.map(k=>(
+          <div key={k.l} className="kpi"><div className="kpi-label">{k.l}</div><div className="kpi-value" style={{color:k.c,fontSize:15}}>{k.v}</div></div>
+        ))}
       </div>
-      {filtrados.map(p=>{
-        const nItems=itemsDe(p.id);
-        const nOcs=ocsAbiertasDe(p.id);
-        return (
-        <div key={p.id} className="card" style={{marginBottom:8}}>
-          <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-            <div style={{width:40,height:40,background:p.activo?"#FFF3ED":"#F3F4F6",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🏢</div>
-            <div style={{flex:1}}>
-              <div className="g2" style={{marginBottom:8}}>
-                <input className="form-control" value={p.nombre} onChange={e=>set(p.id,"nombre",e.target.value)} style={{fontWeight:600}} placeholder="Nombre / Razón social"/>
-                <input className="form-control" value={p.cedulaJuridica} onChange={e=>set(p.id,"cedulaJuridica",e.target.value)} placeholder="Cédula jurídica"/>
+
+      <div className="card" style={{marginBottom:12,padding:"10px 14px",flexShrink:0}}>
+        <div className="header-search" style={{marginBottom:10}}><span>🔍</span><input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar proveedor, cédula, contacto o categoría..." style={{border:"none",background:"transparent",outline:"none",flex:1,fontSize:"12.5px"}}/></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {chips.map(([id,label])=>(
+              <span key={id} className={`badge ${filtro===id?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>setFiltro(id)}>{label}</span>
+            ))}
+          </div>
+          <select className="form-control" style={{width:170}} value={ordenPor} onChange={e=>setOrdenPor(e.target.value as OrdenPor)}>
+            <option value="nombre">Ordenar: Nombre</option>
+            <option value="compras">Ordenar: Mayor compra</option>
+            <option value="deuda">Ordenar: Mayor deuda</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:14,flex:1,overflow:"hidden"}}>
+        <div style={{width:400,flexShrink:0,overflow:"auto",paddingRight:2}}>
+          {filtrados.map(p=>{
+            const critico=esCritico(p.id);
+            const ultima=ultimaCompraDe(p.id);
+            return (
+            <div key={p.id} className="card" onClick={()=>{setSelId(p.id);setTab("resumen");}}
+              style={{marginBottom:8,cursor:"pointer",border:selId===p.id?"2px solid #E8611A":"1px solid #E5E7EB"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                <div style={{fontSize:13,fontWeight:700}}>🏢 {p.nombre}</div>
+                <div style={{display:"flex",gap:4}}>
+                  <span className="badge badge-info" style={{fontSize:9}}>{p.rating}</span>
+                  <span className={`badge ${p.activo?"badge-ok":"badge-gray"}`} style={{fontSize:9}}>{p.activo?"Activo":"Inactivo"}</span>
+                </div>
               </div>
-              <div className="g3" style={{marginBottom:8}}>
-                <input className="form-control" value={p.contacto} onChange={e=>set(p.id,"contacto",e.target.value)} placeholder="Correo de contacto"/>
-                <input className="form-control" value={p.telefono} onChange={e=>set(p.id,"telefono",e.target.value)} placeholder="Teléfono"/>
-                <select className="form-control" value={p.condicion} onChange={e=>set(p.id,"condicion",e.target.value)}>
-                  <option>Contado</option><option>15 días</option><option>30 días</option><option>45 días</option><option>60 días</option>
-                </select>
+              <div style={{fontSize:10.5,color:"#6B7280",marginBottom:6}}>{p.cedulaJuridica} · {p.contacto}</div>
+              <div style={{fontSize:11,color:"#374151",marginBottom:6}}>
+                {itemsDe(p.id).length} artículos · {ocsAbiertasDe(p.id)} OC abiertas
+                {cxpPendienteDe(p.id)>0&&<> · <span style={{color:"#EF4444",fontWeight:600}}>{fmt(cxpPendienteDe(p.id))} CxP</span></>}
+                {critico&&<span className="badge badge-crit" style={{fontSize:8.5,marginLeft:6}}>⚠ Atención</span>}
               </div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-                <select className="form-control" style={{width:90}} value={p.rating} onChange={e=>set(p.id,"rating",e.target.value)}>
-                  <option>A+</option><option>A</option><option>B+</option><option>B</option><option>C</option>
-                </select>
-                {categorias.map(c=>(
-                  <span key={c.id} className={`badge ${p.categorias.includes(c.id)?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>toggleCategoria(p.id,c.id)}>{c.icono} {c.nombre}</span>
-                ))}
+              <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
+                {p.categorias.map(cId=>{const c=categorias.find(x=>x.id===cId);return c?<span key={cId} className="badge badge-gray" style={{fontSize:8.5}}>{c.icono} {c.nombre}</span>:null;})}
+              </div>
+              <div style={{fontSize:10,color:"#9CA3AF"}}>{ultima?`Última compra: ${ultima.fecha}`:"Sin compras registradas"} · Plazo: {p.condicion}</div>
+            </div>
+            );
+          })}
+          {filtrados.length===0&&<div className="card" style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin resultados</div>}
+        </div>
+
+        {sel?(
+          <div style={{flex:1,overflow:"auto"}}>
+            <div className="card" style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>🏢 {sel.nombre}
+                    <span className="badge badge-info">{sel.rating}</span>
+                    <span className={`badge ${sel.activo?"badge-ok":"badge-gray"}`}>{sel.activo?"Activo":"Inactivo"}</span>
+                  </div>
+                  <div style={{fontSize:11.5,color:"#6B7280",marginTop:2}}>{sel.cedulaJuridica} · {sel.contacto} · {sel.telefono}</div>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={()=>setView("nueva-oc")}>➕ Nueva OC</button>
               </div>
             </div>
-            <div style={{textAlign:"right" as const,flexShrink:0}}>
-              <div style={{display:"flex",gap:8,marginBottom:8}}>
-                <span className="badge badge-info">{nItems} artículos</span>
-                {nOcs>0&&<span className="badge badge-warn">{nOcs} OC abiertas</span>}
-                <span className={`badge ${p.activo?"badge-ok":"badge-gray"}`}>{p.activo?"Activo":"Inactivo"}</span>
-              </div>
-              <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
-                <button className="btn btn-ghost btn-sm" onClick={()=>set(p.id,"activo",!p.activo)}>{p.activo?"⏸ Desactivar":"▶ Activar"}</button>
-                <button className="btn btn-ghost btn-sm" disabled={!puedeEliminar(p.id)} title={!puedeEliminar(p.id)?"No se puede eliminar: tiene artículos u OCs vinculados":""} onClick={()=>setProveedores(prev=>prev.filter(x=>x.id!==p.id))}>🗑</button>
-              </div>
+
+            <div className="tab-bar" style={{marginBottom:12}}>
+              {([["resumen","Resumen"],["catalogo","Catálogo"],["ordenes","Órdenes"],["cxp","CxP"],["editar","✏️ Editar"]] as [Tab,string][]).map(([id,label])=>(
+                <div key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{label}</div>
+              ))}
             </div>
+
+            {tab==="resumen"&&<ResumenTab proveedor={sel} comprasTotal={comprasDe(sel.id)} cxpPendiente={cxpPendienteDe(sel.id)} ocAbiertas={ocsAbiertasDe(sel.id)} nItems={itemsDe(sel.id).length} categorias={categorias} ocs={ocsDe(sel.id)} facturas={facturasDe(sel.id)}/>}
+            {tab==="catalogo"&&<CatalogoTab items={itemsDe(sel.id)} categorias={categorias}/>}
+            {tab==="ordenes"&&<OrdenesTab ocs={ocsDe(sel.id)}/>}
+            {tab==="cxp"&&<CxpTab facturas={facturasDe(sel.id)}/>}
+            {tab==="editar"&&<EditarTab proveedor={sel} categorias={categorias} setProveedores={setProveedores} puedeEliminar={itemsDe(sel.id).length===0&&ocsAbiertasDe(sel.id)===0} onEliminado={()=>setSelId(null)}/>}
+          </div>
+        ):(
+          <div className="card" style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#9CA3AF"}}>Selecciona un proveedor para ver su expediente</div>
+        )}
+      </div>
+
+      {modalNuevo&&<NuevoProveedorModal categorias={categorias} onGuardar={nuevoProveedor} onCerrar={()=>setModalNuevo(false)}/>}
+    </div>
+  );
+}
+
+function ResumenTab({proveedor,comprasTotal,cxpPendiente,ocAbiertas,nItems,categorias,ocs,facturas}:{proveedor:ProveedorInventario;comprasTotal:number;cxpPendiente:number;ocAbiertas:number;nItems:number;categorias:CategoriaInventario[];ocs:OrdenCompra[];facturas:Factura[]}) {
+  const recientes=[...ocs].sort((a,b)=>b.id.localeCompare(a.id)).slice(0,4);
+  const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Enviada"?"badge-warn":"badge-gray";
+  return (
+    <div>
+      <div className="g4" style={{marginBottom:14}}>
+        <div className="kpi"><div className="kpi-label">Compras totales</div><div className="kpi-value" style={{fontSize:15}}>{fmt(comprasTotal)}</div></div>
+        <div className="kpi"><div className="kpi-label">Saldo CxP</div><div className="kpi-value" style={{fontSize:15,color:cxpPendiente>0?"#EF4444":undefined}}>{fmt(cxpPendiente)}</div></div>
+        <div className="kpi"><div className="kpi-label">OC abiertas</div><div className="kpi-value" style={{fontSize:15}}>{ocAbiertas}</div></div>
+        <div className="kpi"><div className="kpi-label">Artículos</div><div className="kpi-value" style={{fontSize:15}}>{nItems}</div></div>
+      </div>
+      <div className="g2" style={{alignItems:"start"}}>
+        <div className="card">
+          <div className="card-title">Información comercial</div>
+          <div className="resumen">
+            {[["Cédula jurídica",proveedor.cedulaJuridica],["Contacto",proveedor.contacto],["Teléfono",proveedor.telefono],["Condiciones de pago",proveedor.condicion],["Clasificación",proveedor.rating],["Moneda","Colones (₡)"]].map(([l,v])=>(
+              <div key={l} className="res-row"><span className="res-label">{l}</span><span className="res-val">{v||"—"}</span></div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:8}}>
+            {proveedor.categorias.map(cId=>{const c=categorias.find(x=>x.id===cId);return c?<span key={cId} className="badge badge-info" style={{fontSize:9.5}}>{c.icono} {c.nombre}</span>:null;})}
           </div>
         </div>
-        );
-      })}
-      {filtrados.length===0&&<div className="card" style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin resultados</div>}
+        <div className="card">
+          <div className="card-title">Actividad reciente</div>
+          {recientes.length===0&&facturas.length===0&&<div style={{fontSize:11,color:"#9CA3AF"}}>Sin actividad registrada</div>}
+          {recientes.map(oc=>(
+            <div key={oc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:11.5}}>
+              <div><b style={{fontFamily:"monospace",color:"#E8611A",fontSize:10.5}}>{oc.id}</b> · {oc.fecha}</div>
+              <span className={`badge ${badgeCl(oc.estado)}`} style={{fontSize:9}}>{oc.estado}</span>
+            </div>
+          ))}
+          {facturas.slice(0,2).map(f=>(
+            <div key={f.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:11.5}}>
+              <div><b style={{fontFamily:"monospace",color:"#7C3AED",fontSize:10.5}}>{f.id}</b> · {f.fechaEmision}</div>
+              <span className={`badge ${f.estado==="pagada"?"badge-ok":f.estado==="vencida"?"badge-crit":"badge-warn"}`} style={{fontSize:9}}>{f.estado}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CatalogoTab({items,categorias}:{items:Articulo[];categorias:CategoriaInventario[]}) {
+  return (
+    <div className="card" style={{padding:0,overflow:"hidden"}}>
+      <table className="tbl">
+        <thead><tr><th>Código</th><th>Artículo</th><th>Categoría</th><th>Stock</th><th>Costo actual</th></tr></thead>
+        <tbody>
+          {items.map(a=>(
+            <tr key={a.id}>
+              <td><b style={{fontSize:11.5,fontFamily:"monospace"}}>{a.id}</b></td>
+              <td style={{fontSize:12.5}}>{a.nombre}</td>
+              <td><span className="badge badge-info" style={{fontSize:10}}>{categorias.find(c=>c.id===a.categoriaId)?.nombre}</span></td>
+              <td>{a.stock} {a.unidad}</td>
+              <td style={{fontWeight:600,color:"#E8611A"}}>{fmt(a.costoUnitario)}</td>
+            </tr>
+          ))}
+          {items.length===0&&<tr><td colSpan={5} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Este proveedor no suministra artículos activos</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OrdenesTab({ocs}:{ocs:OrdenCompra[]}) {
+  const badgeCl=(e:string)=>e==="Facturada"?"badge-ok":e==="Cancelada"?"badge-gray":e==="Recibida"?"badge-info":e==="Enviada"?"badge-warn":"badge-gray";
+  const ordenadas=[...ocs].sort((a,b)=>b.id.localeCompare(a.id));
+  return (
+    <div className="card" style={{padding:0,overflow:"hidden"}}>
+      <table className="tbl">
+        <thead><tr><th>Folio</th><th>Fecha</th><th>Estado</th><th>Total</th></tr></thead>
+        <tbody>
+          {ordenadas.map(oc=>(
+            <tr key={oc.id}>
+              <td><b style={{fontSize:11.5,fontFamily:"monospace",color:"#E8611A"}}>{oc.id}</b></td>
+              <td style={{fontSize:12}}>{oc.fecha}</td>
+              <td><span className={`badge ${badgeCl(oc.estado)}`}>{oc.estado}</span></td>
+              <td style={{fontWeight:600,color:"#E8611A"}}>{fmt(totalOC(oc))}</td>
+            </tr>
+          ))}
+          {ordenadas.length===0&&<tr><td colSpan={4} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin órdenes de compra registradas</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CxpTab({facturas}:{facturas:Factura[]}) {
+  const pendiente=facturas.filter(f=>f.saldo>0).reduce((s,f)=>s+f.saldo,0);
+  const vencido=facturas.filter(f=>f.estado==="vencida").reduce((s,f)=>s+f.saldo,0);
+  return (
+    <div>
+      <div className="g3" style={{marginBottom:12}}>
+        <div className="kpi"><div className="kpi-label">Pendiente</div><div className="kpi-value" style={{fontSize:15,color:"#F59E0B"}}>{fmt(pendiente)}</div></div>
+        <div className="kpi"><div className="kpi-label">Vencido</div><div className="kpi-value" style={{fontSize:15,color:"#EF4444"}}>{fmt(vencido)}</div></div>
+        <div className="kpi"><div className="kpi-label">Facturas</div><div className="kpi-value" style={{fontSize:15}}>{facturas.length}</div></div>
+      </div>
+      <div className="card" style={{padding:0,overflow:"hidden"}}>
+        <table className="tbl">
+          <thead><tr><th>Referencia</th><th>Emisión</th><th>Vencimiento</th><th>Monto</th><th>Saldo</th><th>Estado</th></tr></thead>
+          <tbody>
+            {facturas.map(f=>(
+              <tr key={f.id}>
+                <td style={{fontFamily:"monospace",fontSize:11,color:"#E8611A",fontWeight:700}}>{f.id}</td>
+                <td style={{fontSize:11.5}}>{f.fechaEmision}</td>
+                <td style={{fontSize:11.5,color:f.estado==="vencida"?"#EF4444":"#6B7280"}}>{f.fechaVencimiento}</td>
+                <td style={{fontSize:12}}>{fmt(f.monto)}</td>
+                <td style={{fontSize:12,fontWeight:700}}>{fmt(f.saldo)}</td>
+                <td><span className={`badge ${f.estado==="pagada"?"badge-ok":f.estado==="vencida"?"badge-crit":"badge-info"}`}>{f.estado}</span></td>
+              </tr>
+            ))}
+            {facturas.length===0&&<tr><td colSpan={6} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin facturas en Cuentas por Pagar</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function EditarTab({proveedor,categorias,setProveedores,puedeEliminar,onEliminado}:{proveedor:ProveedorInventario;categorias:CategoriaInventario[];setProveedores:React.Dispatch<React.SetStateAction<ProveedorInventario[]>>;puedeEliminar:boolean;onEliminado:()=>void}) {
+  const set=(campo:keyof ProveedorInventario,valor:any)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,[campo]:valor}:p));
+  const toggleCategoria=(catId:string)=>setProveedores(prev=>prev.map(p=>p.id===proveedor.id?{...p,categorias:p.categorias.includes(catId)?p.categorias.filter(c=>c!==catId):[...p.categorias,catId]}:p));
+  return (
+    <div className="card">
+      <div className="card-title">Editar Proveedor</div>
+      <div className="g2">
+        <div className="form-group"><label className="form-label">Nombre / Razón social</label><input className="form-control" value={proveedor.nombre} onChange={e=>set("nombre",e.target.value)}/></div>
+        <div className="form-group"><label className="form-label">Cédula jurídica</label><input className="form-control" value={proveedor.cedulaJuridica} onChange={e=>set("cedulaJuridica",e.target.value)}/></div>
+      </div>
+      <div className="g3">
+        <div className="form-group"><label className="form-label">Correo de contacto</label><input className="form-control" value={proveedor.contacto} onChange={e=>set("contacto",e.target.value)}/></div>
+        <div className="form-group"><label className="form-label">Teléfono</label><input className="form-control" value={proveedor.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
+        <div className="form-group"><label className="form-label">Condición de pago</label>
+          <select className="form-control" value={proveedor.condicion} onChange={e=>set("condicion",e.target.value)}>
+            <option>Contado</option><option>15 días</option><option>30 días</option><option>45 días</option><option>60 días</option>
+          </select>
+        </div>
+      </div>
+      <div className="form-group"><label className="form-label">Clasificación</label>
+        <select className="form-control" style={{width:120}} value={proveedor.rating} onChange={e=>set("rating",e.target.value)}>
+          <option>A+</option><option>A</option><option>B+</option><option>B</option><option>C</option>
+        </select>
+      </div>
+      <div className="form-group"><label className="form-label">Categorías que suministra</label>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {categorias.map(c=>(
+            <span key={c.id} className={`badge ${proveedor.categorias.includes(c.id)?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>toggleCategoria(c.id)}>{c.icono} {c.nombre}</span>
+          ))}
+        </div>
+      </div>
+      <div className="toggle-row">
+        <span style={{fontSize:12.5}}>Proveedor activo</span>
+        <div className={`toggle ${proveedor.activo?"on":""}`} onClick={()=>set("activo",!proveedor.activo)}/>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+        <button className="btn btn-ghost btn-sm" disabled={!puedeEliminar} title={!puedeEliminar?"No se puede eliminar: tiene artículos u OCs vinculados":""} onClick={()=>{setProveedores(prev=>prev.filter(p=>p.id!==proveedor.id));onEliminado();}}>🗑 Eliminar Proveedor</button>
+      </div>
+    </div>
+  );
+}
+
+function NuevoProveedorModal({categorias,onGuardar,onCerrar}:{categorias:CategoriaInventario[];onGuardar:(p:ProveedorInventario)=>void;onCerrar:()=>void}) {
+  const [f,setF]=useState<ProveedorInventario>({id:"",nombre:"",cedulaJuridica:"",contacto:"",telefono:"",condicion:"30 días",rating:"B",categorias:[],activo:true});
+  const set=(campo:keyof ProveedorInventario,valor:any)=>setF(prev=>({...prev,[campo]:valor}));
+  const toggleCategoria=(catId:string)=>setF(prev=>({...prev,categorias:prev.categorias.includes(catId)?prev.categorias.filter(c=>c!==catId):[...prev.categorias,catId]}));
+  const valido=f.nombre.trim().length>2&&f.cedulaJuridica.trim().length>0;
+
+  return (
+    <div className="modal-overlay" onClick={onCerrar}>
+      <div className="modal" style={{maxWidth:560}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div><div className="modal-title">Nuevo Proveedor</div><div className="modal-sub">Identificación, contacto y condiciones comerciales</div></div>
+          <div className="modal-close" onClick={onCerrar}>✕</div>
+        </div>
+        <div className="g2">
+          <div className="form-group"><label className="form-label">Nombre / Razón social</label><input className="form-control" value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Ej: Ferretería Central S.A."/></div>
+          <div className="form-group"><label className="form-label">Cédula jurídica</label><input className="form-control" value={f.cedulaJuridica} onChange={e=>set("cedulaJuridica",e.target.value)} placeholder="3-101-XXXXXX"/></div>
+        </div>
+        <div className="g3">
+          <div className="form-group"><label className="form-label">Correo de contacto</label><input className="form-control" value={f.contacto} onChange={e=>set("contacto",e.target.value)}/></div>
+          <div className="form-group"><label className="form-label">Teléfono</label><input className="form-control" value={f.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
+          <div className="form-group"><label className="form-label">Condición de pago</label>
+            <select className="form-control" value={f.condicion} onChange={e=>set("condicion",e.target.value)}>
+              <option>Contado</option><option>15 días</option><option>30 días</option><option>45 días</option><option>60 días</option>
+            </select>
+          </div>
+        </div>
+        <div className="form-group"><label className="form-label">Clasificación inicial</label>
+          <select className="form-control" style={{width:120}} value={f.rating} onChange={e=>set("rating",e.target.value)}>
+            <option>A+</option><option>A</option><option>B+</option><option>B</option><option>C</option>
+          </select>
+        </div>
+        <div className="form-group"><label className="form-label">Categorías que suministra</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {categorias.map(c=>(
+              <span key={c.id} className={`badge ${f.categorias.includes(c.id)?"badge-info":"badge-gray"}`} style={{cursor:"pointer"}} onClick={()=>toggleCategoria(c.id)}>{c.icono} {c.nombre}</span>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+          <button className="btn btn-secondary" onClick={onCerrar}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!valido} onClick={()=>onGuardar({...f,id:`PV${Date.now()}`})}>Guardar Proveedor</button>
+        </div>
+      </div>
     </div>
   );
 }
