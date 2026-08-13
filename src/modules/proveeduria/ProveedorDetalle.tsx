@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor, ContactoProveedor, CuentaBancariaProveedor, DireccionProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion } from "../../data/proveeduria";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, historicoPrecios, variacionEnVentana, analisisPrecios, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
@@ -308,41 +308,39 @@ function EvaluacionDetalleModal({proveedor,evaluacion,onCerrar}:{proveedor:Prove
   );
 }
 
-// Agrega el historial de costos de un artículo a partir de las OC reales de este proveedor.
-function historicoPrecios(articuloId:string, ordenesCompra:OrdenCompra[]): {fecha:string;costo:number}[] {
-  const puntos:{fecha:string;costo:number}[]=[];
-  ordenesCompra.forEach(o=>o.lineas.forEach(l=>{if(l.articuloId===articuloId) puntos.push({fecha:o.fecha,costo:l.costoUnitario});}));
-  return puntos.sort((a,b)=>parseFechaEsCR(a.fecha).getTime()-parseFechaEsCR(b.fecha).getTime());
-}
+const fmtPct=(v:number|null)=>v===null?"Sin datos":`${v>0?"▲ +":v<0?"▼ ":"— "}${Math.abs(v).toFixed(1)}%`;
+const colorPct=(v:number|null)=>v===null?undefined:v>1?"#EF4444":v<-1?"#10B981":"#6B7280";
 
 function PreciosTab({items,ordenesCompra,proveedorArticulos,proveedores}:{items:Articulo[];ordenesCompra:OrdenCompra[];proveedorArticulos:ProveedorArticulo[];proveedores:ProveedorInventario[]}) {
   const [selArticuloId,setSelArticuloId]=useState<string|null>(items[0]?.id??null);
   const alternativosDe=(articuloId:string)=>proveedorArticulos.filter(pa=>pa.articuloId===articuloId);
 
+  const analisis=analisisPrecios(items,ordenesCompra,proveedorArticulos);
+
   const filas=items.map(a=>{
     const historico=historicoPrecios(a.id,ordenesCompra);
-    const anteriores=historico.filter(p=>p.costo!==a.costoUnitario);
-    const promAnterior=anteriores.length?anteriores.reduce((s,p)=>s+p.costo,0)/anteriores.length:null;
-    const variacion=promAnterior?((a.costoUnitario-promAnterior)/promAnterior)*100:null;
+    const variacion30=variacionEnVentana(a,ordenesCompra,30);
+    const variacion90=variacionEnVentana(a,ordenesCompra,90);
+    const variacion365=variacionEnVentana(a,ordenesCompra,365);
     const alternativos=alternativosDe(a.id);
     const masBarato=alternativos.length?alternativos.reduce((min,x)=>x.costoUnitario<min.costoUnitario?x:min):null;
     const ahorro=masBarato&&masBarato.costoUnitario<a.costoUnitario?(a.costoUnitario-masBarato.costoUnitario)*a.stock:0;
-    return {articulo:a,historico,variacion,alternativos,masBarato,ahorro};
+    return {articulo:a,historico,variacion30,variacion90,variacion365,alternativos,masBarato,ahorro};
   });
-
-  const conVariacion=filas.filter(f=>f.variacion!==null);
-  const variacionProm=conVariacion.length?conVariacion.reduce((s,f)=>s+(f.variacion||0),0)/conVariacion.length:0;
-  const nAumentaron=filas.filter(f=>(f.variacion||0)>1).length;
-  const ahorroPotencial=filas.reduce((s,f)=>s+f.ahorro,0);
 
   const sel=filas.find(f=>f.articulo.id===selArticuloId)||filas[0];
 
   return (
     <div>
+      <div className="g3" style={{marginBottom:10}}>
+        <div className="kpi"><div className="kpi-label">Variación 30 días</div><div className="kpi-value" style={{fontSize:15,color:colorPct(analisis.variacion30)}}>{fmtPct(analisis.variacion30)}</div></div>
+        <div className="kpi"><div className="kpi-label">Variación 90 días</div><div className="kpi-value" style={{fontSize:15,color:colorPct(analisis.variacion90)}}>{fmtPct(analisis.variacion90)}</div></div>
+        <div className="kpi"><div className="kpi-label">Variación 12 meses</div><div className="kpi-value" style={{fontSize:15,color:colorPct(analisis.variacion365)}}>{fmtPct(analisis.variacion365)}</div></div>
+      </div>
       <div className="g3" style={{marginBottom:14}}>
-        <div className="kpi"><div className="kpi-label">Variación promedio de costo</div><div className="kpi-value" style={{fontSize:16,color:variacionProm>1?"#EF4444":variacionProm<-1?"#10B981":undefined}}>{variacionProm>0?"▲":variacionProm<0?"▼":"—"} {Math.abs(variacionProm).toFixed(1)}%</div></div>
-        <div className="kpi"><div className="kpi-label">Artículos con aumento</div><div className="kpi-value" style={{fontSize:16,color:nAumentaron>0?"#EF4444":undefined}}>{nAumentaron}</div></div>
-        <div className="kpi"><div className="kpi-label">Ahorro potencial (alternativos)</div><div className="kpi-value" style={{fontSize:16,color:"#10B981"}}>{fmt(ahorroPotencial)}</div></div>
+        <div className="kpi"><div className="kpi-label">vs. proveedores alternativos</div><div className="kpi-value" style={{fontSize:15,color:analisis.vsAlternativos?"#EF4444":undefined}}>{analisis.vsAlternativos===null?"Sin alternativos":`+${analisis.vsAlternativos.toFixed(1)}%`}</div></div>
+        <div className="kpi"><div className="kpi-label">Artículos con aumento (12m)</div><div className="kpi-value" style={{fontSize:15,color:analisis.articulosConAumento>0?"#EF4444":undefined}}>{analisis.articulosConAumento}</div></div>
+        <div className="kpi"><div className="kpi-label">Ahorro potencial (alternativos)</div><div className="kpi-value" style={{fontSize:15,color:"#10B981"}}>{fmt(analisis.ahorroPotencial)}</div></div>
       </div>
 
       {sel&&(
@@ -358,9 +356,14 @@ function PreciosTab({items,ordenesCompra,proveedorArticulos,proveedores}:{items:
           ):(
             <MiniSerie puntos={sel.historico}/>
           )}
-          <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
-            {sel.variacion!==null&&Math.abs(sel.variacion)>=10&&(
-              <div style={{fontSize:11.5,color:sel.variacion>0?"#EF4444":"#10B981"}}>{sel.variacion>0?"▲":"▼"} {sel.variacion>0?"Incremento":"Reducción"} de {Math.abs(sel.variacion).toFixed(1)}% respecto al costo histórico promedio</div>
+          <div style={{display:"flex",gap:14,marginTop:10,marginBottom:4,fontSize:11}}>
+            <span>30d: <b style={{color:colorPct(sel.variacion30)}}>{fmtPct(sel.variacion30)}</b></span>
+            <span>90d: <b style={{color:colorPct(sel.variacion90)}}>{fmtPct(sel.variacion90)}</b></span>
+            <span>12m: <b style={{color:colorPct(sel.variacion365)}}>{fmtPct(sel.variacion365)}</b></span>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {sel.variacion365!==null&&Math.abs(sel.variacion365)>=10&&(
+              <div style={{fontSize:11.5,color:sel.variacion365>0?"#EF4444":"#10B981"}}>{sel.variacion365>0?"▲":"▼"} {sel.variacion365>0?"Incremento":"Reducción"} de {Math.abs(sel.variacion365).toFixed(1)}% en los últimos 12 meses</div>
             )}
             {sel.masBarato&&sel.masBarato.costoUnitario<sel.articulo.costoUnitario&&(
               <div style={{fontSize:11.5,color:"#10B981"}}>💡 {proveedores.find(p=>p.id===sel.masBarato!.proveedorId)?.nombre} ofrece este artículo {(((sel.articulo.costoUnitario-sel.masBarato.costoUnitario)/sel.articulo.costoUnitario)*100).toFixed(1)}% más barato ({fmt(sel.masBarato.costoUnitario)})</div>
@@ -371,18 +374,19 @@ function PreciosTab({items,ordenesCompra,proveedorArticulos,proveedores}:{items:
 
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <table className="tbl">
-          <thead><tr><th>Artículo</th><th>Costo actual</th><th>Variación</th><th>Alternativa más barata</th></tr></thead>
+          <thead><tr><th>Artículo</th><th>Costo actual</th><th>30 días</th><th>90 días</th><th>12 meses</th><th>Alternativa más barata</th></tr></thead>
           <tbody>
             {filas.map(f=>(
               <tr key={f.articulo.id} style={{cursor:"pointer",background:selArticuloId===f.articulo.id?"#FFFBF5":""}} onClick={()=>setSelArticuloId(f.articulo.id)}>
                 <td style={{fontSize:12.5}}>{f.articulo.nombre}</td>
                 <td style={{fontWeight:600,color:"#E8611A"}}>{fmt(f.articulo.costoUnitario)}</td>
-                <td>{f.variacion===null?<span style={{fontSize:10.5,color:"#9CA3AF"}}>Sin historial</span>:
-                  <span style={{fontSize:11,fontWeight:700,color:f.variacion>1?"#EF4444":f.variacion<-1?"#10B981":"#6B7280"}}>{f.variacion>0?"▲":f.variacion<0?"▼":"—"} {Math.abs(f.variacion).toFixed(1)}%</span>}</td>
+                <td style={{fontSize:11,fontWeight:700,color:colorPct(f.variacion30)}}>{fmtPct(f.variacion30)}</td>
+                <td style={{fontSize:11,fontWeight:700,color:colorPct(f.variacion90)}}>{fmtPct(f.variacion90)}</td>
+                <td style={{fontSize:11,fontWeight:700,color:colorPct(f.variacion365)}}>{fmtPct(f.variacion365)}</td>
                 <td>{f.masBarato&&f.masBarato.costoUnitario<f.articulo.costoUnitario?<span className="badge badge-ok" style={{fontSize:9}}>{fmt(f.masBarato.costoUnitario)}</span>:<span style={{color:"#D1D5DB"}}>—</span>}</td>
               </tr>
             ))}
-            {filas.length===0&&<tr><td colSpan={4} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin artículos activos de este proveedor</td></tr>}
+            {filas.length===0&&<tr><td colSpan={6} style={{textAlign:"center",color:"#9CA3AF",padding:20}}>Sin artículos activos de este proveedor</td></tr>}
           </tbody>
         </table>
       </div>

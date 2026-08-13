@@ -1,4 +1,4 @@
-import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor, ProveedorInventario, EstadoHomologacion } from "../types";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor, ProveedorInventario, EstadoHomologacion, Articulo } from "../types";
 import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
 
 function mulberry32(seed: number) {
@@ -397,4 +397,66 @@ export function descripcionHomologacion(estado: EstadoHomologacionEfectivo): str
     case "Aprobado Condicionado": return "Homologado con condiciones — requiere seguimiento";
     case "Suspendido": return "Homologación suspendida manualmente";
   }
+}
+
+// ── Inteligencia de precios ─────────────────────────────────────
+export interface PuntoPrecio { fecha: string; costo: number; }
+
+// Historial de costos de un artículo a partir de las líneas de OC reales.
+export function historicoPrecios(articuloId: string, ordenesCompra: OrdenCompra[]): PuntoPrecio[] {
+  const puntos: PuntoPrecio[] = [];
+  ordenesCompra.forEach(o => o.lineas.forEach(l => { if (l.articuloId === articuloId) puntos.push({ fecha: o.fecha, costo: l.costoUnitario }); }));
+  return puntos.sort((a, b) => parseFechaEsCR(a.fecha).getTime() - parseFechaEsCR(b.fecha).getTime());
+}
+
+// Compara el costo actual contra el precio más reciente registrado a partir de
+// `dias` atrás — null si no hay ningún punto de referencia tan antiguo (en vez
+// de inventar una cifra con datos insuficientes).
+export function variacionEnVentana(articulo: Articulo, ordenesCompra: OrdenCompra[], dias: number): number | null {
+  const corte = new Date(); corte.setDate(corte.getDate() - dias);
+  const previos = historicoPrecios(articulo.id, ordenesCompra).filter(p => parseFechaEsCR(p.fecha) <= corte);
+  if (previos.length === 0) return null;
+  const referencia = previos[previos.length - 1].costo;
+  if (!referencia) return null;
+  return ((articulo.costoUnitario - referencia) / referencia) * 100;
+}
+
+export interface AnalisisPrecios {
+  variacion30: number | null;
+  variacion90: number | null;
+  variacion365: number | null;
+  vsAlternativos: number | null;
+  articulosConAumento: number;
+  ahorroPotencial: number;
+}
+
+function masBaratoDe(articuloId: string, costoActual: number, proveedorArticulos: ProveedorArticulo[]): ProveedorArticulo | null {
+  const alternativos = proveedorArticulos.filter(pa => pa.articuloId === articuloId);
+  if (alternativos.length === 0) return null;
+  const min = alternativos.reduce((m, x) => x.costoUnitario < m.costoUnitario ? x : m);
+  return min.costoUnitario < costoActual ? min : null;
+}
+
+// Agrega variación de precio en 3 ventanas de tiempo, comparación contra la
+// alternativa más barata disponible y ahorro potencial — todo promediado solo
+// sobre los artículos que sí tienen el dato correspondiente.
+export function analisisPrecios(items: Articulo[], ordenesCompra: OrdenCompra[], proveedorArticulos: ProveedorArticulo[]): AnalisisPrecios {
+  const promedioVentana = (dias: number) => {
+    const vals = items.map(a => variacionEnVentana(a, ordenesCompra, dias)).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  };
+  const sobreAlternativos = items
+    .map(a => { const mb = masBaratoDe(a.id, a.costoUnitario, proveedorArticulos); return mb ? ((a.costoUnitario - mb.costoUnitario) / a.costoUnitario) * 100 : null; })
+    .filter((v): v is number => v !== null);
+  const ahorroPotencial = items.reduce((s, a) => {
+    const mb = masBaratoDe(a.id, a.costoUnitario, proveedorArticulos);
+    return s + (mb ? (a.costoUnitario - mb.costoUnitario) * a.stock : 0);
+  }, 0);
+  const articulosConAumento = items.filter(a => { const v = variacionEnVentana(a, ordenesCompra, 365); return v !== null && v > 1; }).length;
+
+  return {
+    variacion30: promedioVentana(30), variacion90: promedioVentana(90), variacion365: promedioVentana(365),
+    vsAlternativos: sobreAlternativos.length ? sobreAlternativos.reduce((s, v) => s + v, 0) / sobreAlternativos.length : null,
+    articulosConAumento, ahorroPotencial,
+  };
 }
