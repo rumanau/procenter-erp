@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, OfertaProveedor, LineaOferta, OrdenCompra, Recepcion, EvaluacionServicio, LineaOC, DocumentoProveedor } from "../../types";
-import { siguienteFolioOferta, siguienteFolioOC, recomendarOferta, totalOferta, homologacionEfectiva } from "../../data/proveeduria";
+import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, OfertaProveedor, LineaOferta, OrdenCompra, Recepcion, EvaluacionServicio, LineaOC, DocumentoProveedor, AuditoriaOC } from "../../types";
+import { siguienteFolioOferta, siguienteFolioOC, recomendarOferta, totalOferta, homologacionEfectiva, nivelAprobacion } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 
-export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,setSolicitudes,ofertas,setOfertas,ordenesCompra,setOrdenesCompra,recepciones,evaluacionesServicio,documentosProveedor}:{
+export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,setSolicitudes,ofertas,setOfertas,ordenesCompra,setOrdenesCompra,recepciones,evaluacionesServicio,documentosProveedor,setAuditoriaOC}:{
   setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];
   solicitudes:SolicitudCotizacion[];setSolicitudes:React.Dispatch<React.SetStateAction<SolicitudCotizacion[]>>;
   ofertas:OfertaProveedor[];setOfertas:React.Dispatch<React.SetStateAction<OfertaProveedor[]>>;
   ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;
-  recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[];
+  recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[];setAuditoriaOC:React.Dispatch<React.SetStateAction<AuditoriaOC[]>>;
 }) {
   const [selId,setSelId]=useState<string|null>(null);
   const [modalOferta,setModalOferta]=useState<{rfq:SolicitudCotizacion;proveedorId:string}|null>(null);
@@ -50,13 +50,16 @@ export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,
       return {articuloId:l.articuloId,cantidad:l.cantidad,costoUnitario:lo?.costoUnitario||0};
     });
     const entrega=new Date();entrega.setDate(entrega.getDate()+oferta.plazoEntregaDias);
+    const montoOC=lineasOC.reduce((s,l)=>s+l.cantidad*l.costoUnitario,0);
+    const nivel=nivelAprobacion(montoOC);
     const nuevaOC:OrdenCompra={
       id:folioOC,proveedorId,bodegaId:rfq.bodegaId,fecha:hoy(),fechaEntregaEsperada:entrega.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"}),
-      estado:"Enviada",lineas:lineasOC,observaciones:`Generada desde cotización ${rfq.id}`,creadoPor:"Ronald",
+      estado:nivel==="Ninguno"?"Enviada":"Pendiente Aprobación",lineas:lineasOC,observaciones:`Generada desde cotización ${rfq.id}`,creadoPor:"Ronald",
     };
     setOrdenesCompra(prev=>[nuevaOC,...prev]);
     setSolicitudes(prev=>prev.map(s=>s.id===rfq.id?{...s,estado:"Adjudicada",ordenCompraId:folioOC,proveedorAdjudicadoId:proveedorId}:s));
-    alert(`✅ Cotización adjudicada a ${provNom(proveedorId)}.\n\nSe creó la Orden de Compra ${folioOC}.`);
+    setAuditoriaOC(prev=>[{id:`AUD-OC-${folioOC}-${Date.now()}`,ordenCompraId:folioOC,evento:"Creada",descripcion:`Generada al adjudicar la cotización ${rfq.id} a ${provNom(proveedorId)}${nivel!=="Ninguno"?` — requiere aprobación de ${nivel}`:""}`,fecha:hoy(),usuario:"Ronald"},...prev]);
+    alert(`✅ Cotización adjudicada a ${provNom(proveedorId)}.\n\nSe creó la Orden de Compra ${folioOC}${nivel!=="Ninguno"?` (Pendiente Aprobación de ${nivel})`:""}.`);
   };
 
   return (

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import type { View, Articulo, ProveedorInventario, OrdenCompra, LineaOC, DocumentoProveedor } from "../../types";
+import type { View, Articulo, ProveedorInventario, OrdenCompra, LineaOC, DocumentoProveedor, AuditoriaOC } from "../../types";
 import { estadoStock } from "../../data/inventario";
-import { homologacionEfectiva } from "../../data/proveeduria";
+import { homologacionEfectiva, nivelAprobacion } from "../../data/proveeduria";
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=(offsetDias=0)=>{const d=new Date();d.setDate(d.getDate()+offsetDias);return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});};
 
-export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,setOrdenesCompra,documentosProveedor}:{setView:(v:View)=>void;articulos:Articulo[];proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;documentosProveedor:DocumentoProveedor[]}) {
+export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,setOrdenesCompra,documentosProveedor,setAuditoriaOC}:{setView:(v:View)=>void;articulos:Articulo[];proveedores:ProveedorInventario[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;documentosProveedor:DocumentoProveedor[];setAuditoriaOC:React.Dispatch<React.SetStateAction<AuditoriaOC[]>>}) {
   const proveedorBloqueadoId=(id:string)=>{const p=proveedores.find(x=>x.id===id);return p?homologacionEfectiva(p,documentosProveedor)==="Bloqueado":false;};
   const todosCandidatos=articulos.filter(a=>a.activo&&(estadoStock(a.stock,a.min)==="bajo"||estadoStock(a.stock,a.min)==="critico"||estadoStock(a.stock,a.min)==="agotado"));
   const items=todosCandidatos.filter(a=>!proveedorBloqueadoId(a.proveedorId));
@@ -31,14 +31,18 @@ export function Reabastecimiento({setView,articulos,proveedores,ordenesCompra,se
       const [proveedorId,bodegaId]=key.split("|");
       contador++;
       const lineas:LineaOC[]=arts.map(a=>({articuloId:a.id,cantidad:sugeridoDe(a),costoUnitario:a.costoUnitario}));
+      const montoOC=lineas.reduce((s,l)=>s+l.cantidad*l.costoUnitario,0);
+      const nivel=nivelAprobacion(montoOC);
       nuevasOCs.push({
         id:`OC-2024-${String(contador).padStart(3,"0")}`,
         proveedorId,bodegaId,fecha:hoy(),fechaEntregaEsperada:hoy(7),
-        estado:"Enviada",lineas,observaciones:"Generada automáticamente desde Reabastecimiento",creadoPor:"Ronald",
+        estado:nivel==="Ninguno"?"Enviada":"Pendiente Aprobación",lineas,observaciones:"Generada automáticamente desde Reabastecimiento",creadoPor:"Ronald",
       });
     });
     setOrdenesCompra(prev=>[...nuevasOCs,...prev]);
-    alert(`✅ ${nuevasOCs.length} Orden(es) de Compra generada(s) y enviada(s).\n\n${nuevasOCs.map(o=>o.id).join(", ")}\nTotal: ${fmt(total)}`);
+    setAuditoriaOC(prev=>[...nuevasOCs.map(o=>({id:`AUD-OC-${o.id}-${Date.now()}`,ordenCompraId:o.id,evento:"Creada",descripcion:`Generada automáticamente desde Reabastecimiento${o.estado==="Pendiente Aprobación"?" — requiere aprobación por monto":" y enviada directo (bajo el límite de compra directa)"}`,fecha:hoy(),usuario:"Ronald"})),...prev]);
+    const pendientes=nuevasOCs.filter(o=>o.estado==="Pendiente Aprobación").length;
+    alert(`✅ ${nuevasOCs.length} Orden(es) de Compra generada(s).\n\n${nuevasOCs.map(o=>o.id).join(", ")}\nTotal: ${fmt(total)}${pendientes>0?`\n\n⏳ ${pendientes} de ellas superan el límite de compra directa y quedaron "Pendiente Aprobación".`:""}`);
     setView("ordenes-compra");
   };
 

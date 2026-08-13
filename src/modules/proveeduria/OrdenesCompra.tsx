@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo, EvaluacionServicio, DevolucionProveedor } from "../../types";
-import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, nivelAprobacion, type ResumenLineaRecepcion } from "../../data/proveeduria";
+import type { View, OrdenCompra, ProveedorInventario, Bodega, Articulo, MovimientoInventario, Factura, EstadoOC, Recepcion, LineaRecepcion, MotivoRechazo, EvaluacionServicio, DevolucionProveedor, AuditoriaOC } from "../../types";
+import { totalOC, siguienteFolioRecepcion, resumenRecepcionOC, diasDiferenciaEntrega, nivelAprobacion, nivelMinimoParaAprobar, type ResumenLineaRecepcion } from "../../data/proveeduria";
 import { siguienteFolio } from "../../data/inventario";
+import { CATALOGOS_INIT } from "../../data/catalogos";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 const fmtFecha=(d:Date)=>d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
 const MOTIVOS_RECHAZO:MotivoRechazo[]=["Producto defectuoso","Especificación incorrecta","Daño de transporte","Producto equivocado","Empaque deficiente","Otro"];
 
-export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones,evaluacionesServicio,setEvaluacionesServicio,devoluciones,setDevoluciones}:{
+export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedores,bodegas,articulos,setArticulos,movimientos,setMovimientos,facturasCxp,setFacturasCxp,recepciones,setRecepciones,evaluacionesServicio,setEvaluacionesServicio,devoluciones,setDevoluciones,auditoriaOC,setAuditoriaOC}:{
   setView:(v:View)=>void;ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;
   proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];setArticulos:React.Dispatch<React.SetStateAction<Articulo[]>>;
   movimientos:MovimientoInventario[];setMovimientos:React.Dispatch<React.SetStateAction<MovimientoInventario[]>>;
@@ -16,11 +17,18 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
   recepciones:Recepcion[];setRecepciones:React.Dispatch<React.SetStateAction<Recepcion[]>>;
   evaluacionesServicio:EvaluacionServicio[];setEvaluacionesServicio:React.Dispatch<React.SetStateAction<EvaluacionServicio[]>>;
   devoluciones:DevolucionProveedor[];setDevoluciones:React.Dispatch<React.SetStateAction<DevolucionProveedor[]>>;
+  auditoriaOC:AuditoriaOC[];setAuditoriaOC:React.Dispatch<React.SetStateAction<AuditoriaOC[]>>;
 }) {
   const [filtro,setFiltro]=useState<EstadoOC|"">("");
   const [selId,setSelId]=useState<string|null>(null);
   const [modalRecepcion,setModalRecepcion]=useState<OrdenCompra|null>(null);
   const [modalServicio,setModalServicio]=useState<OrdenCompra|null>(null);
+  const responsables=CATALOGOS_INIT.responsablesAutorizados;
+  const [responsableId,setResponsableId]=useState<string>(responsables[0]?.id||"");
+  const [motivoRechazo,setMotivoRechazo]=useState("");
+
+  const registrarAuditoria=(ordenCompraId:string,evento:string,descripcion:string,usuario="Ronald")=>
+    setAuditoriaOC(prev=>[{id:`AUD-OC-${ordenCompraId}-${Date.now()}`,ordenCompraId,evento,descripcion,fecha:hoy(),usuario},...prev]);
 
   const provNom=(id:string)=>proveedores.find(p=>p.id===id)?.nombre||id;
   const bodNom=(id:string)=>bodegas.find(b=>b.id===id)?.nombre||id;
@@ -38,11 +46,27 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
   const enviar=(oc:OrdenCompra)=>{
     const nivel=nivelAprobacion(totalOC(oc));
     setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:nivel==="Ninguno"?"Enviada":"Pendiente Aprobación"}:o));
+    registrarAuditoria(oc.id,nivel==="Ninguno"?"Enviada":"Enviada a aprobación",nivel==="Ninguno"?"Enviada directo al proveedor — bajo el límite de compra directa (₡250.000)":`Requiere aprobación de ${nivel} por monto ${fmt(totalOC(oc))}`);
   };
 
+  const responsableSel=responsables.find(r=>r.id===responsableId);
+  const nivelRequerido=sel?nivelAprobacion(totalOC(sel)):"Ninguno";
+  const puedeAprobar=!!responsableSel&&responsableSel.nivel>=nivelMinimoParaAprobar(nivelRequerido);
+
   const aprobar=(oc:OrdenCompra)=>{
-    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Enviada",aprobadoPor:"Ronald",fechaAprobacion:hoy()}:o));
-    alert(`✅ Orden ${oc.id} aprobada y enviada al proveedor.`);
+    if(!responsableSel||!puedeAprobar) return;
+    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Enviada",aprobadoPor:responsableSel.nombre,fechaAprobacion:hoy()}:o));
+    registrarAuditoria(oc.id,"Aprobada",`Aprobada por ${responsableSel.nombre} (${responsableSel.puesto}, nivel ${responsableSel.nivel}) y enviada al proveedor`,responsableSel.nombre);
+    alert(`✅ Orden ${oc.id} aprobada por ${responsableSel.nombre} y enviada al proveedor.`);
+  };
+
+  const rechazar=(oc:OrdenCompra)=>{
+    if(!responsableSel) return;
+    if(!motivoRechazo.trim()){alert("Indica el motivo del rechazo antes de continuar.");return;}
+    setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Borrador"}:o));
+    registrarAuditoria(oc.id,"Rechazada",`Rechazada por ${responsableSel.nombre} (${responsableSel.puesto}) — motivo: ${motivoRechazo.trim()}. Vuelve a Borrador para ajustar y reenviar.`,responsableSel.nombre);
+    alert(`✕ Orden ${oc.id} rechazada por ${responsableSel.nombre}. Volvió a Borrador.`);
+    setMotivoRechazo("");
   };
 
   const confirmarRecepcion=(oc:OrdenCompra,fecha:string,lineas:LineaRecepcion[],observaciones:string)=>{
@@ -88,6 +112,7 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
 
     const totalAceptado=lineas.reduce((s,l)=>s+l.cantidadAceptada,0);
     const totalRechazado=lineas.reduce((s,l)=>s+l.cantidadRechazada,0);
+    registrarAuditoria(oc.id,"Recepción registrada",`${folioRec}: ${totalAceptado} unidad(es) aceptada(s)${totalRechazado>0?`, ${totalRechazado} rechazada(s)`:""} — orden queda ${completa?"Recibida completa":"Parcialmente Recibida"}`);
     alert(`✅ Recepción ${folioRec} registrada.\n\n${totalAceptado} unidad(es) aceptada(s)${totalRechazado>0?`, ${totalRechazado} rechazada(s)`:""}.\nEstado de la orden: ${completa?"Recibida completa":"Parcialmente Recibida"}.`);
     setModalRecepcion(null);
     setModalServicio(oc);
@@ -111,12 +136,14 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
     const nuevaFactura:Factura={id:facturaId,tipo:"cxp",contraparte:proveedor.nombre,cedula:proveedor.cedulaJuridica,fechaEmision:fmtFecha(emision),fechaVencimiento:fmtFecha(venc),moneda:"CRC",monto,saldo:monto,estado:"pendiente"};
     setFacturasCxp(prev=>[nuevaFactura,...prev]);
     setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Facturada",facturaId}:o));
+    registrarAuditoria(oc.id,"Facturada",`Factura ${facturaId} generada en Cuentas por Pagar por ${fmt(monto)}, vence ${fmtFecha(venc)}`);
     alert(`✅ Factura ${facturaId} generada en Cuentas por Pagar.\n\nProveedor: ${proveedor.nombre}\nMonto: ${fmt(monto)}\nVence: ${fmtFecha(venc)}`);
   };
 
   const cancelar=(oc:OrdenCompra)=>{
     if(!window.confirm(`¿Cancelar la orden ${oc.id}? Esta acción no se puede deshacer.`)) return;
     setOrdenesCompra(prev=>prev.map(o=>o.id===oc.id?{...o,estado:"Cancelada"}:o));
+    registrarAuditoria(oc.id,"Cancelada","Orden cancelada manualmente");
   };
 
   return (
@@ -218,17 +245,45 @@ export function OrdenesCompra({setView,ordenesCompra,setOrdenesCompra,proveedore
 
           {sel.estado==="Pendiente Aprobación"&&(
             <div className="card" style={{marginBottom:10,background:"#F5F3FF",border:"1px solid #C4B5FD"}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#5B21B6"}}>⏳ Requiere aprobación de {nivelAprobacion(totalOC(sel))}</div>
-              <div style={{fontSize:11,color:"#5B21B6"}}>Monto {fmt(totalOC(sel))} supera el límite de compra directa (₡250.000).</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#5B21B6",marginBottom:6}}>⏳ Requiere aprobación de {nivelRequerido}</div>
+              <div style={{fontSize:11,color:"#5B21B6",marginBottom:8}}>Monto {fmt(totalOC(sel))} supera el límite de compra directa (₡250.000). Solo un responsable con nivel {nivelMinimoParaAprobar(nivelRequerido)} o superior puede aprobar.</div>
+              <div className="form-group" style={{margin:"0 0 8px"}}>
+                <label className="form-label">Responsable que aprueba/rechaza</label>
+                <select className="form-control" value={responsableId} onChange={e=>setResponsableId(e.target.value)}>
+                  {responsables.map(r=><option key={r.id} value={r.id}>{r.nombre} — {r.puesto} (nivel {r.nivel})</option>)}
+                </select>
+                {!puedeAprobar&&<div style={{fontSize:10.5,color:"#EF4444",marginTop:4}}>🚫 {responsableSel?.nombre} no tiene nivel suficiente para aprobar este monto — solo puede rechazar.</div>}
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button className="btn btn-success btn-sm" disabled={!puedeAprobar} onClick={()=>aprobar(sel)}>✅ Aprobar y Enviar</button>
+              </div>
+              <div className="form-group" style={{margin:"8px 0 6px"}}>
+                <label className="form-label">Motivo si se rechaza</label>
+                <input className="form-control" value={motivoRechazo} onChange={e=>setMotivoRechazo(e.target.value)} placeholder="Ej: precio fuera de mercado, falta cotización de respaldo..."/>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={()=>rechazar(sel)}>✕ Rechazar (vuelve a Borrador)</button>
             </div>
           )}
           <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10}}>
             {sel.estado==="Borrador"&&<button className="btn btn-primary btn-sm" onClick={()=>enviar(sel)}>📨 Enviar al Proveedor</button>}
-            {sel.estado==="Pendiente Aprobación"&&<button className="btn btn-success btn-sm" onClick={()=>aprobar(sel)}>✅ Aprobar y Enviar</button>}
             {(sel.estado==="Enviada"||sel.estado==="Parcialmente Recibida")&&<button className="btn btn-primary btn-sm" onClick={()=>setModalRecepcion(sel)}>📦 Registrar Recepción</button>}
             {sel.estado==="Recibida"&&<button className="btn btn-success btn-sm" onClick={()=>facturar(sel)}>🧾 Generar Factura (CxP)</button>}
             {sel.estado==="Facturada"&&<button className="btn btn-secondary btn-sm" onClick={()=>setView("cxp")}>💳 Ver en Cuentas por Pagar</button>}
             {(sel.estado==="Borrador"||sel.estado==="Enviada"||sel.estado==="Pendiente Aprobación")&&<button className="btn btn-ghost btn-sm" onClick={()=>cancelar(sel)}>✕ Cancelar Orden</button>}
+          </div>
+
+          <div style={{marginTop:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#6B7280",marginBottom:6}}>🕓 AUDITORÍA Y TRAZABILIDAD</div>
+            {auditoriaOC.filter(a=>a.ordenCompraId===sel.id).length===0&&<div style={{fontSize:11,color:"#9CA3AF"}}>Sin eventos registrados</div>}
+            {auditoriaOC.filter(a=>a.ordenCompraId===sel.id).sort((a,b)=>b.id.localeCompare(a.id)).map(a=>(
+              <div key={a.id} style={{padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:11}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <b style={{color:"#374151"}}>{a.evento}</b><span style={{color:"#9CA3AF"}}>{a.fecha}</span>
+                </div>
+                <div style={{color:"#6B7280"}}>{a.descripcion}</div>
+                <div style={{color:"#D1D5DB",fontSize:10}}>{a.usuario}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}

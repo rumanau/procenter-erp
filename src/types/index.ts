@@ -567,6 +567,15 @@ export interface LineaOC {
 export type EstadoOC = "Borrador" | "Pendiente Aprobación" | "Enviada" | "Parcialmente Recibida" | "Recibida" | "Facturada" | "Cancelada";
 export type NivelAprobacion = "Ninguno" | "Jefatura" | "Gerencia";
 
+export interface AuditoriaOC {
+  id: string;
+  ordenCompraId: string;
+  evento: string;
+  descripcion: string;
+  fecha: string;
+  usuario: string;
+}
+
 export interface OrdenCompra {
   id: string;
   proveedorId: string;

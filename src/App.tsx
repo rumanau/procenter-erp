@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./index.css";
 
 // tipos
-import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, SolicitudCotizacion, OfertaProveedor, AuditoriaProveedor } from "./types";
+import type { View, Company, AsientoContable, Articulo, MovimientoInventario, Bodega, CategoriaInventario, ProveedorInventario, OrdenCompra, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, SolicitudCotizacion, OfertaProveedor, AuditoriaProveedor, AuditoriaOC } from "./types";
 
 // datos
 import { COLABORADORES_INIT } from "./data/colaboradores";
@@ -102,6 +102,7 @@ export default function App() {
   const [solicitudesCotizacion, setSolicitudesCotizacion] = useState<SolicitudCotizacion[]>([]);
   const [ofertasProveedor, setOfertasProveedor] = useState<OfertaProveedor[]>([]);
   const [auditoriaProveedores, setAuditoriaProveedores] = useState<AuditoriaProveedor[]>([]);
+  const [auditoriaOC, setAuditoriaOC] = useState<AuditoriaOC[]>([]);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -127,17 +128,17 @@ export default function App() {
         {view === "ajuste"       && <AjusteInventario  setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} />}
         {view === "baja"         && <BajaDescarte      setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} />}
         {view === "conteo"       && <ConteoAuditoria   setView={setView} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} bodegas={bodegas} />}
-        {view === "reabasto"     && <Reabastecimiento  setView={setView} articulos={articulos} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} />}
+        {view === "reabasto"     && <Reabastecimiento  setView={setView} articulos={articulos} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} setAuditoriaOC={setAuditoriaOC} />}
         {view === "valorizado"   && <InvValorizado articulos={articulos} categorias={categoriasInv} />}
         {view === "trazabilidad" && <Trazabilidad articulos={articulos} movimientos={movimientosInv} bodegas={bodegas} proveedores={proveedoresInv} />}
 
         {/* PROVEEDURÍA */}
         {view === "proveeduria"   && <ProveeduriaHome   setView={setView} ordenesCompra={ordenesCompra} proveedores={proveedoresInv} facturasCxp={facturasCxp} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} />}
         {view === "proveedores"   && <Proveedores       setView={setView} proveedores={proveedoresInv} setProveedores={setProveedoresInv} articulos={articulos} ordenesCompra={ordenesCompra} categorias={categoriasInv} facturasCxp={facturasCxp} proveedorArticulos={proveedorArticulos} documentosProveedor={documentosProveedor} setDocumentosProveedor={setDocumentosProveedor} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} auditoriaProveedores={auditoriaProveedores} setAuditoriaProveedores={setAuditoriaProveedores} />}
-        {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} recepciones={recepciones} setRecepciones={setRecepciones} evaluacionesServicio={evaluacionesServicio} setEvaluacionesServicio={setEvaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} />}
-        {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} />}
+        {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} recepciones={recepciones} setRecepciones={setRecepciones} evaluacionesServicio={evaluacionesServicio} setEvaluacionesServicio={setEvaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} auditoriaOC={auditoriaOC} setAuditoriaOC={setAuditoriaOC} />}
+        {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} setAuditoriaOC={setAuditoriaOC} />}
         {view === "comparador"    && <ComparadorProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} proveedorArticulos={proveedorArticulos} articulos={articulos} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} />}
-        {view === "cotizaciones"  && <Cotizaciones      setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} solicitudes={solicitudesCotizacion} setSolicitudes={setSolicitudesCotizacion} ofertas={ofertasProveedor} setOfertas={setOfertasProveedor} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} />}
+        {view === "cotizaciones"  && <Cotizaciones      setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} solicitudes={solicitudesCotizacion} setSolicitudes={setSolicitudesCotizacion} ofertas={ofertasProveedor} setOfertas={setOfertasProveedor} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} setAuditoriaOC={setAuditoriaOC} />}
         {view === "nueva-cotizacion" && <NuevaCotizacion setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} solicitudes={solicitudesCotizacion} setSolicitudes={setSolicitudesCotizacion} documentosProveedor={documentosProveedor} />}
         {view === "bi"           && <BIReporteria setView={setView} empleados={empleados} catalogos={catalogos} />}
         {view === "reportes"     && <GeneradorReportes />}

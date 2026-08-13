@@ -106,6 +106,13 @@ export function nivelAprobacion(monto: number): "Ninguno" | "Jefatura" | "Gerenc
   return "Gerencia";
 }
 
+// Nivel mínimo (según catálogo de Responsables Autorizados, escala 1-3) que se
+// necesita para aprobar cada nivel de monto — quien aprueba debe tener
+// autoridad real para ese monto, no basta con hacer clic en el botón.
+export function nivelMinimoParaAprobar(nivel: "Ninguno" | "Jefatura" | "Gerencia"): number {
+  return nivel === "Gerencia" ? 3 : nivel === "Jefatura" ? 2 : 1;
+}
+
 export interface ResumenLineaRecepcion {
   articuloId: string;
   solicitado: number;

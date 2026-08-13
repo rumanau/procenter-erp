@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import type { View, ProveedorInventario, Bodega, Articulo, OrdenCompra, LineaOC, DocumentoProveedor } from "../../types";
+import type { View, ProveedorInventario, Bodega, Articulo, OrdenCompra, LineaOC, DocumentoProveedor, AuditoriaOC } from "../../types";
 import { siguienteFolioOC, nivelAprobacion, homologacionEfectiva } from "../../data/proveeduria";
 import { CATALOGOS_INIT } from "../../data/catalogos";
 
 const hoy=(offsetDias=0)=>{const d=new Date();d.setDate(d.getDate()+offsetDias);return d.toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});};
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesCompra,setOrdenesCompra,documentosProveedor}:{setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;documentosProveedor:DocumentoProveedor[]}) {
+export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesCompra,setOrdenesCompra,documentosProveedor,setAuditoriaOC}:{setView:(v:View)=>void;proveedores:ProveedorInventario[];bodegas:Bodega[];articulos:Articulo[];ordenesCompra:OrdenCompra[];setOrdenesCompra:React.Dispatch<React.SetStateAction<OrdenCompra[]>>;documentosProveedor:DocumentoProveedor[];setAuditoriaOC:React.Dispatch<React.SetStateAction<AuditoriaOC[]>>}) {
   const disponibles=proveedores.filter(p=>p.activo&&homologacionEfectiva(p,documentosProveedor)!=="Bloqueado");
   const bloqueados=proveedores.filter(p=>p.activo&&homologacionEfectiva(p,documentosProveedor)==="Bloqueado");
   const [proveedorId,setProveedorId]=useState(disponibles[0]?.id||"");
@@ -51,6 +51,7 @@ export function NuevaOrdenCompra({setView,proveedores,bodegas,articulos,ordenesC
       lineas,observaciones,creadoPor:"Ronald",
     };
     setOrdenesCompra(prev=>[nueva,...prev]);
+    setAuditoriaOC(prev=>[{id:`AUD-OC-${folio}-${Date.now()}`,ordenCompraId:folio,evento:"Creada",descripcion:`Creada manualmente como ${nueva.estado}${requiereAprobacion?` — requiere aprobación de ${nivel}`:""}`,fecha:hoy(),usuario:"Ronald"},...prev]);
     const msg=requiereAprobacion
       ?`✅ Orden de Compra ${folio} enviada a aprobación de ${nivel}.\n\nMonto: ${fmt(total)} supera el límite de compra directa.\nProveedor: ${proveedor?.nombre}`
       :`✅ Orden de Compra ${folio} guardada como ${nueva.estado}.\n\nProveedor: ${proveedor?.nombre}\n${lineas.length} artículo(s) · ${fmt(total)}`;
