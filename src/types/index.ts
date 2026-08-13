@@ -701,7 +701,9 @@ export interface DocumentoProveedor {
 // estado real) — esto sí vive en App.tsx y conecta departamentos entre sí.
 
 export type EstadoSolicitudInterna = "Nueva" | "En Gestión" | "Bloqueada" | "Resuelta" | "Descartada";
-export type PrioridadSolicitudInterna = "Baja" | "Media" | "Alta" | "Urgente";
+// Antes era una unión fija; ahora es texto libre porque la lista de prioridades
+// disponibles se configura desde la pestaña Configuración (ConfiguracionSolicitudesDepto.prioridades).
+export type PrioridadSolicitudInterna = string;
 export type MotivoAtrasoSolicitud = "Esperando a otro departamento" | "Falta de stock o insumo" | "Esperando aprobación" | "Falta información del solicitante" | "Prioridad reasignada" | "Otro";
 
 export interface ChecklistItemSolicitud { id: string; texto: string; hecho: boolean; }
@@ -722,7 +724,11 @@ export interface SolicitudInterna {
   estado: EstadoSolicitudInterna;
   motivoAtraso?: MotivoAtrasoSolicitud;
   motivoAtrasoDetalle?: string;
+  articuloCodigo?: string;
+  cantidadSolicitada?: number;
+  adjuntoNombre?: string;
   fechaCreacion: string;
+  fechaAsignacion?: string;
   fechaActualizacion: string;
   fechaLimite?: string;
   solicitudPadreId?: string;
@@ -732,8 +738,16 @@ export interface SolicitudInterna {
   historial: EventoHistorialSolicitud[];
 }
 
+export interface AlertaSolicitud { id: string; nombre: string; activa: boolean; }
+export interface TipoSolicitudConfig { id: string; departamentoId: string; nombre: string; icono: string; }
+export interface FlujoAprobacionConfig { encargadosPorDepto: Record<string, string>; aprobadorFinal: string; }
+export interface PrioridadConfig { id: string; nombre: string; badgeClass: string; }
+
 export interface ConfiguracionSolicitudesDepto {
   slaHoras: number;
   notificarA: string;
-  alertasActivas: boolean;
+  alertas: AlertaSolicitud[];
+  flujoAprobacion: FlujoAprobacionConfig;
+  tiposSolicitud: TipoSolicitudConfig[];
+  prioridades: PrioridadConfig[];
 }

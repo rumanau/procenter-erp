@@ -1,20 +1,70 @@
-import type { SolicitudInterna, EstadoSolicitudInterna } from "../types";
+import type { SolicitudInterna, EstadoSolicitudInterna, ConfiguracionSolicitudesDepto } from "../types";
 import { parseFechaEsCR } from "./proveeduria";
 
-export interface Departamento { id: string; nombre: string; icono: string; }
+export interface Departamento { id: string; nombre: string; icono: string; color: string; border: string; colorText: string; }
 
+// Mismos esquemas de color que ya usa el portal de Solicitudes genérico
+// (PortalSolicitudes.tsx) — se reutilizan para que la tarjeta de departamento
+// se vea consistente con el resto de la app.
 export const DEPARTAMENTOS: Departamento[] = [
-  { id: "proveeduria", nombre: "Proveeduría", icono: "📋" },
-  { id: "inventario", nombre: "Inventario", icono: "📦" },
-  { id: "rrhh", nombre: "Recursos Humanos", icono: "👥" },
-  { id: "finanzas", nombre: "Finanzas", icono: "💰" },
-  { id: "mantenimiento", nombre: "Mantenimiento", icono: "🔧" },
-  { id: "calidad", nombre: "Calidad", icono: "✅" },
-  { id: "operaciones", nombre: "Operaciones", icono: "🏗️" },
+  { id: "proveeduria", nombre: "Proveeduría", icono: "📋", color: "#FFF3ED", border: "#FED7AA", colorText: "#92400E" },
+  { id: "inventario", nombre: "Inventario", icono: "📦", color: "#EFF6FF", border: "#BFDBFE", colorText: "#1D4ED8" },
+  { id: "rrhh", nombre: "Recursos Humanos", icono: "👥", color: "#ECFDF5", border: "#6EE7B7", colorText: "#065F46" },
+  { id: "finanzas", nombre: "Finanzas", icono: "💰", color: "#FEF2F2", border: "#FCA5A5", colorText: "#991B1B" },
+  { id: "mantenimiento", nombre: "Mantenimiento", icono: "🔧", color: "#FFFBEB", border: "#FDE68A", colorText: "#92400E" },
+  { id: "calidad", nombre: "Calidad", icono: "✅", color: "#F5F3FF", border: "#C4B5FD", colorText: "#5B21B6" },
+  { id: "operaciones", nombre: "Operaciones", icono: "🏗️", color: "#F0FDFA", border: "#5EEAD4", colorText: "#115E59" },
 ];
 
 export const nombreDepto = (id: string) => DEPARTAMENTOS.find(d => d.id === id)?.nombre || id;
 export const iconoDepto = (id: string) => DEPARTAMENTOS.find(d => d.id === id)?.icono || "🏢";
+export const deptoInfo = (id: string) => DEPARTAMENTOS.find(d => d.id === id) || DEPARTAMENTOS[0];
+
+export const badgePrioridad = (config: ConfiguracionSolicitudesDepto, nombre: string): string =>
+  config.prioridades.find(p => p.nombre === nombre)?.badgeClass || "badge-gray";
+
+export const CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT: ConfiguracionSolicitudesDepto = {
+  slaHoras: 48,
+  notificarA: "Ronald",
+  alertas: [
+    { id: "al1", nombre: "Solicitud nueva sin asignar", activa: true },
+    { id: "al2", nombre: "Solicitud bloqueada por más de 2 días", activa: true },
+    { id: "al3", nombre: "Solicitud superó el SLA sin resolverse", activa: true },
+    { id: "al4", nombre: "Solicitud urgente recibida", activa: true },
+  ],
+  flujoAprobacion: {
+    encargadosPorDepto: { inventario: "Jules Ramirez", rrhh: "Sofía Méndez", finanzas: "Equipo Finanzas", mantenimiento: "Carlos Montoya", calidad: "María Rojas", operaciones: "Alejandro Vega", proveeduria: "Ronald" },
+    aprobadorFinal: "Ronald",
+  },
+  tiposSolicitud: [
+    { id: "t1", departamentoId: "inventario", nombre: "Consulta de stock", icono: "📦" },
+    { id: "t2", departamentoId: "inventario", nombre: "Traslado entre bodegas", icono: "📦" },
+    { id: "t3", departamentoId: "inventario", nombre: "Verificación de recepción", icono: "📦" },
+    { id: "t4", departamentoId: "inventario", nombre: "Otro inventario", icono: "📦" },
+    { id: "t5", departamentoId: "rrhh", nombre: "Solicitud de personal para bodega", icono: "👥" },
+    { id: "t6", departamentoId: "rrhh", nombre: "Capacitación de equipo", icono: "👥" },
+    { id: "t7", departamentoId: "rrhh", nombre: "Otro RRHH", icono: "👥" },
+    { id: "t8", departamentoId: "finanzas", nombre: "Aprobación de presupuesto", icono: "💰" },
+    { id: "t9", departamentoId: "finanzas", nombre: "Consulta de estado de pago", icono: "💰" },
+    { id: "t10", departamentoId: "finanzas", nombre: "Ajuste de condición de pago", icono: "💰" },
+    { id: "t11", departamentoId: "finanzas", nombre: "Otro Finanzas", icono: "💰" },
+    { id: "t12", departamentoId: "mantenimiento", nombre: "Mantenimiento de equipo de oficina", icono: "🔧" },
+    { id: "t13", departamentoId: "mantenimiento", nombre: "Reparación urgente", icono: "🔧" },
+    { id: "t14", departamentoId: "mantenimiento", nombre: "Otro Mantenimiento", icono: "🔧" },
+    { id: "t15", departamentoId: "calidad", nombre: "Homologación de proveedor", icono: "✅" },
+    { id: "t16", departamentoId: "calidad", nombre: "Validación de certificación", icono: "✅" },
+    { id: "t17", departamentoId: "calidad", nombre: "Auditoría de proveedor", icono: "✅" },
+    { id: "t18", departamentoId: "calidad", nombre: "Otro Calidad", icono: "✅" },
+    { id: "t19", departamentoId: "operaciones", nombre: "Coordinación logística", icono: "🏗️" },
+    { id: "t20", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
+  ],
+  prioridades: [
+    { id: "p1", nombre: "Baja", badgeClass: "badge-gray" },
+    { id: "p2", nombre: "Media", badgeClass: "badge-info" },
+    { id: "p3", nombre: "Alta", badgeClass: "badge-warn" },
+    { id: "p4", nombre: "Urgente", badgeClass: "badge-crit" },
+  ],
+};
 
 const hoy = (offsetDias = 0) => {
   const d = new Date();

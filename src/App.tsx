@@ -11,7 +11,7 @@ import { COMPANIES } from "./data/empresas";
 import { ASIENTOS_INIT, FACTURAS_CXP_INIT } from "./data/finanzas";
 import { ARTICULOS_INIT, MOVIMIENTOS_INIT, BODEGAS_INIT, CATEGORIAS_INIT, PROVEEDORES_INIT } from "./data/inventario";
 import { ORDENES_COMPRA_INIT, PROVEEDOR_ARTICULO_INIT, DOCUMENTOS_PROVEEDOR_INIT, RECEPCIONES_INIT } from "./data/proveeduria";
-import { SOLICITUDES_INTERNAS_INIT } from "./data/solicitudesInternas";
+import { SOLICITUDES_INTERNAS_INIT, CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT } from "./data/solicitudesInternas";
 
 // componentes compartidos
 import { Sidebar } from "./components/Sidebar";
@@ -107,7 +107,7 @@ export default function App() {
   const [auditoriaProveedores, setAuditoriaProveedores] = useState<AuditoriaProveedor[]>([]);
   const [auditoriaOC, setAuditoriaOC] = useState<AuditoriaOC[]>([]);
   const [solicitudesInternas, setSolicitudesInternas] = useState<SolicitudInterna[]>(SOLICITUDES_INTERNAS_INIT);
-  const [configSolicitudesProveeduria, setConfigSolicitudesProveeduria] = useState<ConfiguracionSolicitudesDepto>({ slaHoras: 48, notificarA: "Ronald", alertasActivas: true });
+  const [configSolicitudesProveeduria, setConfigSolicitudesProveeduria] = useState<ConfiguracionSolicitudesDepto>(CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
