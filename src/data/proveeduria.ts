@@ -333,10 +333,14 @@ export interface RecomendacionOferta {
   plazoEntregaDias: number;
   score: number;
   evaluacion: EvaluacionProveedor;
+  normPrecio: number;
+  normPlazo: number;
 }
 
 // Recomienda la oferta con mejor balance de precio (40%), evaluación histórica del
 // proveedor (35%) y plazo de entrega (25%) — no necesariamente la más barata.
+// normPrecio/normPlazo se exponen para poder explicar el porqué del ranking,
+// no solo mostrar el número final.
 export function recomendarOferta(
   ofertas: OfertaProveedor[], rfq: SolicitudCotizacion, ordenesCompra: OrdenCompra[], recepciones: Recepcion[], evaluacionesServicio: EvaluacionServicio[]
 ): RecomendacionOferta[] {
@@ -353,7 +357,7 @@ export function recomendarOferta(
     const normPrecio = d.total > 0 ? Math.max(0, 100 - ((d.total - minTotal) / d.total) * 100) : 100;
     const normPlazo = d.plazoEntregaDias > 0 ? Math.max(0, 100 - ((d.plazoEntregaDias - minPlazo) / d.plazoEntregaDias) * 100) : 100;
     const score = Math.round(normPrecio * 0.40 + d.evaluacion.puntaje * 0.35 + normPlazo * 0.25);
-    return { ...d, score };
+    return { ...d, score, normPrecio: Math.round(normPrecio), normPlazo: Math.round(normPlazo) };
   }).sort((a, b) => b.score - a.score);
 }
 

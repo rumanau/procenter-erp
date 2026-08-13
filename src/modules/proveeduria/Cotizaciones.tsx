@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Bodega, Articulo, SolicitudCotizacion, OfertaProveedor, LineaOferta, OrdenCompra, Recepcion, EvaluacionServicio, LineaOC, DocumentoProveedor, AuditoriaOC } from "../../types";
-import { siguienteFolioOferta, siguienteFolioOC, recomendarOferta, totalOferta, homologacionEfectiva, nivelAprobacion } from "../../data/proveeduria";
+import { siguienteFolioOferta, siguienteFolioOC, recomendarOferta, totalOferta, homologacionEfectiva, nivelAprobacion, type RecomendacionOferta } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
@@ -14,6 +14,7 @@ export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,
 }) {
   const [selId,setSelId]=useState<string|null>(null);
   const [modalOferta,setModalOferta]=useState<{rfq:SolicitudCotizacion;proveedorId:string}|null>(null);
+  const [modalExplicacion,setModalExplicacion]=useState<RecomendacionOferta|null>(null);
 
   const provNom=(id:string)=>proveedores.find(p=>p.id===id)?.nombre||id;
   const bodNom=(id:string)=>bodegas.find(b=>b.id===id)?.nombre||id;
@@ -124,7 +125,7 @@ export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,
               <div className="card" style={{padding:0,overflow:"hidden"}}>
                 <div className="card-title" style={{padding:"10px 14px",marginBottom:0,borderBottom:"1px solid #E5E7EB"}}>Comparación de ofertas</div>
                 <table className="tbl">
-                  <thead><tr><th>Proveedor</th><th>Total</th><th>Plazo</th><th>Evaluación</th><th>Score</th><th></th></tr></thead>
+                  <thead><tr><th>Proveedor</th><th>Total</th><th>Plazo</th><th>Evaluación</th><th>Score</th><th></th><th></th></tr></thead>
                   <tbody>
                     {recomendaciones.map(r=>(
                       <tr key={r.proveedorId} style={{background:r.proveedorId===mejorId?"#FFFBF5":""}}>
@@ -133,12 +134,26 @@ export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,
                         <td>{r.plazoEntregaDias} días</td>
                         <td><span className="badge badge-info">{r.evaluacion.grado}</span> {r.evaluacion.puntaje}</td>
                         <td><b style={{color:r.proveedorId===mejorId?"#10B981":undefined}}>{r.score}</b></td>
+                        <td><button className="btn btn-ghost btn-sm" onClick={()=>setModalExplicacion(r)}>¿Por qué?</button></td>
                         <td>{sel.estado!=="Adjudicada"&&<button className="btn btn-primary btn-sm" onClick={()=>adjudicar(sel,r.proveedorId)}>Adjudicar</button>}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {mejorId&&sel.estado!=="Adjudicada"&&<div style={{padding:"8px 14px",fontSize:10.5,color:"#9CA3AF"}}>🏆 {provNom(mejorId)} tiene el mejor balance de precio, evaluación histórica y plazo — no necesariamente el más barato.</div>}
+                {mejorId&&sel.estado!=="Adjudicada"&&(()=>{
+                  const top=recomendaciones[0],segundo=recomendaciones[1];
+                  if(!segundo) return <div style={{padding:"8px 14px",fontSize:10.5,color:"#9CA3AF"}}>🏆 {provNom(mejorId)} tiene el mejor balance de precio, evaluación histórica y plazo — no necesariamente el más barato.</div>;
+                  const diffPrecio=top.total-segundo.total;
+                  const diffScore=top.score-segundo.score;
+                  return (
+                    <div style={{padding:"8px 14px",fontSize:10.5,color:"#9CA3AF"}}>
+                      🏆 {provNom(mejorId)} tiene el mejor balance de precio, evaluación histórica y plazo — no necesariamente el más barato.<br/>
+                      {diffPrecio<=0
+                        ?`Frente a la 2ª opción (${provNom(segundo.proveedorId)}), además de tener +${diffScore} pts de score, es ${fmt(Math.abs(diffPrecio))} más barata.`
+                        :`Cuesta ${fmt(diffPrecio)} más que la 2ª opción (${provNom(segundo.proveedorId)}), pero compensa con +${diffScore} pts de score (mejor evaluación histórica y/o plazo de entrega).`}
+                    </div>
+                  );
+                })()}
                 {sel.estado==="Adjudicada"&&<div style={{padding:"8px 14px",fontSize:11,color:"#10B981"}}>✓ Adjudicada a {provNom(sel.proveedorAdjudicadoId!)} — Orden de Compra {sel.ordenCompraId} <button className="btn btn-ghost btn-sm" onClick={()=>setView("ordenes-compra")}>Ver OC →</button></div>}
               </div>
             )}
@@ -147,6 +162,10 @@ export function Cotizaciones({setView,proveedores,bodegas,articulos,solicitudes,
           <div className="card" style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#9CA3AF"}}>Selecciona una solicitud de cotización</div>
         )}
       </div>
+
+      {modalExplicacion&&(
+        <ExplicacionRecomendacionModal recomendacion={modalExplicacion} proveedorNombre={provNom(modalExplicacion.proveedorId)} onCerrar={()=>setModalExplicacion(null)}/>
+      )}
 
       {modalOferta&&(
         <RegistrarOfertaModal
@@ -206,6 +225,47 @@ function RegistrarOfertaModal({rfq,proveedorNombre,articulos,onGuardar,onCerrar}
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:14}}>
           <button className="btn btn-secondary" onClick={onCerrar}>Cancelar</button>
           <button className="btn btn-primary" onClick={()=>onGuardar(rfq.lineas.map(l=>({articuloId:l.articuloId,costoUnitario:precios[l.articuloId]||0})),plazo,observaciones)}>Guardar Oferta</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExplicacionRecomendacionModal({recomendacion,proveedorNombre,onCerrar}:{recomendacion:RecomendacionOferta;proveedorNombre:string;onCerrar:()=>void}) {
+  const filas=[
+    {nombre:"Precio (normalizado vs. la oferta más barata)",resultado:recomendacion.normPrecio,peso:40},
+    {nombre:"Evaluación histórica del proveedor",resultado:recomendacion.evaluacion.puntaje,peso:35},
+    {nombre:"Plazo de entrega (normalizado vs. el más rápido)",resultado:recomendacion.normPlazo,peso:25},
+  ];
+  return (
+    <div className="modal-overlay" onClick={onCerrar}>
+      <div className="modal" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div><div className="modal-title">¿Por qué se recomienda {proveedorNombre}?</div><div className="modal-sub">Score {recomendacion.score} / 100</div></div>
+          <div className="modal-close" onClick={onCerrar}>✕</div>
+        </div>
+        <table className="tbl">
+          <thead><tr><th>Criterio</th><th>Resultado</th><th>Peso</th><th>Aporte</th></tr></thead>
+          <tbody>
+            {filas.map(f=>(
+              <tr key={f.nombre}>
+                <td style={{fontSize:12}}>{f.nombre}</td>
+                <td>{f.resultado}</td>
+                <td>{f.peso}%</td>
+                <td style={{fontWeight:600,color:"#E8611A"}}>{(f.resultado*f.peso/100).toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{background:"#F9FAFB"}}>
+              <td colSpan={3} style={{fontWeight:700,textAlign:"right",paddingRight:8}}>Score total</td>
+              <td style={{fontWeight:700,color:"#E8611A"}}>{recomendacion.score}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div style={{fontSize:10.5,color:"#9CA3AF",marginTop:10}}>El precio y el plazo se normalizan contra la mejor oferta recibida en esta cotización (100 = la más barata / más rápida). La evaluación histórica es el score de desempeño real del proveedor, independiente de esta cotización.</div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+          <button className="btn btn-secondary" onClick={onCerrar}>Cerrar</button>
         </div>
       </div>
     </div>
