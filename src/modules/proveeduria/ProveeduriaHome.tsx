@@ -1,17 +1,39 @@
 import React from "react";
-import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio, DocumentoProveedor } from "../../types";
+import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio, DocumentoProveedor, Articulo, CategoriaInventario, ProveedorArticulo } from "../../types";
 import { ModTile } from "../../components/ModTile";
-import { totalOC, calcularEvaluacion, homologacionEfectiva } from "../../data/proveeduria";
+import { totalOC, calcularEvaluacion, homologacionEfectiva, analisisPrecios, evaluarRiesgo, parseFechaEsCR } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio,documentosProveedor}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[]}) {
+export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio,documentosProveedor,articulos,categorias,proveedorArticulos}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[];articulos:Articulo[];categorias:CategoriaInventario[];proveedorArticulos:ProveedorArticulo[]}) {
   const abiertas=ordenesCompra.filter(o=>o.estado==="Borrador"||o.estado==="Pendiente Aprobación"||o.estado==="Enviada"||o.estado==="Parcialmente Recibida");
   const comprometido=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").reduce((s,o)=>s+totalOC(o),0);
   const activos=proveedores.filter(p=>p.activo);
   const cedulas=new Set(proveedores.map(p=>p.cedulaJuridica));
   const facturasProveedores=facturasCxp.filter(f=>cedulas.has(f.cedula)&&f.saldo>0);
   const bloqueados=proveedores.filter(p=>homologacionEfectiva(p,documentosProveedor)==="Bloqueado");
+
+  // ── Tendencias del módulo (Hito 10) ─────────────────────────────
+  const hoyD=new Date();
+  const gastoMes=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&(()=>{const f=parseFechaEsCR(o.fecha);return f.getMonth()===hoyD.getMonth()&&f.getFullYear()===hoyD.getFullYear();})()).reduce((s,o)=>s+totalOC(o),0);
+  const articulosActivos=articulos.filter(a=>a.activo);
+  const precios=analisisPrecios(articulosActivos,ordenesCompra,proveedorArticulos);
+  const evaluaciones=proveedores.map(p=>calcularEvaluacion(p.id,ordenesCompra,recepciones,evaluacionesServicio)).filter(e=>e.conDatos);
+  const puntualidadProm=evaluaciones.length?Math.round(evaluaciones.reduce((s,e)=>s+e.entregaPct,0)/evaluaciones.length):null;
+  const calidadProm=evaluaciones.length?Math.round(evaluaciones.reduce((s,e)=>s+e.calidadPct,0)/evaluaciones.length):null;
+  const riesgosAltos=proveedores.filter(p=>{
+    const itemsProv=articulosActivos.filter(a=>a.proveedorId===p.id);
+    const ev=calcularEvaluacion(p.id,ordenesCompra,recepciones,evaluacionesServicio);
+    return evaluarRiesgo(p,itemsProv,ordenesCompra,proveedorArticulos,documentosProveedor,ev).nivel==="Alto";
+  }).length;
+  const comprasPorCategoria=new Map<string,number>();
+  ordenesCompra.filter(o=>o.estado!=="Cancelada").forEach(o=>o.lineas.forEach(l=>{
+    const art=articulos.find(a=>a.id===l.articuloId);
+    const catId=art?.categoriaId||"otros";
+    comprasPorCategoria.set(catId,(comprasPorCategoria.get(catId)||0)+l.cantidad*l.costoUnitario);
+  }));
+  const categoriasOrdenadas=[...comprasPorCategoria.entries()].sort((a,b)=>b[1]-a[1]);
+  const maxCategoria=categoriasOrdenadas[0]?.[1]||1;
 
   const tiles=[
     {icon:"🏢",name:"Proveedores",desc:"Directorio y condiciones",sub:`${activos.length} activos`,view:"proveedores" as View},
@@ -59,6 +81,41 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
             <div style={{fontSize:11,color:"#991B1B"}}>{bloqueados.map(p=>p.nombre).join(", ")} — no pueden recibir nuevas Órdenes de Compra hasta regularizar sus documentos. <span style={{textDecoration:"underline",cursor:"pointer"}} onClick={()=>setView("proveedores")}>Ver proveedores →</span></div>
           </div>
         )}
+
+        <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:10}}>Tendencias del módulo</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+          {[
+            {l:"Gasto del mes",v:fmt(gastoMes),sub:"OC no canceladas",c:"#E8611A"},
+            {l:"Variación de precios (12m)",v:precios.variacion365===null?"Sin datos":`${precios.variacion365>0?"▲ +":precios.variacion365<0?"▼ ":"— "}${Math.abs(precios.variacion365).toFixed(1)}%`,sub:`${precios.articulosConAumento} artículo(s) con aumento`,c:precios.variacion365&&precios.variacion365>1?"#EF4444":"#10B981"},
+            {l:"Ahorro potencial detectado",v:fmt(precios.ahorroPotencial),sub:"Cambiando a la alternativa más barata",c:"#10B981"},
+          ].map(k=>(
+            <div key={k.l} className="kpi"><div className="kpi-label">{k.l}</div><div className="kpi-value" style={{color:k.c,fontSize:15}}>{k.v}</div><div className="kpi-pill kpi-info">{k.sub}</div></div>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+          {[
+            {l:"Puntualidad promedio",v:puntualidadProm===null?"Sin datos":`${puntualidadProm}%`,sub:"Proveedores con historial",c:puntualidadProm&&puntualidadProm<80?"#EF4444":"#10B981"},
+            {l:"Calidad promedio",v:calidadProm===null?"Sin datos":`${calidadProm}%`,sub:"Aceptado / recibido",c:calidadProm&&calidadProm<80?"#EF4444":"#10B981"},
+            {l:"Proveedores en riesgo alto",v:String(riesgosAltos),sub:"Ver pestaña Riesgo de cada uno",c:riesgosAltos>0?"#EF4444":"#10B981"},
+          ].map(k=>(
+            <div key={k.l} className="kpi"><div className="kpi-label">{k.l}</div><div className="kpi-value" style={{color:k.c,fontSize:15}}>{k.v}</div><div className="kpi-pill kpi-info">{k.sub}</div></div>
+          ))}
+        </div>
+        {categoriasOrdenadas.length>0&&(
+          <div className="card" style={{marginBottom:16}}>
+            <div className="card-title">Compras por categoría</div>
+            {categoriasOrdenadas.map(([catId,monto])=>{
+              const cat=categorias.find(c=>c.id===catId);
+              return (
+                <div key={catId} style={{marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:"#374151",fontWeight:600}}>{cat?`${cat.icono} ${cat.nombre}`:"Sin categoría"}</span><span>{fmt(monto)}</span></div>
+                  <div className="stock-bar"><div className="stock-bar-fill" style={{width:`${(monto/maxCategoria)*100}%`,background:"#E8611A"}}/></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:10}}>Acciones del módulo</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
           {tiles.map(t=>(
