@@ -1,11 +1,11 @@
 import React from "react";
-import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio, DocumentoProveedor, Articulo, CategoriaInventario, ProveedorArticulo } from "../../types";
+import type { View, OrdenCompra, ProveedorInventario, Factura, Recepcion, EvaluacionServicio, DocumentoProveedor, Articulo, ProveedorArticulo } from "../../types";
 import { ModTile } from "../../components/ModTile";
 import { totalOC, calcularEvaluacion, homologacionEfectiva, analisisPrecios, evaluarRiesgo, parseFechaEsCR } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 
-export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio,documentosProveedor,articulos,categorias,proveedorArticulos}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[];articulos:Articulo[];categorias:CategoriaInventario[];proveedorArticulos:ProveedorArticulo[]}) {
+export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,recepciones,evaluacionesServicio,documentosProveedor,articulos,proveedorArticulos}:{setView:(v:View)=>void;ordenesCompra:OrdenCompra[];proveedores:ProveedorInventario[];facturasCxp:Factura[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[];documentosProveedor:DocumentoProveedor[];articulos:Articulo[];proveedorArticulos:ProveedorArticulo[]}) {
   const abiertas=ordenesCompra.filter(o=>o.estado==="Borrador"||o.estado==="Pendiente Aprobación"||o.estado==="Enviada"||o.estado==="Parcialmente Recibida");
   const comprometido=ordenesCompra.filter(o=>o.estado!=="Cancelada"&&o.estado!=="Facturada").reduce((s,o)=>s+totalOC(o),0);
   const activos=proveedores.filter(p=>p.activo);
@@ -26,17 +26,9 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
     const ev=calcularEvaluacion(p.id,ordenesCompra,recepciones,evaluacionesServicio);
     return evaluarRiesgo(p,itemsProv,ordenesCompra,proveedorArticulos,documentosProveedor,ev).nivel==="Alto";
   }).length;
-  const comprasPorCategoria=new Map<string,number>();
-  ordenesCompra.filter(o=>o.estado!=="Cancelada").forEach(o=>o.lineas.forEach(l=>{
-    const art=articulos.find(a=>a.id===l.articuloId);
-    const catId=art?.categoriaId||"otros";
-    comprasPorCategoria.set(catId,(comprasPorCategoria.get(catId)||0)+l.cantidad*l.costoUnitario);
-  }));
-  const categoriasOrdenadas=[...comprasPorCategoria.entries()].sort((a,b)=>b[1]-a[1]);
-  const maxCategoria=categoriasOrdenadas[0]?.[1]||1;
-
   const tiles=[
     {icon:"🏢",name:"Proveedores",desc:"Directorio y condiciones",sub:`${activos.length} activos`,view:"proveedores" as View},
+    {icon:"📊",name:"Resumen de Proveedores",desc:"Evaluación, riesgo y compras generales",sub:"Vista general de todos",view:"resumen-proveedores" as View},
     {icon:"📋",name:"Órdenes de Compra",desc:"Ciclo completo de compra",sub:`${abiertas.length} abiertas`,badge:abiertas.length>0?`${abiertas.length}`:undefined,badgeColor:"#3B82F6",view:"ordenes-compra" as View},
     {icon:"➕",name:"Nueva Orden de Compra",desc:"Crear OC manual",sub:"Borrador o enviar directo",view:"nueva-oc" as View},
     {icon:"📨",name:"Cotizaciones (RFQ)",desc:"Solicita y compara ofertas",sub:"Antes de comprar",view:"cotizaciones" as View},
@@ -82,7 +74,10 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
           </div>
         )}
 
-        <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:10}}>Tendencias del módulo</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px"}}>Tendencias del módulo</div>
+          <span style={{fontSize:11,color:"#E8611A",cursor:"pointer",fontWeight:600}} onClick={()=>setView("resumen-proveedores")}>Ver resumen completo de proveedores →</span>
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
           {[
             {l:"Gasto del mes",v:fmt(gastoMes),sub:"OC no canceladas",c:"#E8611A"},
@@ -101,22 +96,7 @@ export function ProveeduriaHome({setView,ordenesCompra,proveedores,facturasCxp,r
             <div key={k.l} className="kpi"><div className="kpi-label">{k.l}</div><div className="kpi-value" style={{color:k.c,fontSize:15}}>{k.v}</div><div className="kpi-pill kpi-info">{k.sub}</div></div>
           ))}
         </div>
-        {categoriasOrdenadas.length>0&&(
-          <div className="card" style={{marginBottom:16}}>
-            <div className="card-title">Compras por categoría</div>
-            {categoriasOrdenadas.map(([catId,monto])=>{
-              const cat=categorias.find(c=>c.id===catId);
-              return (
-                <div key={catId} style={{marginBottom:8}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:"#374151",fontWeight:600}}>{cat?`${cat.icono} ${cat.nombre}`:"Sin categoría"}</span><span>{fmt(monto)}</span></div>
-                  <div className="stock-bar"><div className="stock-bar-fill" style={{width:`${(monto/maxCategoria)*100}%`,background:"#E8611A"}}/></div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:10}}>Acciones del módulo</div>
+        <div style={{fontSize:10.5,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:10,marginTop:6}}>Acciones del módulo</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
           {tiles.map(t=>(
             <ModTile key={t.name} icon={t.icon} name={t.name} desc={t.desc} sub={t.sub} badge={t.badge} badgeColor={t.badgeColor} onClick={()=>setView(t.view)}/>

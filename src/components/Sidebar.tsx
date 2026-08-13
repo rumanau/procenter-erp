@@ -4,7 +4,7 @@ import { ProcenterIsotipo } from "./Logo";
 
 const GRUPOS:Record<string,View[]>={
   inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"],
-  proveeduria:["proveeduria","proveedores","ordenes-compra","nueva-oc","comparador","cotizaciones","nueva-cotizacion"],
+  proveeduria:["proveeduria","proveedores","resumen-proveedores","ordenes-compra","nueva-oc","comparador","cotizaciones","nueva-cotizacion"],
   solicitudes:["solicitudes","bandeja"],
   bi:["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"],
   rrhh:["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"],
@@ -84,6 +84,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
 
         {ni("proveeduria","Proveeduría","📋",provActive,undefined,"proveeduria")}
         {ns("proveedores","↳ Proveedores","proveeduria")}
+        {ns("resumen-proveedores","↳ Resumen de Proveedores","proveeduria")}
         {ns("ordenes-compra","↳ Órdenes de Compra","proveeduria")}
         {ns("nueva-oc","↳ Nueva Orden de Compra","proveeduria")}
         {ns("cotizaciones","↳ Cotizaciones (RFQ)","proveeduria")}

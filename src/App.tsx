@@ -39,6 +39,7 @@ import { ConfigInventario }    from "./modules/inventario/ConfigInventario";
 // módulos — proveeduría
 import { ProveeduriaHome }     from "./modules/proveeduria/ProveeduriaHome";
 import { Proveedores }         from "./modules/proveeduria/Proveedores";
+import { ResumenProveedores }  from "./modules/proveeduria/ResumenProveedores";
 import { OrdenesCompra }       from "./modules/proveeduria/OrdenesCompra";
 import { NuevaOrdenCompra }    from "./modules/proveeduria/NuevaOrdenCompra";
 import { ComparadorProveedores } from "./modules/proveeduria/ComparadorProveedores";
@@ -133,8 +134,9 @@ export default function App() {
         {view === "trazabilidad" && <Trazabilidad articulos={articulos} movimientos={movimientosInv} bodegas={bodegas} proveedores={proveedoresInv} />}
 
         {/* PROVEEDURÍA */}
-        {view === "proveeduria"   && <ProveeduriaHome   setView={setView} ordenesCompra={ordenesCompra} proveedores={proveedoresInv} facturasCxp={facturasCxp} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} articulos={articulos} categorias={categoriasInv} proveedorArticulos={proveedorArticulos} />}
+        {view === "proveeduria"   && <ProveeduriaHome   setView={setView} ordenesCompra={ordenesCompra} proveedores={proveedoresInv} facturasCxp={facturasCxp} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} articulos={articulos} proveedorArticulos={proveedorArticulos} />}
         {view === "proveedores"   && <Proveedores       setView={setView} proveedores={proveedoresInv} setProveedores={setProveedoresInv} articulos={articulos} ordenesCompra={ordenesCompra} categorias={categoriasInv} facturasCxp={facturasCxp} proveedorArticulos={proveedorArticulos} documentosProveedor={documentosProveedor} setDocumentosProveedor={setDocumentosProveedor} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} auditoriaProveedores={auditoriaProveedores} setAuditoriaProveedores={setAuditoriaProveedores} />}
+        {view === "resumen-proveedores" && <ResumenProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} articulos={articulos} categorias={categoriasInv} proveedorArticulos={proveedorArticulos} />}
         {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} recepciones={recepciones} setRecepciones={setRecepciones} evaluacionesServicio={evaluacionesServicio} setEvaluacionesServicio={setEvaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} auditoriaOC={auditoriaOC} setAuditoriaOC={setAuditoriaOC} />}
         {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} setAuditoriaOC={setAuditoriaOC} />}
         {view === "comparador"    && <ComparadorProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} proveedorArticulos={proveedorArticulos} articulos={articulos} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} />}

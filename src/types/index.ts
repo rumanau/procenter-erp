@@ -2,7 +2,7 @@ export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
   | "conteo" | "reabasto" | "valorizado" | "trazabilidad"
-  | "proveeduria" | "proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion"
+  | "proveeduria" | "proveedores" | "resumen-proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"
   | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
