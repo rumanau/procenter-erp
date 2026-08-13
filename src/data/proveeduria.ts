@@ -552,3 +552,55 @@ export function analiticaProveedor(proveedorId: string, items: Articulo[], orden
     precioVariacionPct,
   };
 }
+
+// ── Riesgo y dependencia del proveedor ──────────────────────────
+// Un proveedor puede tener A+ y aun así representar riesgo si es el único
+// que vende varios artículos críticos, o si concentra una parte grande del
+// gasto total. Esto mide exposición de la empresa, no desempeño — por eso
+// vive separado de la clasificación A+/B+/... (esa es calcularEvaluacion).
+export interface RiesgoProveedor {
+  concentracionPct: number;
+  articulosSinAlternativa: number;
+  totalArticulosActivos: number;
+  pctSinAlternativa: number;
+  documentacionOk: boolean;
+  saludOperativa: "Buena" | "Regular" | "Débil";
+  nivel: "Bajo" | "Medio" | "Alto";
+  factores: string[];
+}
+
+export function evaluarRiesgo(
+  proveedor: ProveedorInventario, items: Articulo[], ordenesCompraTodas: OrdenCompra[], proveedorArticulos: ProveedorArticulo[],
+  documentosProveedor: DocumentoProveedor[], evaluacion: EvaluacionProveedor
+): RiesgoProveedor {
+  const comprasProveedor = ordenesCompraTodas.filter(o => o.proveedorId === proveedor.id && o.estado !== "Cancelada").reduce((s, o) => s + totalOC(o), 0);
+  const comprasTotales = ordenesCompraTodas.filter(o => o.estado !== "Cancelada").reduce((s, o) => s + totalOC(o), 0);
+  const concentracionPct = comprasTotales > 0 ? Math.round((comprasProveedor / comprasTotales) * 1000) / 10 : 0;
+
+  const articulosSinAlternativa = items.filter(a => !proveedorArticulos.some(pa => pa.articuloId === a.id)).length;
+  const pctSinAlternativa = items.length ? Math.round((articulosSinAlternativa / items.length) * 100) : 0;
+
+  const homolog = homologacionEfectiva(proveedor, documentosProveedor);
+  const documentacionOk = homolog !== "Bloqueado";
+
+  const saludOperativa: "Buena" | "Regular" | "Débil" = evaluacion.puntaje >= 85 ? "Buena" : evaluacion.puntaje >= 70 ? "Regular" : "Débil";
+
+  let puntos = 0;
+  const factores: string[] = [];
+  if (concentracionPct >= 30) { puntos += 2; factores.push(`Concentra ${concentracionPct}% de las compras totales de la empresa a proveedores`); }
+  else if (concentracionPct >= 15) { puntos += 1; factores.push(`Concentra ${concentracionPct}% de las compras totales`); }
+  if (articulosSinAlternativa > 0 && pctSinAlternativa >= 50) { puntos += 2; factores.push(`${articulosSinAlternativa} de ${items.length} artículos activos no tienen proveedor alternativo registrado`); }
+  else if (articulosSinAlternativa > 0) { puntos += 1; factores.push(`${articulosSinAlternativa} artículo(s) sin proveedor alternativo registrado`); }
+  if (!documentacionOk) { puntos += 2; factores.push("Documentación vencida — bloqueado para nuevas Órdenes de Compra"); }
+  if (saludOperativa === "Débil") { puntos += 2; factores.push(`Desempeño operativo débil (score ${evaluacion.puntaje})`); }
+  else if (saludOperativa === "Regular") { puntos += 1; factores.push(`Desempeño operativo regular (score ${evaluacion.puntaje})`); }
+
+  const nivel: "Bajo" | "Medio" | "Alto" = puntos >= 4 ? "Alto" : puntos >= 2 ? "Medio" : "Bajo";
+  if (factores.length === 0) factores.push("Sin factores de riesgo relevantes detectados");
+
+  return { concentracionPct, articulosSinAlternativa, totalArticulosActivos: items.length, pctSinAlternativa, documentacionOk, saludOperativa, nivel, factores };
+}
+
+export function badgeRiesgo(nivel: "Bajo" | "Medio" | "Alto"): string {
+  return nivel === "Alto" ? "badge-crit" : nivel === "Medio" ? "badge-warn" : "badge-ok";
+}

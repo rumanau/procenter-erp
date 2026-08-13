@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor, ContactoProveedor, CuentaBancariaProveedor, DireccionProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, historicoPrecios, variacionEnVentana, analisisPrecios, analiticaProveedor, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion, type AnaliticaProveedor } from "../../data/proveeduria";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, historicoPrecios, variacionEnVentana, analisisPrecios, analiticaProveedor, evaluarRiesgo, badgeRiesgo, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion, type AnaliticaProveedor } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
-type Tab="resumen"|"compras"|"desempeno"|"precios"|"analitica"|"catalogo"|"finanzas"|"documentos"|"devoluciones"|"historial";
+type Tab="resumen"|"compras"|"desempeno"|"precios"|"analitica"|"riesgo"|"catalogo"|"finanzas"|"documentos"|"devoluciones"|"historial";
 
 export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones,auditoriaProveedores,setAuditoriaProveedores,onEliminado}:{
   proveedor:ProveedorInventario;setView:(v:View)=>void;onVolver:()=>void;
@@ -37,7 +37,7 @@ export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProv
     onEliminado();
   };
 
-  const tabs:[Tab,string][]=[["resumen","Resumen"],["compras","Compras"],["desempeno","Desempeño"],["precios","Precios"],["analitica","📈 Analítica"],["catalogo","Catálogo"],["finanzas","Finanzas"],["documentos","📄 Documentos"],["devoluciones","↩️ Devoluciones"],["historial","Historial"]];
+  const tabs:[Tab,string][]=[["resumen","Resumen"],["compras","Compras"],["desempeno","Desempeño"],["precios","Precios"],["analitica","📈 Analítica"],["riesgo","⚠️ Riesgo"],["catalogo","Catálogo"],["finanzas","Finanzas"],["documentos","📄 Documentos"],["devoluciones","↩️ Devoluciones"],["historial","Historial"]];
 
   return (
     <div className="content" style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -91,6 +91,7 @@ export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProv
         {tab==="desempeno"&&<DesempenoTab proveedor={proveedor} evaluacion={evaluacion} ordenesCompra={ordenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio}/>}
         {tab==="precios"&&<PreciosTab items={items} ordenesCompra={ocs} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
         {tab==="analitica"&&<AnaliticaTab proveedor={proveedor} items={items} ordenesCompra={ocs} recepciones={recepciones} devoluciones={devoluciones}/>}
+        {tab==="riesgo"&&<RiesgoTab proveedor={proveedor} items={items} ordenesCompraTodas={ordenesCompra} proveedorArticulos={proveedorArticulos} documentosProveedor={documentosProveedor} evaluacion={evaluacion}/>}
         {tab==="catalogo"&&<CatalogoTab items={items} categorias={categorias} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
         {tab==="finanzas"&&<FinanzasTab facturas={facturasCxp}/>}
         {tab==="documentos"&&<DocumentosTab documentos={documentos} proveedorId={proveedor.id} setDocumentosProveedor={setDocumentosProveedor}/>}
@@ -489,6 +490,38 @@ function generarAlertasAnalitica(a:AnaliticaProveedor):AlertaAnalitica[] {
   }
 
   return alertas;
+}
+
+function RiesgoTab({proveedor,items,ordenesCompraTodas,proveedorArticulos,documentosProveedor,evaluacion}:{proveedor:ProveedorInventario;items:Articulo[];ordenesCompraTodas:OrdenCompra[];proveedorArticulos:ProveedorArticulo[];documentosProveedor:DocumentoProveedor[];evaluacion:EvaluacionProveedor}) {
+  const riesgo=evaluarRiesgo(proveedor,items,ordenesCompraTodas,proveedorArticulos,documentosProveedor,evaluacion);
+  const colorNivel=riesgo.nivel==="Alto"?"#EF4444":riesgo.nivel==="Medio"?"#F59E0B":"#10B981";
+
+  return (
+    <div>
+      <div className="card" style={{marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div className="card-title" style={{marginBottom:2}}>Nivel de riesgo</div>
+          <div style={{fontSize:11,color:"#9CA3AF"}}>Mide la exposición de la empresa a este proveedor — independiente de su clasificación de desempeño ({evaluacion.grado}).</div>
+        </div>
+        <span className={`badge ${badgeRiesgo(riesgo.nivel)}`} style={{fontSize:14,padding:"6px 14px"}}>{riesgo.nivel}</span>
+      </div>
+
+      <div className="g4" style={{marginBottom:14}}>
+        <div className="kpi"><div className="kpi-label">Concentración de compras</div><div className="kpi-value" style={{fontSize:15,color:riesgo.concentracionPct>=30?"#EF4444":undefined}}>{riesgo.concentracionPct}%</div></div>
+        <div className="kpi"><div className="kpi-label">Artículos sin alternativa</div><div className="kpi-value" style={{fontSize:15,color:riesgo.articulosSinAlternativa>0?"#F59E0B":undefined}}>{riesgo.articulosSinAlternativa} / {riesgo.totalArticulosActivos}</div></div>
+        <div className="kpi"><div className="kpi-label">Documentación</div><div className="kpi-value" style={{fontSize:15,color:riesgo.documentacionOk?"#10B981":"#EF4444"}}>{riesgo.documentacionOk?"Al día":"Vencida"}</div></div>
+        <div className="kpi"><div className="kpi-label">Salud operativa</div><div className="kpi-value" style={{fontSize:15,color:colorNivel}}>{riesgo.saludOperativa}</div></div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Factores que explican el nivel de riesgo</div>
+        {riesgo.factores.map((f,i)=>(
+          <div key={i} style={{fontSize:11.5,padding:"7px 0",borderBottom:"1px solid #F3F4F6",color:"#374151"}}>• {f}</div>
+        ))}
+        <div style={{fontSize:10,color:"#9CA3AF",marginTop:8}}>"% de compras concentradas" compara el gasto en este proveedor contra el gasto total en todos los proveedores. "Artículos sin alternativa" son los que este proveedor suministra sin que exista otro registrado en el catálogo multi-proveedor.</div>
+      </div>
+    </div>
+  );
 }
 
 function MiniSerie({puntos}:{puntos:{fecha:string;costo:number}[]}) {
