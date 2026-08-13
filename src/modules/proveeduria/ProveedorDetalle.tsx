@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor, ContactoProveedor, CuentaBancariaProveedor, DireccionProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo } from "../../data/proveeduria";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
@@ -176,7 +176,10 @@ function DesempenoTab({proveedor,evaluacion,ordenesCompra,recepciones,evaluacion
         {conHistorial.length<2?(
           <div style={{fontSize:11,color:"#9CA3AF"}}>Aún no hay suficiente historial mensual para trazar una tendencia.</div>
         ):(
-          <ScoreTrendChart puntos={evolucion}/>
+          <>
+            <ScoreTrendChart puntos={evolucion}/>
+            <InterpretacionTendencia conHistorial={conHistorial} delta={delta} peorCriterio={peorCriterio} mejorCriterio={mejorCriterio}/>
+          </>
         )}
       </div>
 
@@ -221,6 +224,48 @@ function ScoreTrendChart({puntos}:{puntos:{periodo:string;puntaje:number;conDato
         </g>
       ))}
     </svg>
+  );
+}
+
+// Traduce la serie de evolución (número → texto) para que el score no quede
+// como un dato suelto: qué significa, qué concluye y qué conviene hacer —
+// todo derivado de los mismos puntos ya calculados, sin agregar juicios que
+// los datos no respalden.
+function InterpretacionTendencia({conHistorial,delta,peorCriterio,mejorCriterio}:{conHistorial:PuntoEvolucion[];delta:number|null;peorCriterio:CriterioEvaluacion;mejorCriterio:CriterioEvaluacion}) {
+  const nMeses=conHistorial.length;
+  const inicio=conHistorial[0].puntaje;
+  const fin=conHistorial[nMeses-1].puntaje;
+
+  let conclusion:string;
+  if(delta===null||nMeses<2){
+    conclusion="Aún no hay al menos dos meses con actividad registrada para comparar — se necesita más historial para hablar de tendencia.";
+  } else if(delta>0){
+    conclusion=`El score subió ${delta} punto(s) en los últimos ${nMeses} mes(es) con actividad (de ${inicio} a ${fin}).`;
+  } else if(delta<0){
+    conclusion=`El score bajó ${Math.abs(delta)} punto(s) en los últimos ${nMeses} mes(es) con actividad (de ${inicio} a ${fin}).`;
+  } else {
+    conclusion=`El score se mantuvo estable en ${fin} puntos durante los ${nMeses} mes(es) con actividad registrada.`;
+  }
+
+  let recomendacion:string;
+  if(delta===null||nMeses<2){
+    recomendacion="Registra recepciones y, cuando aplique, evaluaciones de servicio en las próximas compras para poder construir una tendencia confiable.";
+  } else if(delta<=-5){
+    recomendacion=`Da seguimiento cercano y conversa con el proveedor las causas de la caída, en particular en "${peorCriterio.nombre}" (${peorCriterio.resultado}%).`;
+  } else if(delta>=5){
+    recomendacion=`El proveedor viene mejorando; es un buen momento para mantener o ampliar su participación en las compras, apoyado en "${mejorCriterio.nombre}" (${mejorCriterio.resultado}%).`;
+  } else if(peorCriterio.resultado<75){
+    recomendacion=`Desempeño estable, pero con oportunidad de mejora en "${peorCriterio.nombre}" (${peorCriterio.resultado}%) — vale la pena conversarlo con el proveedor.`;
+  } else {
+    recomendacion="Desempeño estable y sin puntos débiles marcados; no se requieren acciones adicionales por ahora.";
+  }
+
+  return (
+    <div style={{marginTop:12,padding:"10px 12px",background:"#F9FAFB",border:"1px solid #E5E7EB",borderRadius:8,fontSize:11.5,lineHeight:1.6}}>
+      <div><b>Interpretación:</b> La tendencia recalcula el score de evaluación al cierre de cada mes usando solo las órdenes, recepciones y evaluaciones de servicio registradas hasta esa fecha — no es una proyección, es el mismo score que se habría mostrado en cada momento.</div>
+      <div><b>Conclusión:</b> {conclusion}</div>
+      <div><b>Recomendación:</b> {recomendacion}</div>
+    </div>
   );
 }
 
