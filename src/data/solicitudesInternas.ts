@@ -26,6 +26,7 @@ export const badgePrioridad = (config: ConfiguracionSolicitudesDepto, nombre: st
 export const CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT: ConfiguracionSolicitudesDepto = {
   slaHoras: 48,
   notificarA: "Ronald",
+  canalNotificacion: "Solo alerta de sistema",
   alertas: [
     { id: "al1", nombre: "Solicitud nueva sin asignar", activa: true },
     { id: "al2", nombre: "Solicitud bloqueada por más de 2 días", activa: true },
@@ -59,10 +60,10 @@ export const CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT: ConfiguracionSolicitudesDep
     { id: "t20", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
   ],
   prioridades: [
-    { id: "p1", nombre: "Baja", badgeClass: "badge-gray" },
-    { id: "p2", nombre: "Media", badgeClass: "badge-info" },
-    { id: "p3", nombre: "Alta", badgeClass: "badge-warn" },
-    { id: "p4", nombre: "Urgente", badgeClass: "badge-crit" },
+    { id: "p1", nombre: "Baja", badgeClass: "badge-gray", nota: "No es necesaria para esta semana — puede esperar sin afectar la operación." },
+    { id: "p2", nombre: "Media", badgeClass: "badge-info", nota: "Se resuelve dentro del flujo normal, sin plazos críticos de por medio." },
+    { id: "p3", nombre: "Alta", badgeClass: "badge-warn", nota: "Afecta una entrega o proceso importante — debe atenderse en los próximos días." },
+    { id: "p4", nombre: "Urgente", badgeClass: "badge-crit", nota: "Se requiere para iniciar o continuar una labor ahora mismo — bloquea el trabajo si no se atiende." },
   ],
 };
 
@@ -112,15 +113,23 @@ export function cadenaDeSolicitud(id: string, todas: SolicitudInterna[]): Solici
   return cadena;
 }
 
+export interface FlujoDepartamento { departamento: string; n: number; pct: number; tiempoRespuestaPromedioDias: number | null; }
+export interface DiaRecepcion { dia: string; n: number; pct: number; }
+
 export interface EstadisticasAuditoria {
   totalEntrantes: number;
   totalSalientes: number;
   tiempoRespuestaPromedioDias: number | null;
   masAntiguasAbiertas: SolicitudInterna[];
   porPersona: { persona: string; resueltas: number; promedioDias: number }[];
-  flujoDepartamentos: { origen: string; destino: string; n: number }[];
-  tiempoRespuestaOtrosDeptos: { departamento: string; promedioDias: number | null; n: number }[];
+  flujoEntrante: FlujoDepartamento[];
+  flujoSaliente: FlujoDepartamento[];
+  mejorDiaRecepcion: DiaRecepcion[];
 }
+
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+// getDay(): 0=Domingo..6=Sábado — se remapea para que la semana empiece en lunes.
+const diaSemanaDe = (fecha: string): string => DIAS_SEMANA[(parseFechaEsCR(fecha).getDay() + 6) % 7];
 
 export function estadisticasAuditoria(deptoId: string, todas: SolicitudInterna[]): EstadisticasAuditoria {
   const entrantes = todas.filter(s => s.departamentoDestino === deptoId);
@@ -146,24 +155,29 @@ export function estadisticasAuditoria(deptoId: string, todas: SolicitudInterna[]
   });
   const porPersona = [...personas.entries()].map(([persona, v]) => ({ persona, resueltas: v.resueltas, promedioDias: Math.round((v.dias / v.resueltas) * 10) / 10 })).sort((a, b) => b.resueltas - a.resueltas);
 
-  const flujo = new Map<string, number>();
-  [...entrantes, ...salientes].forEach(s => {
-    const key = `${s.departamentoOrigen}|${s.departamentoDestino}`;
-    flujo.set(key, (flujo.get(key) || 0) + 1);
-  });
-  const flujoDepartamentos = [...flujo.entries()].map(([key, n]) => { const [origen, destino] = key.split("|"); return { origen, destino, n }; }).sort((a, b) => b.n - a.n);
+  // Flujo de entrada y de salida por separado — cada uno con su propio % (sobre el
+  // total de esa bandeja, no mezclado) y su propio tiempo de respuesta promedio.
+  const flujoDe = (lista: SolicitudInterna[], campoDepto: "departamentoOrigen" | "departamentoDestino"): FlujoDepartamento[] => {
+    const total = lista.length;
+    const porDepto = new Map<string, { n: number; diasResueltas: number; nResueltas: number }>();
+    lista.forEach(s => {
+      const depto = s[campoDepto];
+      const prev = porDepto.get(depto) || { n: 0, diasResueltas: 0, nResueltas: 0 };
+      const resuelta = s.estado === "Resuelta";
+      porDepto.set(depto, { n: prev.n + 1, diasResueltas: prev.diasResueltas + (resuelta ? diasEntre(s) : 0), nResueltas: prev.nResueltas + (resuelta ? 1 : 0) });
+    });
+    return [...porDepto.entries()]
+      .map(([depto, v]) => ({ departamento: depto, n: v.n, pct: total ? Math.round((v.n / total) * 1000) / 10 : 0, tiempoRespuestaPromedioDias: v.nResueltas ? Math.round((v.diasResueltas / v.nResueltas) * 10) / 10 : null }))
+      .sort((a, b) => b.n - a.n);
+  };
+  const flujoEntrante = flujoDe(entrantes, "departamentoOrigen");
+  const flujoSaliente = flujoDe(salientes, "departamentoDestino");
 
-  const porDestino = new Map<string, { dias: number; n: number }>();
-  salientes.filter(s => s.estado === "Resuelta").forEach(s => {
-    const prev = porDestino.get(s.departamentoDestino) || { dias: 0, n: 0 };
-    porDestino.set(s.departamentoDestino, { dias: prev.dias + diasEntre(s), n: prev.n + 1 });
-  });
-  const tiempoRespuestaOtrosDeptos = DEPARTAMENTOS.filter(d => d.id !== deptoId).map(d => {
-    const v = porDestino.get(d.id);
-    return { departamento: d.id, promedioDias: v && v.n ? Math.round((v.dias / v.n) * 10) / 10 : null, n: v?.n || 0 };
-  }).filter(x => x.n > 0);
+  const porDia = new Map<string, number>();
+  entrantes.forEach(s => porDia.set(diaSemanaDe(s.fechaCreacion), (porDia.get(diaSemanaDe(s.fechaCreacion)) || 0) + 1));
+  const mejorDiaRecepcion = DIAS_SEMANA.map(dia => ({ dia, n: porDia.get(dia) || 0, pct: entrantes.length ? Math.round(((porDia.get(dia) || 0) / entrantes.length) * 1000) / 10 : 0 }));
 
-  return { totalEntrantes: entrantes.length, totalSalientes: salientes.length, tiempoRespuestaPromedioDias, masAntiguasAbiertas, porPersona, flujoDepartamentos, tiempoRespuestaOtrosDeptos };
+  return { totalEntrantes: entrantes.length, totalSalientes: salientes.length, tiempoRespuestaPromedioDias, masAntiguasAbiertas, porPersona, flujoEntrante, flujoSaliente, mejorDiaRecepcion };
 }
 
 export const SOLICITUDES_INTERNAS_INIT: SolicitudInterna[] = [

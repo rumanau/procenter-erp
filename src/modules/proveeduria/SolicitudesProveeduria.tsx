@@ -164,6 +164,7 @@ function NuevaSolicitudTab({ solicitudes, setSolicitudes, config, onCreada }: { 
             <div className="pills-row">
               {config.prioridades.map(p => <span key={p.id} className={`pill ${prioridad === p.nombre ? "sel" : ""}`} style={{ cursor: "pointer" }} onClick={() => setPrioridad(p.nombre)}>{p.nombre}</span>)}
             </div>
+            {config.prioridades.find(p => p.nombre === prioridad)?.nota && <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 4 }}>💡 {config.prioridades.find(p => p.nombre === prioridad)?.nota}</div>}
           </div>
           <div className="form-group"><label className="form-label">Descripción detallada</label><textarea className="form-control" rows={4} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Describe con detalle lo que necesitas, cantidad, especificaciones, motivo..." /></div>
           <div className="g2">
@@ -215,13 +216,25 @@ function NuevaSolicitudTab({ solicitudes, setSolicitudes, config, onCreada }: { 
 }
 
 function ListaSolicitudes({ lista, mostrarColumna, config, onAbrir, vacio }: { lista: SolicitudInterna[]; mostrarColumna: "origen" | "destino"; config: ConfiguracionSolicitudesDepto; onAbrir: (id: string) => void; vacio: string }) {
-  const ordenadas = [...lista].sort((a, b) => diasEnBandeja(b) - diasEnBandeja(a));
+  const [busqueda, setBusqueda] = useState("");
+  const filtradas = lista.filter(s => {
+    if (!busqueda.trim()) return true;
+    const q = busqueda.toLowerCase();
+    const depto = nombreDepto(mostrarColumna === "origen" ? s.departamentoOrigen : s.departamentoDestino);
+    return s.id.toLowerCase().includes(q) || s.titulo.toLowerCase().includes(q) || depto.toLowerCase().includes(q) || s.fechaCreacion.toLowerCase().includes(q) || s.estado.toLowerCase().includes(q) || s.prioridad.toLowerCase().includes(q) || (s.personaAsignada || "").toLowerCase().includes(q);
+  });
+  const ordenadas = [...filtradas].sort((a, b) => diasEnBandeja(b) - diasEnBandeja(a));
   return (
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <table className="tbl">
-        <thead><tr><th>Folio</th><th>Título</th><th>{mostrarColumna === "origen" ? "Departamento origen" : "Departamento destino"}</th><th>Prioridad</th><th>Estado</th><th>Ingresó</th><th>Tiempo en bandeja</th></tr></thead>
-        <tbody>
-          {ordenadas.map(s => (
+    <div>
+      <div className="header-search" style={{ marginBottom: 10, maxWidth: 360 }}>
+        <span>🔍</span>
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por folio, departamento, fecha, estado..." style={{ border: "none", background: "transparent", outline: "none", flex: 1, fontSize: "12.5px" }} />
+      </div>
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <table className="tbl">
+          <thead><tr><th>Folio</th><th>Título</th><th>{mostrarColumna === "origen" ? "Departamento origen" : "Departamento destino"}</th><th>Prioridad</th><th>Estado</th><th>Ingresó</th><th>Tiempo en bandeja</th></tr></thead>
+          <tbody>
+            {ordenadas.map(s => (
             <tr key={s.id} style={{ cursor: "pointer" }} onClick={() => onAbrir(s.id)}>
               <td style={{ fontFamily: "monospace", fontSize: 11, color: "#E8611A", fontWeight: 700 }}>{s.id}</td>
               <td style={{ fontSize: 12.5 }}>{s.titulo}</td>
@@ -232,9 +245,10 @@ function ListaSolicitudes({ lista, mostrarColumna, config, onAbrir, vacio }: { l
               <td style={{ fontSize: 11.5, fontWeight: 600, color: diasEnBandeja(s) >= 5 && s.estado !== "Resuelta" && s.estado !== "Descartada" ? "#EF4444" : "#374151" }}>{etiquetaTiempoEnBandeja(s)}</td>
             </tr>
           ))}
-          {ordenadas.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#9CA3AF", padding: 20 }}>{vacio}</td></tr>}
-        </tbody>
-      </table>
+            {ordenadas.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#9CA3AF", padding: 20 }}>{vacio}</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -291,28 +305,71 @@ function AuditoriaGestionTab({ solicitudes }: { solicitudes: SolicitudInterna[] 
         </div>
       </div>
 
-      <div className="g2" style={{ alignItems: "start" }}>
+      <div className="g2" style={{ marginBottom: 14, alignItems: "start" }}>
         <div className="card">
-          <div className="card-title">Flujo entre departamentos</div>
-          {a.flujoDepartamentos.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Sin actividad registrada</div>}
-          {a.flujoDepartamentos.map((f, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 11.5 }}>
-              <div>{iconoDepto(f.origen)} {nombreDepto(f.origen)} → {iconoDepto(f.destino)} {nombreDepto(f.destino)}</div>
-              <b>{f.n}</b>
+          <div className="card-title">Flujo de entrada (Bandeja de Gestión)</div>
+          <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 6 }}>% sobre el total recibido por Proveeduría · tiempo de respuesta de las resueltas de cada departamento</div>
+          {a.flujoEntrante.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Sin actividad registrada</div>}
+          {a.flujoEntrante.map(f => (
+            <div key={f.departamento} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 11.5 }}>
+              <div>{iconoDepto(f.departamento)} {nombreDepto(f.departamento)}</div>
+              <div style={{ textAlign: "right" }}>
+                <b>{f.n}</b> <span style={{ color: "#9CA3AF" }}>({f.pct}%)</span>
+                <div style={{ fontSize: 10, color: "#6B7280" }}>{f.tiempoRespuestaPromedioDias === null ? "Sin resueltas" : `${f.tiempoRespuestaPromedioDias}d resp.`}</div>
+              </div>
             </div>
           ))}
         </div>
         <div className="card">
-          <div className="card-title">Tiempo de respuesta de otros departamentos hacia Proveeduría</div>
-          {a.tiempoRespuestaOtrosDeptos.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Aún no hay solicitudes resueltas por otros departamentos</div>}
-          {a.tiempoRespuestaOtrosDeptos.map(d => (
-            <div key={d.departamento} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 11.5 }}>
-              <div>{iconoDepto(d.departamento)} {nombreDepto(d.departamento)}</div>
-              <div style={{ color: "#6B7280" }}>{d.promedioDias === null ? "Sin datos" : `${d.promedioDias}d`} ({d.n})</div>
+          <div className="card-title">Flujo de salida (Solicitudes Enviadas)</div>
+          <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 6 }}>% sobre el total enviado por Proveeduría · tiempo de respuesta de cada departamento hacia Proveeduría</div>
+          {a.flujoSaliente.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Sin actividad registrada</div>}
+          {a.flujoSaliente.map(f => (
+            <div key={f.departamento} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 11.5 }}>
+              <div>{iconoDepto(f.departamento)} {nombreDepto(f.departamento)}</div>
+              <div style={{ textAlign: "right" }}>
+                <b>{f.n}</b> <span style={{ color: "#9CA3AF" }}>({f.pct}%)</span>
+                <div style={{ fontSize: 10, color: "#6B7280" }}>{f.tiempoRespuestaPromedioDias === null ? "Sin resueltas" : `${f.tiempoRespuestaPromedioDias}d resp.`}</div>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      <MejorDiaRecepcionCard mejorDiaRecepcion={a.mejorDiaRecepcion} totalEntrantes={a.totalEntrantes} />
+    </div>
+  );
+}
+
+function MejorDiaRecepcionCard({ mejorDiaRecepcion, totalEntrantes }: { mejorDiaRecepcion: { dia: string; n: number; pct: number }[]; totalEntrantes: number }) {
+  const mejor = totalEntrantes > 0 ? [...mejorDiaRecepcion].sort((a, b) => b.n - a.n)[0] : null;
+
+  return (
+    <div className="card">
+      <div className="card-title">Mejor día de recepción de solicitudes — Proveeduría</div>
+      {totalEntrantes === 0 ? (
+        <div style={{ fontSize: 11, color: "#9CA3AF" }}>Aún no hay solicitudes recibidas para calcular esta tendencia.</div>
+      ) : (
+        <>
+          <table className="tbl">
+            <thead><tr><th>Día</th><th>Cantidad</th><th>Participación</th></tr></thead>
+            <tbody>
+              {mejorDiaRecepcion.map(d => (
+                <tr key={d.dia} style={mejor && d.dia === mejor.dia ? { background: "#FFF3ED", borderLeft: "3px solid #E8611A" } : undefined}>
+                  <td style={{ fontSize: 12, fontWeight: mejor && d.dia === mejor.dia ? 700 : 400, color: mejor && d.dia === mejor.dia ? "#E8611A" : "#374151" }}>{d.dia}</td>
+                  <td style={{ fontSize: 12 }}>{d.n}</td>
+                  <td style={{ fontSize: 12, fontWeight: mejor && d.dia === mejor.dia ? 700 : 400, color: mejor && d.dia === mejor.dia ? "#E8611A" : "#374151" }}>{d.pct}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 10, padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 11.5, lineHeight: 1.6 }}>
+            <div><b>Interpretación:</b> Compara cuántas solicitudes entrantes llegaron cada día de la semana, usando únicamente los días con registros.</div>
+            <div style={{ marginTop: 4 }}><b>Conclusión:</b> {mejor && mejor.n > 0 ? <>{mejor.dia} presenta la mayor recepción con {mejor.n} solicitud(es), equivalente al {mejor.pct}% del total recibido.</> : "Aún no hay suficiente variedad de fechas para identificar un patrón por día."}</div>
+            <div style={{ marginTop: 4 }}><b>Recomendación:</b> {mejor && mejor.n > 0 ? <>Reforzar la capacidad de gestión los días {mejor.dia} y revisar este patrón periódicamente conforme entren más solicitudes.</> : "Seguir registrando solicitudes para poder identificar un día pico de recepción."}</div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -324,6 +381,7 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
   const [nuevoTipoDepto, setNuevoTipoDepto] = useState(DEPARTAMENTOS.find(d => d.id !== DEPTO)?.id || "");
   const [nuevaPrioridadNombre, setNuevaPrioridadNombre] = useState("");
   const [nuevaPrioridadClase, setNuevaPrioridadClase] = useState("badge-info");
+  const [nuevaPrioridadNota, setNuevaPrioridadNota] = useState("");
 
   const toggleAlerta = (id: string) => setConfig(prev => ({ ...prev, alertas: prev.alertas.map(a => a.id === id ? { ...a, activa: !a.activa } : a) }));
   const setEncargado = (deptoId: string, nombre: string) => setConfig(prev => ({ ...prev, flujoAprobacion: { ...prev.flujoAprobacion, encargadosPorDepto: { ...prev.flujoAprobacion.encargadosPorDepto, [deptoId]: nombre } } }));
@@ -338,10 +396,11 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
 
   const agregarPrioridad = () => {
     if (!nuevaPrioridadNombre.trim() || config.prioridades.some(p => p.nombre === nuevaPrioridadNombre.trim())) return;
-    setConfig(prev => ({ ...prev, prioridades: [...prev.prioridades, { id: `p-${Date.now()}`, nombre: nuevaPrioridadNombre.trim(), badgeClass: nuevaPrioridadClase }] }));
-    setNuevaPrioridadNombre("");
+    setConfig(prev => ({ ...prev, prioridades: [...prev.prioridades, { id: `p-${Date.now()}`, nombre: nuevaPrioridadNombre.trim(), badgeClass: nuevaPrioridadClase, nota: nuevaPrioridadNota.trim() }] }));
+    setNuevaPrioridadNombre(""); setNuevaPrioridadNota("");
   };
   const quitarPrioridad = (id: string) => { if (config.prioridades.length <= 1) return; setConfig(prev => ({ ...prev, prioridades: prev.prioridades.filter(p => p.id !== id) })); };
+  const setNotaPrioridad = (id: string, nota: string) => setConfig(prev => ({ ...prev, prioridades: prev.prioridades.map(p => p.id === id ? { ...p, nota } : p) }));
 
   return (
     <div>
@@ -372,7 +431,12 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
                 {ROSTER.map(n => <option key={n}>{n}</option>)}
               </select>
             </div>
-            <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>Si una alerta activa se dispara (solicitud sin asignar, bloqueada mucho tiempo, SLA vencido, urgente recibida), se notifica a esta persona.</div>
+            <div className="form-group"><label className="form-label">Medio de notificación</label>
+              <select className="form-control" value={config.canalNotificacion} onChange={e => setConfig(prev => ({ ...prev, canalNotificacion: e.target.value as ConfiguracionSolicitudesDepto["canalNotificacion"] }))}>
+                <option>Solo alerta de sistema</option><option>Correo</option><option>WhatsApp</option><option>Todos</option>
+              </select>
+            </div>
+            <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>Si una alerta activa se dispara (solicitud sin asignar, bloqueada mucho tiempo, SLA vencido, urgente recibida), se notifica por este medio a la persona indicada.</div>
           </div>
         </div>
       )}
@@ -427,11 +491,14 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
       {subTab === "prioridades" && (
         <div className="card">
           <div className="card-title">Prioridades de solicitud</div>
-          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 10 }}>Se usan como pastillas al crear una solicitud y como badge en las listas y el detalle.</div>
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 10 }}>Cada prioridad lleva una nota que explica cuándo usarla — se muestra al crear la solicitud para que no se elija "Urgente" por costumbre.</div>
           {config.prioridades.map(p => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #F3F4F6" }}>
-              <span className={`badge ${p.badgeClass}`}>{p.nombre}</span>
-              <button className="btn btn-ghost btn-sm" disabled={config.prioridades.length <= 1} onClick={() => quitarPrioridad(p.id)}>✕</button>
+            <div key={p.id} style={{ padding: "8px 0", borderBottom: "1px solid #F3F4F6" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span className={`badge ${p.badgeClass}`}>{p.nombre}</span>
+                <button className="btn btn-ghost btn-sm" disabled={config.prioridades.length <= 1} onClick={() => quitarPrioridad(p.id)}>✕</button>
+              </div>
+              <input className="form-control" style={{ fontSize: 11.5 }} value={p.nota} onChange={e => setNotaPrioridad(p.id, e.target.value)} placeholder="¿Cuándo se debe usar esta prioridad?" />
             </div>
           ))}
           <div className="g3" style={{ marginTop: 12 }}>
@@ -443,6 +510,7 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
             </div>
             <div className="form-group"><label className="form-label">&nbsp;</label><button className="btn btn-primary btn-sm" style={{ width: "100%" }} disabled={!nuevaPrioridadNombre.trim()} onClick={agregarPrioridad}>➕ Agregar</button></div>
           </div>
+          <div className="form-group"><label className="form-label">Nota de la nueva prioridad</label><input className="form-control" value={nuevaPrioridadNota} onChange={e => setNuevaPrioridadNota(e.target.value)} placeholder="Ej: Se necesita para iniciar labor hoy mismo" /></div>
         </div>
       )}
     </div>
@@ -598,6 +666,7 @@ function SolicitudDetalleModal({ solicitud, todas, config, onActualizar, onIrA, 
               <select className="form-control" value={solicitud.prioridad} onChange={e => cambiarPrioridad(e.target.value)}>
                 {config.prioridades.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
               </select>
+              {config.prioridades.find(p => p.nombre === solicitud.prioridad)?.nota && <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 4 }}>💡 {config.prioridades.find(p => p.nombre === solicitud.prioridad)?.nota}</div>}
             </div>
 
             <div className="form-group"><label className="form-label">Etiquetas</label>

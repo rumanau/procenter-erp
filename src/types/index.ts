@@ -741,11 +741,13 @@ export interface SolicitudInterna {
 export interface AlertaSolicitud { id: string; nombre: string; activa: boolean; }
 export interface TipoSolicitudConfig { id: string; departamentoId: string; nombre: string; icono: string; }
 export interface FlujoAprobacionConfig { encargadosPorDepto: Record<string, string>; aprobadorFinal: string; }
-export interface PrioridadConfig { id: string; nombre: string; badgeClass: string; }
+export interface PrioridadConfig { id: string; nombre: string; badgeClass: string; nota: string; }
+export type CanalNotificacion = "Solo alerta de sistema" | "Correo" | "WhatsApp" | "Todos";
 
 export interface ConfiguracionSolicitudesDepto {
   slaHoras: number;
   notificarA: string;
+  canalNotificacion: CanalNotificacion;
   alertas: AlertaSolicitud[];
   flujoAprobacion: FlujoAprobacionConfig;
   tiposSolicitud: TipoSolicitudConfig[];
