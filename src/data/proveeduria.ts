@@ -1,4 +1,4 @@
-import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor, ProveedorInventario, EstadoHomologacion, Articulo } from "../types";
+import type { OrdenCompra, EstadoOC, LineaOC, ProveedorArticulo, DocumentoProveedor, EstadoDocumento, Recepcion, LineaRecepcion, EvaluacionServicio, SolicitudCotizacion, OfertaProveedor, ProveedorInventario, EstadoHomologacion, Articulo, DevolucionProveedor } from "../types";
 import { ARTICULOS_INIT, PROVEEDORES_INIT } from "./inventario";
 
 function mulberry32(seed: number) {
@@ -458,5 +458,86 @@ export function analisisPrecios(items: Articulo[], ordenesCompra: OrdenCompra[],
     variacion30: promedioVentana(30), variacion90: promedioVentana(90), variacion365: promedioVentana(365),
     vsAlternativos: sobreAlternativos.length ? sobreAlternativos.reduce((s, v) => s + v, 0) / sobreAlternativos.length : null,
     articulosConAumento, ahorroPotencial,
+  };
+}
+
+// ── Analítica integral del proveedor ────────────────────────────
+// Compara dos ventanas consecutivas de `meses` (período actual vs. el que le
+// antecede) para responder si el proveedor viene mejorando o empeorando en
+// cada dimensión operativa — no solo el score compuesto (eso es Desempeño).
+export interface AnaliticaProveedor {
+  meses: number;
+  entregaActual: number | null; entregaAnterior: number | null;
+  atrasoActual: number | null; atrasoAnterior: number | null;
+  cantidadActual: number | null; cantidadAnterior: number | null;
+  rechazoActual: number | null; rechazoAnterior: number | null;
+  devolucionesActual: number; devolucionesAnterior: number;
+  volumenActual: number; volumenAnterior: number;
+  precioVariacionPct: number | null;
+}
+
+export function analiticaProveedor(proveedorId: string, items: Articulo[], ordenesCompra: OrdenCompra[], recepciones: Recepcion[], devoluciones: DevolucionProveedor[], meses = 6): AnaliticaProveedor {
+  const hoyD = new Date();
+  const finActual = hoyD;
+  const inicioActual = new Date(hoyD); inicioActual.setMonth(inicioActual.getMonth() - meses);
+  const inicioAnterior = new Date(inicioActual); inicioAnterior.setMonth(inicioAnterior.getMonth() - meses);
+
+  const ocsProveedor = ordenesCompra.filter(o => o.proveedorId === proveedorId);
+  const idsOC = new Set(ocsProveedor.map(o => o.id));
+  const recepcionesProveedor = recepciones.filter(r => idsOC.has(r.ordenCompraId));
+  const devolucionesProveedor = devoluciones.filter(d => d.proveedorId === proveedorId);
+
+  const enRango = (fecha: string, desde: Date, hasta: Date) => { const f = parseFechaEsCR(fecha); return f >= desde && f < hasta; };
+
+  const entregaEnVentana = (desde: Date, hasta: Date): number | null => {
+    const completas = ocsProveedor.filter(o => o.fechaRecepcion && o.fechaEntregaEsperada && enRango(o.fechaRecepcion, desde, hasta));
+    if (completas.length === 0) return null;
+    const aTiempo = completas.filter(o => parseFechaEsCR(o.fechaRecepcion!) <= parseFechaEsCR(o.fechaEntregaEsperada!));
+    return Math.round((aTiempo.length / completas.length) * 100);
+  };
+
+  const atrasoEnVentana = (desde: Date, hasta: Date): number | null => {
+    const completas = ocsProveedor.filter(o => o.fechaRecepcion && o.fechaEntregaEsperada && enRango(o.fechaRecepcion, desde, hasta));
+    const dias = completas.map(o => diasDiferenciaEntrega(o)).filter((d): d is number => d !== null);
+    return dias.length ? Math.round((dias.reduce((s, d) => s + d, 0) / dias.length) * 10) / 10 : null;
+  };
+
+  const cantidadEnVentana = (desde: Date, hasta: Date): number | null => {
+    const ocsConRecepcion = ocsProveedor.filter(o => recepcionesProveedor.some(r => r.ordenCompraId === o.id && enRango(r.fecha, desde, hasta)));
+    if (ocsConRecepcion.length === 0) return null;
+    const pcts = ocsConRecepcion.map(o => {
+      const totalSolicitado = o.lineas.reduce((s, l) => s + l.cantidad, 0);
+      const totalRecibido = recepcionesProveedor.filter(r => r.ordenCompraId === o.id).reduce((s, r) => s + r.lineas.reduce((s2, l) => s2 + l.cantidadRecibida, 0), 0);
+      return totalSolicitado ? Math.min(100, (totalRecibido / totalSolicitado) * 100) : 100;
+    });
+    return Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+  };
+
+  const rechazoEnVentana = (desde: Date, hasta: Date): number | null => {
+    const recs = recepcionesProveedor.filter(r => enRango(r.fecha, desde, hasta));
+    if (recs.length === 0) return null;
+    let recibido = 0, rechazado = 0;
+    recs.forEach(r => r.lineas.forEach(l => { recibido += l.cantidadRecibida; rechazado += l.cantidadRechazada; }));
+    return recibido ? Math.round((rechazado / recibido) * 1000) / 10 : 0;
+  };
+
+  const devolucionesEnVentana = (desde: Date, hasta: Date): number =>
+    devolucionesProveedor.filter(d => enRango(d.fecha, desde, hasta)).length;
+
+  const volumenEnVentana = (desde: Date, hasta: Date): number =>
+    ocsProveedor.filter(o => o.estado !== "Cancelada" && enRango(o.fecha, desde, hasta)).reduce((s, o) => s + totalOC(o), 0);
+
+  const precios = items.map(a => variacionEnVentana(a, ordenesCompra, meses * 30)).filter((v): v is number => v !== null);
+  const precioVariacionPct = precios.length ? Math.round((precios.reduce((s, v) => s + v, 0) / precios.length) * 10) / 10 : null;
+
+  return {
+    meses,
+    entregaActual: entregaEnVentana(inicioActual, finActual), entregaAnterior: entregaEnVentana(inicioAnterior, inicioActual),
+    atrasoActual: atrasoEnVentana(inicioActual, finActual), atrasoAnterior: atrasoEnVentana(inicioAnterior, inicioActual),
+    cantidadActual: cantidadEnVentana(inicioActual, finActual), cantidadAnterior: cantidadEnVentana(inicioAnterior, inicioActual),
+    rechazoActual: rechazoEnVentana(inicioActual, finActual), rechazoAnterior: rechazoEnVentana(inicioAnterior, inicioActual),
+    devolucionesActual: devolucionesEnVentana(inicioActual, finActual), devolucionesAnterior: devolucionesEnVentana(inicioAnterior, inicioActual),
+    volumenActual: volumenEnVentana(inicioActual, finActual), volumenAnterior: volumenEnVentana(inicioAnterior, inicioActual),
+    precioVariacionPct,
   };
 }

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor, ContactoProveedor, CuentaBancariaProveedor, DireccionProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, historicoPrecios, variacionEnVentana, analisisPrecios, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion } from "../../data/proveeduria";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, historicoPrecios, variacionEnVentana, analisisPrecios, analiticaProveedor, type EvaluacionProveedor, type EstadoHomologacionEfectivo, type CriterioEvaluacion, type PuntoEvolucion, type AnaliticaProveedor } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
-type Tab="resumen"|"compras"|"desempeno"|"precios"|"catalogo"|"finanzas"|"documentos"|"devoluciones"|"historial";
+type Tab="resumen"|"compras"|"desempeno"|"precios"|"analitica"|"catalogo"|"finanzas"|"documentos"|"devoluciones"|"historial";
 
 export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProveedores,articulos,ordenesCompra,categorias,facturasCxp,proveedorArticulos,documentosProveedor,setDocumentosProveedor,recepciones,evaluacionesServicio,devoluciones,setDevoluciones,auditoriaProveedores,setAuditoriaProveedores,onEliminado}:{
   proveedor:ProveedorInventario;setView:(v:View)=>void;onVolver:()=>void;
@@ -37,7 +37,7 @@ export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProv
     onEliminado();
   };
 
-  const tabs:[Tab,string][]=[["resumen","Resumen"],["compras","Compras"],["desempeno","Desempeño"],["precios","Precios"],["catalogo","Catálogo"],["finanzas","Finanzas"],["documentos","📄 Documentos"],["devoluciones","↩️ Devoluciones"],["historial","Historial"]];
+  const tabs:[Tab,string][]=[["resumen","Resumen"],["compras","Compras"],["desempeno","Desempeño"],["precios","Precios"],["analitica","📈 Analítica"],["catalogo","Catálogo"],["finanzas","Finanzas"],["documentos","📄 Documentos"],["devoluciones","↩️ Devoluciones"],["historial","Historial"]];
 
   return (
     <div className="content" style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -90,6 +90,7 @@ export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProv
         {tab==="compras"&&<ComprasTab ocs={ocs}/>}
         {tab==="desempeno"&&<DesempenoTab proveedor={proveedor} evaluacion={evaluacion} ordenesCompra={ordenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio}/>}
         {tab==="precios"&&<PreciosTab items={items} ordenesCompra={ocs} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
+        {tab==="analitica"&&<AnaliticaTab proveedor={proveedor} items={items} ordenesCompra={ocs} recepciones={recepciones} devoluciones={devoluciones}/>}
         {tab==="catalogo"&&<CatalogoTab items={items} categorias={categorias} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
         {tab==="finanzas"&&<FinanzasTab facturas={facturasCxp}/>}
         {tab==="documentos"&&<DocumentosTab documentos={documentos} proveedorId={proveedor.id} setDocumentosProveedor={setDocumentosProveedor}/>}
@@ -392,6 +393,102 @@ function PreciosTab({items,ordenesCompra,proveedorArticulos,proveedores}:{items:
       </div>
     </div>
   );
+}
+
+interface FilaMetrica { nombre:string; actual:number|null; anterior:number|null; unidad:string; mejorEsMayor:boolean; decimales?:number; }
+
+function filaMetrica(nombre:string,actual:number|null,anterior:number|null,unidad:string,mejorEsMayor:boolean,decimales=0):FilaMetrica{
+  return {nombre,actual,anterior,unidad,mejorEsMayor,decimales};
+}
+
+function AnaliticaTab({proveedor,items,ordenesCompra,recepciones,devoluciones}:{proveedor:ProveedorInventario;items:Articulo[];ordenesCompra:OrdenCompra[];recepciones:Recepcion[];devoluciones:DevolucionProveedor[]}) {
+  const a:AnaliticaProveedor=analiticaProveedor(proveedor.id,items,ordenesCompra,recepciones,devoluciones,6);
+
+  const filas:FilaMetrica[]=[
+    filaMetrica("Entrega a tiempo",a.entregaActual,a.entregaAnterior,"%",true),
+    filaMetrica("Atraso promedio",a.atrasoActual,a.atrasoAnterior,"días",false,1),
+    filaMetrica("Cumplimiento de cantidad",a.cantidadActual,a.cantidadAnterior,"%",true),
+    filaMetrica("Tasa de rechazo",a.rechazoActual,a.rechazoAnterior,"%",false,1),
+    filaMetrica("Devoluciones",a.devolucionesActual,a.devolucionesAnterior,"",false),
+    filaMetrica("Volumen comprado",a.volumenActual,a.volumenAnterior,"₡",true),
+  ];
+
+  const fmtValor=(v:number|null,unidad:string,decimales:number)=>v===null?"—":unidad==="₡"?fmt(v):`${v.toFixed(decimales)}${unidad}`;
+
+  const alertas=generarAlertasAnalitica(a);
+
+  return (
+    <div>
+      <div className="card" style={{marginBottom:14,padding:0,overflow:"hidden"}}>
+        <table className="tbl">
+          <thead><tr><th>Indicador</th><th>Últimos {a.meses} meses</th><th>{a.meses} meses anteriores</th><th>Cambio</th></tr></thead>
+          <tbody>
+            {filas.map(f=>{
+              const hayDatos=f.actual!==null&&f.anterior!==null;
+              const delta=hayDatos?(f.actual as number)-(f.anterior as number):null;
+              const mejora=delta===null?null:f.mejorEsMayor?delta>0:delta<0;
+              return (
+                <tr key={f.nombre}>
+                  <td style={{fontSize:12.5,fontWeight:600}}>{f.nombre}</td>
+                  <td style={{fontSize:12}}>{fmtValor(f.actual,f.unidad,f.decimales||0)}</td>
+                  <td style={{fontSize:12,color:"#9CA3AF"}}>{fmtValor(f.anterior,f.unidad,f.decimales||0)}</td>
+                  <td>
+                    {delta===null?<span style={{fontSize:10.5,color:"#9CA3AF"}}>Sin datos suficientes</span>:
+                      <span style={{fontSize:11,fontWeight:700,color:mejora?"#10B981":delta===0?"#6B7280":"#EF4444"}}>
+                        {delta>0?"▲":delta<0?"▼":"→"} {f.unidad==="₡"?fmt(Math.abs(delta)):`${Math.abs(delta).toFixed(f.decimales||0)}${f.unidad}`}
+                      </span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Alertas cruzadas</div>
+        {alertas.length===0&&<div style={{fontSize:11,color:"#9CA3AF"}}>Sin alertas — no hay suficiente historial en ambos períodos para comparar, o ningún indicador se mueve de forma relevante.</div>}
+        {alertas.map((al,i)=>(
+          <div key={i} style={{fontSize:11.5,padding:"7px 0",borderBottom:"1px solid #F3F4F6",color:al.tipo==="alerta"?"#991B1B":"#065F46"}}>{al.tipo==="alerta"?"⚠ ":"✓ "}{al.texto}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface AlertaAnalitica { tipo:"alerta"|"positiva"; texto:string; }
+
+// Solo genera una alerta cuando dos o más indicadores se mueven en la misma
+// dirección "mala" al mismo tiempo — un solo indicador flojo ya se ve en su
+// propia fila; el valor de esta sección es cruzar señales.
+function generarAlertasAnalitica(a:AnaliticaProveedor):AlertaAnalitica[] {
+  const alertas:AlertaAnalitica[]=[];
+  const entregaCae=a.entregaActual!==null&&a.entregaAnterior!==null&&a.entregaActual<a.entregaAnterior-5;
+  const precioSube=a.precioVariacionPct!==null&&a.precioVariacionPct>=5;
+  const rechazoSube=a.rechazoActual!==null&&a.rechazoAnterior!==null&&a.rechazoActual>a.rechazoAnterior+2;
+  const devolucionesSuben=a.devolucionesActual>a.devolucionesAnterior;
+  const atrasoSube=a.atrasoActual!==null&&a.atrasoAnterior!==null&&a.atrasoActual>a.atrasoAnterior+2;
+
+  if(precioSube&&entregaCae){
+    alertas.push({tipo:"alerta",texto:`El precio subió ${a.precioVariacionPct!.toFixed(1)}% y la puntualidad cayó de ${a.entregaAnterior}% a ${a.entregaActual}% en los últimos ${a.meses} meses.`});
+  }
+  if(rechazoSube&&devolucionesSuben){
+    alertas.push({tipo:"alerta",texto:`La tasa de rechazo subió de ${a.rechazoAnterior}% a ${a.rechazoActual}% y las devoluciones pasaron de ${a.devolucionesAnterior} a ${a.devolucionesActual} en el mismo período.`});
+  }
+  if(atrasoSube&&entregaCae){
+    alertas.push({tipo:"alerta",texto:`El atraso promedio subió de ${a.atrasoAnterior} a ${a.atrasoActual} días y la puntualidad cayó de ${a.entregaAnterior}% a ${a.entregaActual}%.`});
+  }
+
+  if(alertas.length===0){
+    const entregaSube=a.entregaActual!==null&&a.entregaAnterior!==null&&a.entregaActual>a.entregaAnterior+5;
+    const precioBaja=a.precioVariacionPct!==null&&a.precioVariacionPct<=-2;
+    const rechazoBaja=a.rechazoActual!==null&&a.rechazoAnterior!==null&&a.rechazoActual<a.rechazoAnterior-2;
+    if([entregaSube,precioBaja,rechazoBaja].filter(Boolean).length>=2){
+      alertas.push({tipo:"positiva",texto:`Este proveedor viene mejorando en varios indicadores a la vez en los últimos ${a.meses} meses — buen momento para mantener o ampliar la relación comercial.`});
+    }
+  }
+
+  return alertas;
 }
 
 function MiniSerie({puntos}:{puntos:{fecha:string;costo:number}[]}) {
