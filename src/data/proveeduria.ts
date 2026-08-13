@@ -234,6 +234,25 @@ export function calcularEvaluacion(proveedorId: string, ordenesCompra: OrdenComp
   };
 }
 
+export interface PuntoEvolucion { periodo: string; puntaje: number; conDatos: boolean; }
+
+// Recalcula la evaluación "como habría sido" al cierre de cada uno de los últimos
+// `meses` meses, usando solo el historial disponible hasta ese corte — permite ver
+// si el proveedor viene mejorando o empeorando sin inventar una serie de tiempo.
+export function evolucionEvaluacion(proveedorId: string, ordenesCompra: OrdenCompra[], recepciones: Recepcion[], evaluacionesServicio: EvaluacionServicio[], meses = 6): PuntoEvolucion[] {
+  const hoyD = new Date();
+  const puntos: PuntoEvolucion[] = [];
+  for (let i = meses - 1; i >= 0; i--) {
+    const corte = new Date(hoyD.getFullYear(), hoyD.getMonth() - i + 1, 0);
+    const ocsHasta = ordenesCompra.filter(o => parseFechaEsCR(o.fecha) <= corte);
+    const recepcionesHasta = recepciones.filter(r => parseFechaEsCR(r.fecha) <= corte);
+    const evalsHasta = evaluacionesServicio.filter(e => parseFechaEsCR(e.fecha) <= corte);
+    const ev = calcularEvaluacion(proveedorId, ocsHasta, recepcionesHasta, evalsHasta);
+    puntos.push({ periodo: corte.toLocaleDateString("es-CR", { month: "short", year: "2-digit" }), puntaje: ev.puntaje, conDatos: ev.conDatos });
+  }
+  return puntos;
+}
+
 // ── Multi-proveedor por artículo ────────────────────────────────
 // Para cada artículo, ofrece 1-2 proveedores alternativos (misma categoría,
 // proveedor distinto al principal) con su propio costo y lead time, para

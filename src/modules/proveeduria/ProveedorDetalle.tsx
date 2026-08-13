@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { View, ProveedorInventario, Articulo, OrdenCompra, CategoriaInventario, Factura, ProveedorArticulo, DocumentoProveedor, Recepcion, EvaluacionServicio, DevolucionProveedor, AuditoriaProveedor, ContactoProveedor, CuentaBancariaProveedor, DireccionProveedor } from "../../types";
-import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo } from "../../data/proveeduria";
+import { totalOC, parseFechaEsCR, calcularEvaluacion, estadoDocumento, descripcionGrado, homologacionEfectiva, documentosVencidosDe, descripcionHomologacion, badgeHomologacion, evolucionEvaluacion, type EvaluacionProveedor, type EstadoHomologacionEfectivo } from "../../data/proveeduria";
 
 const fmt=(n:number)=>`₡${Math.round(n).toLocaleString("es-CR")}`;
 const hoy=()=>new Date().toLocaleDateString("es-CR",{day:"2-digit",month:"short",year:"numeric"});
@@ -88,7 +88,7 @@ export function ProveedorDetalle({proveedor,setView,onVolver,proveedores,setProv
       <div style={{flex:1,overflow:"auto"}}>
         {tab==="resumen"&&<ResumenTab proveedor={proveedor} comprasYTD={comprasYTD} cxpPendiente={cxpPendiente} ocAbiertas={ocsAbiertas} evaluacion={evaluacion} ocs={ocs} facturas={facturasCxp} devoluciones={devoluciones} documentos={documentos}/>}
         {tab==="compras"&&<ComprasTab ocs={ocs}/>}
-        {tab==="desempeno"&&<DesempenoTab proveedor={proveedor} evaluacion={evaluacion}/>}
+        {tab==="desempeno"&&<DesempenoTab proveedor={proveedor} evaluacion={evaluacion} ordenesCompra={ordenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio}/>}
         {tab==="precios"&&<PreciosTab items={items} ordenesCompra={ocs} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
         {tab==="catalogo"&&<CatalogoTab items={items} categorias={categorias} proveedorArticulos={proveedorArticulos} proveedores={proveedores}/>}
         {tab==="finanzas"&&<FinanzasTab facturas={facturasCxp}/>}
@@ -152,11 +152,34 @@ function ResumenTab({proveedor,comprasYTD,cxpPendiente,ocAbiertas,evaluacion,ocs
   );
 }
 
-function DesempenoTab({proveedor,evaluacion}:{proveedor:ProveedorInventario;evaluacion:EvaluacionProveedor}) {
+function DesempenoTab({proveedor,evaluacion,ordenesCompra,recepciones,evaluacionesServicio}:{proveedor:ProveedorInventario;evaluacion:EvaluacionProveedor;ordenesCompra:OrdenCompra[];recepciones:Recepcion[];evaluacionesServicio:EvaluacionServicio[]}) {
   const barColor=(v:number)=>v>=85?"#10B981":v>=70?"#F59E0B":"#EF4444";
   const [verDesglose,setVerDesglose]=useState(false);
+
+  const evolucion=evolucionEvaluacion(proveedor.id,ordenesCompra,recepciones,evaluacionesServicio,6);
+  const conHistorial=evolucion.filter(p=>p.conDatos);
+  const delta=conHistorial.length>=2?conHistorial[conHistorial.length-1].puntaje-conHistorial[0].puntaje:null;
+  const mejorCriterio=[...evaluacion.criterios].sort((a,b)=>b.resultado-a.resultado)[0];
+  const peorCriterio=[...evaluacion.criterios].sort((a,b)=>a.resultado-b.resultado)[0];
+
   return (
     <div>
+      <div className="g4" style={{marginBottom:14}}>
+        <div className="kpi"><div className="kpi-label">Score actual</div><div className="kpi-value" style={{fontSize:16,color:barColor(evaluacion.puntaje)}}>{evaluacion.puntaje} {evaluacion.grado}</div></div>
+        <div className="kpi"><div className="kpi-label">Tendencia (6 meses)</div><div className="kpi-value" style={{fontSize:16,color:delta===null?undefined:delta>0?"#10B981":delta<0?"#EF4444":undefined}}>{delta===null?"Sin datos suficientes":`${delta>0?"▲ +":delta<0?"▼ ":"→ "}${delta} pts`}</div></div>
+        <div className="kpi"><div className="kpi-label">Mejor criterio</div><div className="kpi-value" style={{fontSize:14,color:"#10B981"}}>{mejorCriterio.nombre} ({mejorCriterio.resultado}%)</div></div>
+        <div className="kpi"><div className="kpi-label">A vigilar</div><div className="kpi-value" style={{fontSize:14,color:peorCriterio.resultado<75?"#EF4444":undefined}}>{peorCriterio.nombre} ({peorCriterio.resultado}%)</div></div>
+      </div>
+
+      <div className="card" style={{marginBottom:14}}>
+        <div className="card-title">Evolución del score — últimos 6 meses</div>
+        {conHistorial.length<2?(
+          <div style={{fontSize:11,color:"#9CA3AF"}}>Aún no hay suficiente historial mensual para trazar una tendencia.</div>
+        ):(
+          <ScoreTrendChart puntos={evolucion}/>
+        )}
+      </div>
+
       <div className="card" style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div className="card-title" style={{marginBottom:0}}>Evaluación del proveedor</div>
@@ -178,6 +201,26 @@ function DesempenoTab({proveedor,evaluacion}:{proveedor:ProveedorInventario;eval
       </div>
       {verDesglose&&<EvaluacionDetalleModal proveedor={proveedor} evaluacion={evaluacion} onCerrar={()=>setVerDesglose(false)}/>}
     </div>
+  );
+}
+
+function ScoreTrendChart({puntos}:{puntos:{periodo:string;puntaje:number;conDatos:boolean}[]}) {
+  const w=560,h=120,pad=26;
+  const x=(i:number)=>pad+(i*(w-pad*2))/(puntos.length-1);
+  const y=(v:number)=>h-pad-((v)*(h-pad*2))/100;
+  const path=puntos.map((p,i)=>`${i===0?"M":"L"}${x(i)},${y(p.puntaje)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{width:"100%",height:120}}>
+      <line x1={pad} y1={y(85)} x2={w-pad} y2={y(85)} stroke="#E5E7EB" strokeDasharray="3,3"/>
+      <path d={path} fill="none" stroke="#E8611A" strokeWidth={2}/>
+      {puntos.map((p,i)=>(
+        <g key={i} opacity={p.conDatos?1:0.35}>
+          <circle cx={x(i)} cy={y(p.puntaje)} r={3.5} fill="#E8611A"/>
+          <text x={x(i)} y={h-8} fontSize={9} fill="#9CA3AF" textAnchor="middle">{p.periodo}</text>
+          <text x={x(i)} y={y(p.puntaje)-8} fontSize={9} fill="#374151" textAnchor="middle">{p.puntaje}</text>
+        </g>
+      ))}
+    </svg>
   );
 }
 
