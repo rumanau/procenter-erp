@@ -2,7 +2,7 @@ export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
   | "conteo" | "reabasto" | "valorizado" | "trazabilidad"
-  | "proveeduria" | "proveedores" | "resumen-proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion"
+  | "proveeduria" | "proveedores" | "resumen-proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion" | "solicitudes-proveeduria"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"
   | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
@@ -692,4 +692,48 @@ export interface DocumentoProveedor {
   tipo: string;
   nombre: string;
   vigenciaHasta?: string;
+}
+
+// ── Solicitudes interdepartamentales ────────────────────────────
+// Un departamento le solicita algo a otro (ej. RRHH pide uniformes a
+// Inventario, Inventario sin stock le pide la compra a Proveeduría).
+// Independiente del portal genérico "Solicitudes" (formulario simple sin
+// estado real) — esto sí vive en App.tsx y conecta departamentos entre sí.
+
+export type EstadoSolicitudInterna = "Nueva" | "En Gestión" | "Bloqueada" | "Resuelta" | "Descartada";
+export type PrioridadSolicitudInterna = "Baja" | "Media" | "Alta" | "Urgente";
+export type MotivoAtrasoSolicitud = "Esperando a otro departamento" | "Falta de stock o insumo" | "Esperando aprobación" | "Falta información del solicitante" | "Prioridad reasignada" | "Otro";
+
+export interface ChecklistItemSolicitud { id: string; texto: string; hecho: boolean; }
+export interface SubtareaSolicitud { id: string; texto: string; hecho: boolean; }
+export interface ComentarioSolicitud { id: string; texto: string; usuario: string; fecha: string; }
+export interface EventoHistorialSolicitud { id: string; texto: string; usuario: string; fecha: string; }
+
+export interface SolicitudInterna {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  departamentoOrigen: string;
+  departamentoDestino: string;
+  solicitante: string;
+  personaAsignada?: string;
+  prioridad: PrioridadSolicitudInterna;
+  etiquetas: string[];
+  estado: EstadoSolicitudInterna;
+  motivoAtraso?: MotivoAtrasoSolicitud;
+  motivoAtrasoDetalle?: string;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  fechaLimite?: string;
+  solicitudPadreId?: string;
+  checklist: ChecklistItemSolicitud[];
+  subtareas: SubtareaSolicitud[];
+  comentarios: ComentarioSolicitud[];
+  historial: EventoHistorialSolicitud[];
+}
+
+export interface ConfiguracionSolicitudesDepto {
+  slaHoras: number;
+  notificarA: string;
+  alertasActivas: boolean;
 }
