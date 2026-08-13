@@ -27,6 +27,7 @@ export function FinanzasHome({setView,asientos}:{setView:(v:View)=>void;asientos
     {icon:"💧",name:"Flujo de Caja",desc:"Proyección de ingresos y egresos",sub:"8 semanas proyectadas",view:"flujo-caja" as View},
     {icon:"🧾",name:"Facturación Electrónica",desc:"Emisión · Clave numérica · Hacienda",sub:`${FACTURAS_CXC_INIT.length} comprobantes emitidos`,view:"facturacion" as View},
     {icon:"🏦",name:"Conexión Bancaria",desc:"Cuentas conectadas · Conciliación",sub:`${CUENTAS_BANCARIAS_INIT.filter(c=>c.conectada).length}/${CUENTAS_BANCARIAS_INIT.length} conectadas`,view:"banca" as View},
+    {icon:"📬",name:"Solicitudes entre Deptos.",desc:"Bandeja, enviadas y auditoría",sub:"Conecta con otros departamentos",view:"solicitudes-finanzas" as View},
     {icon:"⚙️",name:"Configuración Finanzas",desc:"Monedas · Series · Credenciales Hacienda",sub:"Multimoneda personalizable",view:"config-finanzas" as View},
   ];
 

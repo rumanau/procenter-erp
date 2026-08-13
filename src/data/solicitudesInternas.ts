@@ -1,4 +1,4 @@
-import type { SolicitudInterna, EstadoSolicitudInterna, ConfiguracionSolicitudesDepto } from "../types";
+import type { SolicitudInterna, EstadoSolicitudInterna, ConfiguracionSolicitudesDepto, TipoSolicitudConfig, AlertaSolicitud, PrioridadConfig } from "../types";
 import { parseFechaEsCR } from "./proveeduria";
 
 export interface Departamento { id: string; nombre: string; icono: string; color: string; border: string; colorText: string; }
@@ -23,49 +23,112 @@ export const deptoInfo = (id: string) => DEPARTAMENTOS.find(d => d.id === id) ||
 export const badgePrioridad = (config: ConfiguracionSolicitudesDepto, nombre: string): string =>
   config.prioridades.find(p => p.nombre === nombre)?.badgeClass || "badge-gray";
 
-export const CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT: ConfiguracionSolicitudesDepto = {
-  slaHoras: 48,
-  notificarA: "Ronald",
-  canalNotificacion: "Solo alerta de sistema",
-  alertas: [
-    { id: "al1", nombre: "Solicitud nueva sin asignar", activa: true },
-    { id: "al2", nombre: "Solicitud bloqueada por más de 2 días", activa: true },
-    { id: "al3", nombre: "Solicitud superó el SLA sin resolverse", activa: true },
-    { id: "al4", nombre: "Solicitud urgente recibida", activa: true },
-  ],
-  flujoAprobacion: {
-    encargadosPorDepto: { inventario: "Jules Ramirez", rrhh: "Sofía Méndez", finanzas: "Equipo Finanzas", mantenimiento: "Carlos Montoya", calidad: "María Rojas", operaciones: "Alejandro Vega", proveeduria: "Ronald" },
-    aprobadorFinal: "Ronald",
-  },
-  tiposSolicitud: [
-    { id: "t1", departamentoId: "inventario", nombre: "Consulta de stock", icono: "📦" },
-    { id: "t2", departamentoId: "inventario", nombre: "Traslado entre bodegas", icono: "📦" },
-    { id: "t3", departamentoId: "inventario", nombre: "Verificación de recepción", icono: "📦" },
-    { id: "t4", departamentoId: "inventario", nombre: "Otro inventario", icono: "📦" },
-    { id: "t5", departamentoId: "rrhh", nombre: "Solicitud de personal para bodega", icono: "👥" },
-    { id: "t6", departamentoId: "rrhh", nombre: "Capacitación de equipo", icono: "👥" },
-    { id: "t7", departamentoId: "rrhh", nombre: "Otro RRHH", icono: "👥" },
-    { id: "t8", departamentoId: "finanzas", nombre: "Aprobación de presupuesto", icono: "💰" },
-    { id: "t9", departamentoId: "finanzas", nombre: "Consulta de estado de pago", icono: "💰" },
-    { id: "t10", departamentoId: "finanzas", nombre: "Ajuste de condición de pago", icono: "💰" },
-    { id: "t11", departamentoId: "finanzas", nombre: "Otro Finanzas", icono: "💰" },
-    { id: "t12", departamentoId: "mantenimiento", nombre: "Mantenimiento de equipo de oficina", icono: "🔧" },
-    { id: "t13", departamentoId: "mantenimiento", nombre: "Reparación urgente", icono: "🔧" },
-    { id: "t14", departamentoId: "mantenimiento", nombre: "Otro Mantenimiento", icono: "🔧" },
-    { id: "t15", departamentoId: "calidad", nombre: "Homologación de proveedor", icono: "✅" },
-    { id: "t16", departamentoId: "calidad", nombre: "Validación de certificación", icono: "✅" },
-    { id: "t17", departamentoId: "calidad", nombre: "Auditoría de proveedor", icono: "✅" },
-    { id: "t18", departamentoId: "calidad", nombre: "Otro Calidad", icono: "✅" },
-    { id: "t19", departamentoId: "operaciones", nombre: "Coordinación logística", icono: "🏗️" },
-    { id: "t20", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
-  ],
-  prioridades: [
-    { id: "p1", nombre: "Baja", badgeClass: "badge-gray", nota: "No es necesaria para esta semana — puede esperar sin afectar la operación." },
-    { id: "p2", nombre: "Media", badgeClass: "badge-info", nota: "Se resuelve dentro del flujo normal, sin plazos críticos de por medio." },
-    { id: "p3", nombre: "Alta", badgeClass: "badge-warn", nota: "Afecta una entrega o proceso importante — debe atenderse en los próximos días." },
-    { id: "p4", nombre: "Urgente", badgeClass: "badge-crit", nota: "Se requiere para iniciar o continuar una labor ahora mismo — bloquea el trabajo si no se atiende." },
-  ],
-};
+// ── Bloques compartidos por defecto (idénticos en las 4 instancias departamentales) ──
+// Las alertas y prioridades por defecto son el mismo punto de partida para cualquier
+// departamento; encargadosPorDepto responde "¿quién es el contacto de X?" — una pregunta
+// que no depende de quién esté preguntando, así que se comparte también.
+const ALERTAS_DEFAULT: AlertaSolicitud[] = [
+  { id: "al1", nombre: "Solicitud nueva sin asignar", activa: true },
+  { id: "al2", nombre: "Solicitud bloqueada por más de 2 días", activa: true },
+  { id: "al3", nombre: "Solicitud superó el SLA sin resolverse", activa: true },
+  { id: "al4", nombre: "Solicitud urgente recibida", activa: true },
+];
+
+const PRIORIDADES_DEFAULT: PrioridadConfig[] = [
+  { id: "p1", nombre: "Baja", badgeClass: "badge-gray", nota: "No es necesaria para esta semana — puede esperar sin afectar la operación." },
+  { id: "p2", nombre: "Media", badgeClass: "badge-info", nota: "Se resuelve dentro del flujo normal, sin plazos críticos de por medio." },
+  { id: "p3", nombre: "Alta", badgeClass: "badge-warn", nota: "Afecta una entrega o proceso importante — debe atenderse en los próximos días." },
+  { id: "p4", nombre: "Urgente", badgeClass: "badge-crit", nota: "Se requiere para iniciar o continuar una labor ahora mismo — bloquea el trabajo si no se atiende." },
+];
+
+const ENCARGADOS_BASE: Record<string, string> = { inventario: "Jules Ramirez", rrhh: "Sofía Méndez", finanzas: "Equipo Finanzas", mantenimiento: "Carlos Montoya", calidad: "María Rojas", operaciones: "Alejandro Vega", proveeduria: "Ronald" };
+
+function crearConfigDefault(aprobadorFinal: string, notificarA: string, slaHoras: number, tiposSolicitud: TipoSolicitudConfig[]): ConfiguracionSolicitudesDepto {
+  return {
+    slaHoras, notificarA, canalNotificacion: "Solo alerta de sistema",
+    alertas: ALERTAS_DEFAULT.map(a => ({ ...a })),
+    flujoAprobacion: { encargadosPorDepto: { ...ENCARGADOS_BASE }, aprobadorFinal },
+    tiposSolicitud, prioridades: PRIORIDADES_DEFAULT.map(p => ({ ...p })),
+  };
+}
+
+export const CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT: ConfiguracionSolicitudesDepto = crearConfigDefault("Ronald", "Ronald", 48, [
+  { id: "t1", departamentoId: "inventario", nombre: "Consulta de stock", icono: "📦" },
+  { id: "t2", departamentoId: "inventario", nombre: "Traslado entre bodegas", icono: "📦" },
+  { id: "t3", departamentoId: "inventario", nombre: "Verificación de recepción", icono: "📦" },
+  { id: "t4", departamentoId: "inventario", nombre: "Otro inventario", icono: "📦" },
+  { id: "t5", departamentoId: "rrhh", nombre: "Solicitud de personal para bodega", icono: "👥" },
+  { id: "t6", departamentoId: "rrhh", nombre: "Capacitación de equipo", icono: "👥" },
+  { id: "t7", departamentoId: "rrhh", nombre: "Otro RRHH", icono: "👥" },
+  { id: "t8", departamentoId: "finanzas", nombre: "Aprobación de presupuesto", icono: "💰" },
+  { id: "t9", departamentoId: "finanzas", nombre: "Consulta de estado de pago", icono: "💰" },
+  { id: "t10", departamentoId: "finanzas", nombre: "Ajuste de condición de pago", icono: "💰" },
+  { id: "t11", departamentoId: "finanzas", nombre: "Otro Finanzas", icono: "💰" },
+  { id: "t12", departamentoId: "mantenimiento", nombre: "Mantenimiento de equipo de oficina", icono: "🔧" },
+  { id: "t13", departamentoId: "mantenimiento", nombre: "Reparación urgente", icono: "🔧" },
+  { id: "t14", departamentoId: "mantenimiento", nombre: "Otro Mantenimiento", icono: "🔧" },
+  { id: "t15", departamentoId: "calidad", nombre: "Homologación de proveedor", icono: "✅" },
+  { id: "t16", departamentoId: "calidad", nombre: "Validación de certificación", icono: "✅" },
+  { id: "t17", departamentoId: "calidad", nombre: "Auditoría de proveedor", icono: "✅" },
+  { id: "t18", departamentoId: "calidad", nombre: "Otro Calidad", icono: "✅" },
+  { id: "t19", departamentoId: "operaciones", nombre: "Coordinación logística", icono: "🏗️" },
+  { id: "t20", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
+]);
+
+export const CONFIG_SOLICITUDES_INVENTARIO_DEFAULT: ConfiguracionSolicitudesDepto = crearConfigDefault("Jules Ramirez", "Jules Ramirez", 24, [
+  { id: "ti1", departamentoId: "proveeduria", nombre: "Compra por falta de stock", icono: "📋" },
+  { id: "ti2", departamentoId: "proveeduria", nombre: "Cotización de artículo nuevo", icono: "📋" },
+  { id: "ti3", departamentoId: "proveeduria", nombre: "Reposición urgente", icono: "📋" },
+  { id: "ti4", departamentoId: "proveeduria", nombre: "Otro Proveeduría", icono: "📋" },
+  { id: "ti5", departamentoId: "rrhh", nombre: "Personal de apoyo para bodega", icono: "👥" },
+  { id: "ti6", departamentoId: "rrhh", nombre: "Capacitación en manejo de inventario", icono: "👥" },
+  { id: "ti7", departamentoId: "rrhh", nombre: "Otro RRHH", icono: "👥" },
+  { id: "ti8", departamentoId: "finanzas", nombre: "Aprobación de ajuste de inventario", icono: "💰" },
+  { id: "ti9", departamentoId: "finanzas", nombre: "Consulta de costeo", icono: "💰" },
+  { id: "ti10", departamentoId: "finanzas", nombre: "Otro Finanzas", icono: "💰" },
+  { id: "ti11", departamentoId: "mantenimiento", nombre: "Reparación de estantería o montacargas", icono: "🔧" },
+  { id: "ti12", departamentoId: "mantenimiento", nombre: "Mantenimiento de bodega", icono: "🔧" },
+  { id: "ti13", departamentoId: "mantenimiento", nombre: "Otro Mantenimiento", icono: "🔧" },
+  { id: "ti14", departamentoId: "calidad", nombre: "Inspección de mercadería recibida", icono: "✅" },
+  { id: "ti15", departamentoId: "calidad", nombre: "Validación de producto dañado", icono: "✅" },
+  { id: "ti16", departamentoId: "calidad", nombre: "Otro Calidad", icono: "✅" },
+  { id: "ti17", departamentoId: "operaciones", nombre: "Coordinación de traslado entre bodegas", icono: "🏗️" },
+  { id: "ti18", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
+]);
+
+export const CONFIG_SOLICITUDES_RRHH_DEFAULT: ConfiguracionSolicitudesDepto = crearConfigDefault("Sofía Méndez", "Sofía Méndez", 48, [
+  { id: "tr1", departamentoId: "proveeduria", nombre: "Compra de material de capacitación", icono: "📋" },
+  { id: "tr2", departamentoId: "proveeduria", nombre: "Otro Proveeduría", icono: "📋" },
+  { id: "tr3", departamentoId: "inventario", nombre: "Uniformes / EPP para nuevo ingreso", icono: "📦" },
+  { id: "tr4", departamentoId: "inventario", nombre: "Equipo de oficina para colaborador", icono: "📦" },
+  { id: "tr5", departamentoId: "inventario", nombre: "Otro Inventario", icono: "📦" },
+  { id: "tr6", departamentoId: "finanzas", nombre: "Aprobación de planilla especial", icono: "💰" },
+  { id: "tr7", departamentoId: "finanzas", nombre: "Consulta de presupuesto de RRHH", icono: "💰" },
+  { id: "tr8", departamentoId: "finanzas", nombre: "Otro Finanzas", icono: "💰" },
+  { id: "tr9", departamentoId: "mantenimiento", nombre: "Acondicionamiento de sala de capacitación", icono: "🔧" },
+  { id: "tr10", departamentoId: "mantenimiento", nombre: "Otro Mantenimiento", icono: "🔧" },
+  { id: "tr11", departamentoId: "calidad", nombre: "Auditoría de clima laboral", icono: "✅" },
+  { id: "tr12", departamentoId: "calidad", nombre: "Otro Calidad", icono: "✅" },
+  { id: "tr13", departamentoId: "operaciones", nombre: "Coordinación de inducción operativa", icono: "🏗️" },
+  { id: "tr14", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
+]);
+
+export const CONFIG_SOLICITUDES_FINANZAS_DEFAULT: ConfiguracionSolicitudesDepto = crearConfigDefault("Ronald", "Equipo Finanzas", 48, [
+  { id: "tf1", departamentoId: "proveeduria", nombre: "Aclaración de factura de proveedor", icono: "📋" },
+  { id: "tf2", departamentoId: "proveeduria", nombre: "Solicitud de estado de cuenta", icono: "📋" },
+  { id: "tf3", departamentoId: "proveeduria", nombre: "Otro Proveeduría", icono: "📋" },
+  { id: "tf4", departamentoId: "inventario", nombre: "Valorización de inventario para cierre", icono: "📦" },
+  { id: "tf5", departamentoId: "inventario", nombre: "Conteo físico para auditoría", icono: "📦" },
+  { id: "tf6", departamentoId: "inventario", nombre: "Otro Inventario", icono: "📦" },
+  { id: "tf7", departamentoId: "rrhh", nombre: "Confirmación de datos para planilla", icono: "👥" },
+  { id: "tf8", departamentoId: "rrhh", nombre: "Otro RRHH", icono: "👥" },
+  { id: "tf9", departamentoId: "mantenimiento", nombre: "Cotización de mantenimiento para presupuesto", icono: "🔧" },
+  { id: "tf10", departamentoId: "mantenimiento", nombre: "Otro Mantenimiento", icono: "🔧" },
+  { id: "tf11", departamentoId: "calidad", nombre: "Auditoría de cumplimiento financiero", icono: "✅" },
+  { id: "tf12", departamentoId: "calidad", nombre: "Otro Calidad", icono: "✅" },
+  { id: "tf13", departamentoId: "operaciones", nombre: "Reporte de gastos operativos", icono: "🏗️" },
+  { id: "tf14", departamentoId: "operaciones", nombre: "Otro Operaciones", icono: "🏗️" },
+]);
 
 const hoy = (offsetDias = 0) => {
   const d = new Date();

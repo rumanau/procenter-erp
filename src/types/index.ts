@@ -1,17 +1,17 @@
 export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
-  | "conteo" | "reabasto" | "valorizado" | "trazabilidad"
+  | "conteo" | "reabasto" | "valorizado" | "trazabilidad" | "solicitudes-inventario"
   | "proveeduria" | "proveedores" | "resumen-proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion" | "solicitudes-proveeduria"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"
-  | "desempeno" | "reclutamiento" | "capacitacion" | "clima"
+  | "desempeno" | "reclutamiento" | "capacitacion" | "clima" | "solicitudes-rrhh"
   | "config-gral" | "config-rrhh" | "planillas"
   | "bi-ejecutivo" | "bi-rrhh" | "bi-inv" | "bi-calidad"
   | "empresas" | "empresa-detalle" | "verticales"
   | "finanzas" | "libro-diario" | "cxc" | "cxp"
   | "estados-financieros" | "flujo-caja" | "facturacion"
-  | "banca" | "config-finanzas";
+  | "banca" | "config-finanzas" | "solicitudes-finanzas";
 
 export interface Company {
   id: string;

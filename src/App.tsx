@@ -11,7 +11,7 @@ import { COMPANIES } from "./data/empresas";
 import { ASIENTOS_INIT, FACTURAS_CXP_INIT } from "./data/finanzas";
 import { ARTICULOS_INIT, MOVIMIENTOS_INIT, BODEGAS_INIT, CATEGORIAS_INIT, PROVEEDORES_INIT } from "./data/inventario";
 import { ORDENES_COMPRA_INIT, PROVEEDOR_ARTICULO_INIT, DOCUMENTOS_PROVEEDOR_INIT, RECEPCIONES_INIT } from "./data/proveeduria";
-import { SOLICITUDES_INTERNAS_INIT, CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT } from "./data/solicitudesInternas";
+import { SOLICITUDES_INTERNAS_INIT, CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT, CONFIG_SOLICITUDES_INVENTARIO_DEFAULT, CONFIG_SOLICITUDES_RRHH_DEFAULT, CONFIG_SOLICITUDES_FINANZAS_DEFAULT } from "./data/solicitudesInternas";
 
 // componentes compartidos
 import { Sidebar } from "./components/Sidebar";
@@ -41,7 +41,7 @@ import { ConfigInventario }    from "./modules/inventario/ConfigInventario";
 import { ProveeduriaHome }     from "./modules/proveeduria/ProveeduriaHome";
 import { Proveedores }         from "./modules/proveeduria/Proveedores";
 import { ResumenProveedores }  from "./modules/proveeduria/ResumenProveedores";
-import { SolicitudesProveeduria } from "./modules/proveeduria/SolicitudesProveeduria";
+import { SolicitudesDepartamento } from "./modules/solicitudes/SolicitudesDepartamento";
 import { OrdenesCompra }       from "./modules/proveeduria/OrdenesCompra";
 import { NuevaOrdenCompra }    from "./modules/proveeduria/NuevaOrdenCompra";
 import { ComparadorProveedores } from "./modules/proveeduria/ComparadorProveedores";
@@ -108,6 +108,9 @@ export default function App() {
   const [auditoriaOC, setAuditoriaOC] = useState<AuditoriaOC[]>([]);
   const [solicitudesInternas, setSolicitudesInternas] = useState<SolicitudInterna[]>(SOLICITUDES_INTERNAS_INIT);
   const [configSolicitudesProveeduria, setConfigSolicitudesProveeduria] = useState<ConfiguracionSolicitudesDepto>(CONFIG_SOLICITUDES_PROVEEDURIA_DEFAULT);
+  const [configSolicitudesInventario, setConfigSolicitudesInventario] = useState<ConfiguracionSolicitudesDepto>(CONFIG_SOLICITUDES_INVENTARIO_DEFAULT);
+  const [configSolicitudesRRHH, setConfigSolicitudesRRHH] = useState<ConfiguracionSolicitudesDepto>(CONFIG_SOLICITUDES_RRHH_DEFAULT);
+  const [configSolicitudesFinanzas, setConfigSolicitudesFinanzas] = useState<ConfiguracionSolicitudesDepto>(CONFIG_SOLICITUDES_FINANZAS_DEFAULT);
 
   if (appState === "login")    return <LoginScreen    onLogin={() => setAppState("selector")} />;
   if (appState === "selector") return <CompanySelector onSelect={c => { setCompany(c); setAppState("app"); }} />;
@@ -136,12 +139,13 @@ export default function App() {
         {view === "reabasto"     && <Reabastecimiento  setView={setView} articulos={articulos} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} setAuditoriaOC={setAuditoriaOC} />}
         {view === "valorizado"   && <InvValorizado articulos={articulos} categorias={categoriasInv} />}
         {view === "trazabilidad" && <Trazabilidad articulos={articulos} movimientos={movimientosInv} bodegas={bodegas} proveedores={proveedoresInv} />}
+        {view === "solicitudes-inventario" && <SolicitudesDepartamento depto="inventario" setView={setView} solicitudes={solicitudesInternas} setSolicitudes={setSolicitudesInternas} config={configSolicitudesInventario} setConfig={setConfigSolicitudesInventario} />}
 
         {/* PROVEEDURÍA */}
         {view === "proveeduria"   && <ProveeduriaHome   setView={setView} ordenesCompra={ordenesCompra} proveedores={proveedoresInv} facturasCxp={facturasCxp} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} articulos={articulos} proveedorArticulos={proveedorArticulos} />}
         {view === "proveedores"   && <Proveedores       setView={setView} proveedores={proveedoresInv} setProveedores={setProveedoresInv} articulos={articulos} ordenesCompra={ordenesCompra} categorias={categoriasInv} facturasCxp={facturasCxp} proveedorArticulos={proveedorArticulos} documentosProveedor={documentosProveedor} setDocumentosProveedor={setDocumentosProveedor} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} auditoriaProveedores={auditoriaProveedores} setAuditoriaProveedores={setAuditoriaProveedores} />}
         {view === "resumen-proveedores" && <ResumenProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} documentosProveedor={documentosProveedor} articulos={articulos} categorias={categoriasInv} proveedorArticulos={proveedorArticulos} facturasCxp={facturasCxp} devoluciones={devoluciones} />}
-        {view === "solicitudes-proveeduria" && <SolicitudesProveeduria setView={setView} solicitudes={solicitudesInternas} setSolicitudes={setSolicitudesInternas} config={configSolicitudesProveeduria} setConfig={setConfigSolicitudesProveeduria} />}
+        {view === "solicitudes-proveeduria" && <SolicitudesDepartamento depto="proveeduria" setView={setView} solicitudes={solicitudesInternas} setSolicitudes={setSolicitudesInternas} config={configSolicitudesProveeduria} setConfig={setConfigSolicitudesProveeduria} />}
         {view === "ordenes-compra" && <OrdenesCompra    setView={setView} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} setArticulos={setArticulos} movimientos={movimientosInv} setMovimientos={setMovimientosInv} facturasCxp={facturasCxp} setFacturasCxp={setFacturasCxp} recepciones={recepciones} setRecepciones={setRecepciones} evaluacionesServicio={evaluacionesServicio} setEvaluacionesServicio={setEvaluacionesServicio} devoluciones={devoluciones} setDevoluciones={setDevoluciones} auditoriaOC={auditoriaOC} setAuditoriaOC={setAuditoriaOC} />}
         {view === "nueva-oc"      && <NuevaOrdenCompra  setView={setView} proveedores={proveedoresInv} bodegas={bodegas} articulos={articulos} ordenesCompra={ordenesCompra} setOrdenesCompra={setOrdenesCompra} documentosProveedor={documentosProveedor} setAuditoriaOC={setAuditoriaOC} />}
         {view === "comparador"    && <ComparadorProveedores setView={setView} proveedores={proveedoresInv} ordenesCompra={ordenesCompra} proveedorArticulos={proveedorArticulos} articulos={articulos} recepciones={recepciones} evaluacionesServicio={evaluacionesServicio} />}
@@ -178,6 +182,7 @@ export default function App() {
         {view === "reclutamiento"  && <Reclutamiento     setView={setView} empleados={empleados} setEmpleados={setEmpleados} catalogos={catalogos} />}
         {view === "capacitacion"   && <Capacitacion      setView={setView} />}
         {view === "clima"          && <ClimaYSalud       setView={setView} />}
+        {view === "solicitudes-rrhh" && <SolicitudesDepartamento depto="rrhh" setView={setView} solicitudes={solicitudesInternas} setSolicitudes={setSolicitudesInternas} config={configSolicitudesRRHH} setConfig={setConfigSolicitudesRRHH} />}
 
         {/* FINANZAS */}
         {view === "finanzas"             && <FinanzasHome        setView={setView} asientos={asientosContables} />}
@@ -189,6 +194,7 @@ export default function App() {
         {view === "facturacion"          && <Facturacion          setView={setView} />}
         {view === "banca"                && <ConexionBancaria     setView={setView} />}
         {view === "config-finanzas"      && <ConfigFinanzas       setView={setView} />}
+        {view === "solicitudes-finanzas" && <SolicitudesDepartamento depto="finanzas" setView={setView} solicitudes={solicitudesInternas} setSolicitudes={setSolicitudesInternas} config={configSolicitudesFinanzas} setConfig={setConfigSolicitudesFinanzas} />}
       </div>
     </div>
   );

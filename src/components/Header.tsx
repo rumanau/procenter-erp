@@ -3,14 +3,14 @@ import type { View, Company } from "../types";
 
 export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:View)=>void;company:Company;onSwitch:()=>void}) {
   const getModuleParent=(v:View):View=>{
-    if(["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"].includes(v)) return "inventario";
+    if(["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad","solicitudes-inventario"].includes(v)) return "inventario";
     if(["proveeduria","proveedores","resumen-proveedores","ordenes-compra","nueva-oc","comparador","cotizaciones","nueva-cotizacion","solicitudes-proveeduria"].includes(v)) return "proveeduria";
     if(["bi","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad","reportes"].includes(v)) return "bi";
-    if(["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"].includes(v)) return "rrhh";
+    if(["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh","solicitudes-rrhh"].includes(v)) return "rrhh";
     if(["solicitudes","bandeja"].includes(v)) return "solicitudes";
     if(["config-gral","config-inv","config-finanzas"].includes(v)) return "config-gral";
     if(["empresas","empresa-detalle","verticales"].includes(v)) return "empresas";
-    if(["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca"].includes(v)) return "finanzas";
+    if(["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca","solicitudes-finanzas"].includes(v)) return "finanzas";
     return "inventario";
   };
   const parent=getModuleParent(view);
@@ -23,6 +23,7 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     baja:"Inventario › Baja / Descarte",conteo:"Inventario › Conteo / Auditoría",
     reabasto:"Inventario › Reabastecimiento",valorizado:"Inventario › Inv. Valorizado",
     trazabilidad:"Inventario › Trazabilidad",
+    "solicitudes-inventario":"Inventario › Solicitudes entre Departamentos",
     proveeduria:"Proveeduría",proveedores:"Proveeduría › Proveedores",
     "resumen-proveedores":"Proveeduría › Resumen de Proveedores",
     "solicitudes-proveeduria":"Proveeduría › Solicitudes entre Departamentos",
@@ -46,6 +47,7 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     reclutamiento:"RRHH › Reclutamiento y Selección",
     capacitacion:"RRHH › Capacitación y Desarrollo",
     clima:"RRHH › Clima & Salud Ocupacional",
+    "solicitudes-rrhh":"RRHH › Solicitudes entre Departamentos",
     "bi-ejecutivo":"BI › Dashboard Ejecutivo",
     "bi-rrhh":"BI › RRHH & Nómina",
     "bi-inv":"BI › Inventario & Proveeduría",
@@ -59,6 +61,7 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     facturacion:"Finanzas › Facturación Electrónica",
     banca:"Finanzas › Conexión Bancaria",
     "config-finanzas":"Configuración › Finanzas",
+    "solicitudes-finanzas":"Finanzas › Solicitudes entre Departamentos",
   };
   return (
     <div className="header">

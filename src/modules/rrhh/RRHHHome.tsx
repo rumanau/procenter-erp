@@ -19,6 +19,7 @@ export function RRHHHome({setView,empleados,catalogos}:{setView:(v:View)=>void;e
     {icon:"🔍",name:"Reclutamiento",desc:"Vacantes · Candidatos · Pipeline",sub:"2 vacantes abiertas",view:"reclutamiento" as View},
     {icon:"📚",name:"Capacitación",desc:"Plan · Matriz · Certificaciones",sub:"3 certs. por vencer",badge:"Urgente",badgeColor:"#EF4444",view:"capacitacion" as View},
     {icon:"🌡️",name:"Clima & Salud Ocup.",desc:"Encuestas · Incidentes · EPP · ISO 45001",sub:"1 incidente sin cerrar",badge:"Atención",badgeColor:"#EF4444",view:"clima" as View},
+    {icon:"📬",name:"Solicitudes entre Deptos.",desc:"Bandeja, enviadas y auditoría",sub:"Conecta con otros departamentos",view:"solicitudes-rrhh" as View},
     {icon:"⚙️",name:"Configuración RRHH",desc:"CCSS · Puestos · Deducciones · Bandas",sub:"Parámetros editables",view:"config-rrhh" as View},
     {icon:"📊",name:"BI & Reportería RRHH",desc:"Planilla · Rotación · Desempeño · ISO",sub:"Datos en tiempo real",view:"bi-rrhh" as View},
   ];

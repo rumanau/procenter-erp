@@ -3,12 +3,12 @@ import type { View, Company } from "../types";
 import { ProcenterIsotipo } from "./Logo";
 
 const GRUPOS:Record<string,View[]>={
-  inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad"],
+  inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad","solicitudes-inventario"],
   proveeduria:["proveeduria","proveedores","resumen-proveedores","ordenes-compra","nueva-oc","comparador","cotizaciones","nueva-cotizacion","solicitudes-proveeduria"],
   solicitudes:["solicitudes","bandeja"],
   bi:["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"],
-  rrhh:["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh"],
-  finanzas:["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca"],
+  rrhh:["rrhh","admin-personal","nomina","asistencia","desempeno","reclutamiento","capacitacion","clima","planillas","config-rrhh","solicitudes-rrhh"],
+  finanzas:["finanzas","libro-diario","cxc","cxp","estados-financieros","flujo-caja","facturacion","banca","solicitudes-finanzas"],
   empresas:["empresas","empresa-detalle","verticales"],
 };
 const grupoDeVista=(v:View):string|null=>Object.keys(GRUPOS).find(g=>GRUPOS[g].includes(v))||null;
@@ -81,6 +81,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ns("reabasto","↳ Reabastecimiento","inventario")}
         {ns("valorizado","↳ Inv. Valorizado","inventario")}
         {ns("trazabilidad","↳ Trazabilidad","inventario")}
+        {ns("solicitudes-inventario","↳ Solicitudes entre Deptos.","inventario")}
 
         {ni("proveeduria","Proveeduría","📋",provActive,undefined,"proveeduria")}
         {ns("proveedores","↳ Proveedores","proveeduria")}
@@ -111,6 +112,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ns("reclutamiento","↳ Reclutamiento","rrhh")}
         {ns("capacitacion","↳ Capacitación","rrhh")}
         {ns("clima","↳ Clima & Salud","rrhh")}
+        {ns("solicitudes-rrhh","↳ Solicitudes entre Deptos.","rrhh")}
 
         {ni("finanzas","Finanzas","💰",finanzasActive,undefined,"finanzas")}
         {ns("libro-diario","↳ Libro Diario","finanzas")}
@@ -120,6 +122,7 @@ export function Sidebar({view,setView,setStep,company,onSwitch,collapsed,setColl
         {ns("flujo-caja","↳ Flujo de Caja","finanzas")}
         {ns("facturacion","↳ Facturación Electrónica","finanzas")}
         {ns("banca","↳ Conexión Bancaria","finanzas")}
+        {ns("solicitudes-finanzas","↳ Solicitudes entre Deptos.","finanzas")}
 
         {ni(null,"CRM & Ventas","🤝",false)}
         {ni(null,"Calidad ISO","✅",false)}

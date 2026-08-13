@@ -24,6 +24,7 @@ export function InventarioHome({setView,articulos,movimientos}:{setView:(v:View)
     {icon:"🔄",name:"Reabastecimiento",desc:"OC sugeridas automáticas",sub:`${bajoMinimo+criticos} artículos por reordenar`,badge:bajoMinimo+criticos>0?`⚠ ${bajoMinimo+criticos}`:undefined,badgeColor:"#F59E0B",view:"reabasto" as View},
     {icon:"💰",name:"Inv. Valorizado",desc:"FIFO / Promedio / LIFO",sub:`Valor total: ${fmt(valorTotal)}`,view:"valorizado" as View},
     {icon:"🔍",name:"Trazabilidad",desc:"Historial por artículo",sub:"ISO 9001 trazabilidad completa",view:"trazabilidad" as View},
+    {icon:"📬",name:"Solicitudes entre Deptos.",desc:"Bandeja, enviadas y auditoría",sub:"Conecta con otros departamentos",view:"solicitudes-inventario" as View},
     {icon:"📋",name:"Proveeduría",desc:"Proveedores y Órdenes de Compra",sub:"Submódulo relacionado",view:"proveeduria" as View},
     {icon:"📊",name:"BI & Reportería",desc:"Análisis y dashboards",sub:"25+ tipos de widget",view:"bi" as View},
   ];

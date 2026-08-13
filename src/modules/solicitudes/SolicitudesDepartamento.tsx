@@ -3,7 +3,6 @@ import type { View, SolicitudInterna, EstadoSolicitudInterna, MotivoAtrasoSolici
 import { DEPARTAMENTOS, nombreDepto, iconoDepto, deptoInfo, badgePrioridad, siguienteFolioSolicitud, diasEnBandeja, etiquetaTiempoEnBandeja, cadenaDeSolicitud, estadisticasAuditoria } from "../../data/solicitudesInternas";
 import { CATALOGOS_INIT } from "../../data/catalogos";
 
-const DEPTO = "proveeduria";
 const hoy = () => new Date().toLocaleDateString("es-CR", { day: "2-digit", month: "short", year: "numeric" });
 const ROSTER = [...CATALOGOS_INIT.responsablesAutorizados.map(r => r.nombre), "Carlos Montoya", "Alejandro Vega", "Equipo Finanzas"];
 const MOTIVOS_ATRASO: MotivoAtrasoSolicitud[] = ["Esperando a otro departamento", "Falta de stock o insumo", "Esperando aprobación", "Falta información del solicitante", "Prioridad reasignada", "Otro"];
@@ -12,15 +11,15 @@ const badgeEstado = (e: EstadoSolicitudInterna) => e === "Resuelta" ? "badge-ok"
 
 type Tab = "nueva" | "bandeja" | "enviadas" | "auditoria" | "configuracion";
 
-export function SolicitudesProveeduria({ setView, solicitudes, setSolicitudes, config, setConfig }: {
-  setView: (v: View) => void; solicitudes: SolicitudInterna[]; setSolicitudes: React.Dispatch<React.SetStateAction<SolicitudInterna[]>>;
+export function SolicitudesDepartamento({ depto, setView, solicitudes, setSolicitudes, config, setConfig }: {
+  depto: string; setView: (v: View) => void; solicitudes: SolicitudInterna[]; setSolicitudes: React.Dispatch<React.SetStateAction<SolicitudInterna[]>>;
   config: ConfiguracionSolicitudesDepto; setConfig: React.Dispatch<React.SetStateAction<ConfiguracionSolicitudesDepto>>;
 }) {
   const [tab, setTab] = useState<Tab>("bandeja");
   const [detalleId, setDetalleId] = useState<string | null>(null);
 
-  const entrantes = solicitudes.filter(s => s.departamentoDestino === DEPTO);
-  const salientes = solicitudes.filter(s => s.departamentoOrigen === DEPTO);
+  const entrantes = solicitudes.filter(s => s.departamentoDestino === depto);
+  const salientes = solicitudes.filter(s => s.departamentoOrigen === depto);
   const pendientesEntrantes = entrantes.filter(s => s.estado !== "Resuelta" && s.estado !== "Descartada").length;
 
   const actualizar = (id: string, cambios: Partial<SolicitudInterna>) =>
@@ -33,8 +32,8 @@ export function SolicitudesProveeduria({ setView, solicitudes, setSolicitudes, c
   return (
     <div className="content">
       <div className="page-header">
-        <div><div className="page-title">Solicitudes entre Departamentos</div><div className="page-subtitle">Proveeduría — gestión de solicitudes recibidas y enviadas a otros departamentos</div></div>
-        <button className="btn btn-secondary btn-sm" onClick={() => setView("proveeduria")}>← Proveeduría</button>
+        <div><div className="page-title">Solicitudes entre Departamentos</div><div className="page-subtitle">{nombreDepto(depto)} — gestión de solicitudes recibidas y enviadas a otros departamentos</div></div>
+        <button className="btn btn-secondary btn-sm" onClick={() => setView(depto as View)}>← {nombreDepto(depto)}</button>
       </div>
 
       <div className="tab-bar" style={{ marginBottom: 14 }}>
@@ -43,11 +42,11 @@ export function SolicitudesProveeduria({ setView, solicitudes, setSolicitudes, c
         ))}
       </div>
 
-      {tab === "nueva" && <NuevaSolicitudTab solicitudes={solicitudes} setSolicitudes={setSolicitudes} config={config} onCreada={() => setTab("enviadas")} />}
-      {tab === "bandeja" && <ListaSolicitudes lista={entrantes} mostrarColumna="origen" config={config} onAbrir={setDetalleId} vacio="Sin solicitudes recibidas por Proveeduría." />}
-      {tab === "enviadas" && <ListaSolicitudes lista={salientes} mostrarColumna="destino" config={config} onAbrir={setDetalleId} vacio="Proveeduría no ha enviado solicitudes a otros departamentos." />}
-      {tab === "auditoria" && <AuditoriaGestionTab solicitudes={solicitudes} />}
-      {tab === "configuracion" && <ConfiguracionTab config={config} setConfig={setConfig} />}
+      {tab === "nueva" && <NuevaSolicitudTab depto={depto} solicitudes={solicitudes} setSolicitudes={setSolicitudes} config={config} onCreada={() => setTab("enviadas")} />}
+      {tab === "bandeja" && <ListaSolicitudes lista={entrantes} mostrarColumna="origen" config={config} onAbrir={setDetalleId} vacio={`Sin solicitudes recibidas por ${nombreDepto(depto)}.`} />}
+      {tab === "enviadas" && <ListaSolicitudes lista={salientes} mostrarColumna="destino" config={config} onAbrir={setDetalleId} vacio={`${nombreDepto(depto)} no ha enviado solicitudes a otros departamentos.`} />}
+      {tab === "auditoria" && <AuditoriaGestionTab depto={depto} solicitudes={solicitudes} />}
+      {tab === "configuracion" && <ConfiguracionTab depto={depto} config={config} setConfig={setConfig} />}
 
       {sel && <SolicitudDetalleModal solicitud={sel} todas={solicitudes} config={config} onActualizar={actualizar} onIrA={id => setDetalleId(id)} onCerrar={() => setDetalleId(null)} />}
     </div>
@@ -55,7 +54,7 @@ export function SolicitudesProveeduria({ setView, solicitudes, setSolicitudes, c
 }
 
 // ── Nueva Solicitud: asistente de 3 pasos (departamento → tipo → formulario) ──
-function NuevaSolicitudTab({ solicitudes, setSolicitudes, config, onCreada }: { solicitudes: SolicitudInterna[]; setSolicitudes: React.Dispatch<React.SetStateAction<SolicitudInterna[]>>; config: ConfiguracionSolicitudesDepto; onCreada: () => void }) {
+function NuevaSolicitudTab({ depto, solicitudes, setSolicitudes, config, onCreada }: { depto: string; solicitudes: SolicitudInterna[]; setSolicitudes: React.Dispatch<React.SetStateAction<SolicitudInterna[]>>; config: ConfiguracionSolicitudesDepto; onCreada: () => void }) {
   const [deptoSel, setDeptoSel] = useState<string | null>(null);
   const [tipoSel, setTipoSel] = useState<TipoSolicitudConfig | null>(null);
   const [descripcion, setDescripcion] = useState("");
@@ -65,11 +64,11 @@ function NuevaSolicitudTab({ solicitudes, setSolicitudes, config, onCreada }: { 
   const [adjuntoNombre, setAdjuntoNombre] = useState("");
   const [solicitudPadreId, setSolicitudPadreId] = useState("");
 
-  const departamentosDisponibles = DEPARTAMENTOS.filter(d => d.id !== DEPTO);
+  const departamentosDisponibles = DEPARTAMENTOS.filter(d => d.id !== depto);
   const deptoActual = deptoSel ? deptoInfo(deptoSel) : null;
   const tiposDelDepto = config.tiposSolicitud.filter(t => t.departamentoId === deptoSel);
 
-  const folioPreview = siguienteFolioSolicitud(DEPTO, solicitudes);
+  const folioPreview = siguienteFolioSolicitud(depto, solicitudes);
   const encargado = deptoSel ? (config.flujoAprobacion.encargadosPorDepto[deptoSel] || nombreDepto(deptoSel)) : "";
 
   const valido = descripcion.trim().length > 3;
@@ -79,9 +78,9 @@ function NuevaSolicitudTab({ solicitudes, setSolicitudes, config, onCreada }: { 
 
   const enviar = () => {
     if (!valido || !deptoSel || !tipoSel) return;
-    const folio = siguienteFolioSolicitud(DEPTO, solicitudes);
+    const folio = siguienteFolioSolicitud(depto, solicitudes);
     const nueva: SolicitudInterna = {
-      id: folio, titulo: tipoSel.nombre, descripcion: descripcion.trim(), departamentoOrigen: DEPTO, departamentoDestino: deptoSel,
+      id: folio, titulo: tipoSel.nombre, descripcion: descripcion.trim(), departamentoOrigen: depto, departamentoDestino: deptoSel,
       solicitante: "Ronald", prioridad, etiquetas: [], estado: "Nueva", fechaCreacion: hoy(), fechaActualizacion: hoy(),
       articuloCodigo: articuloCodigo.trim() || undefined, cantidadSolicitada: cantidadSolicitada ? Math.max(1, parseInt(cantidadSolicitada) || 1) : undefined,
       adjuntoNombre: adjuntoNombre.trim() || undefined, solicitudPadreId: solicitudPadreId || undefined,
@@ -253,17 +252,17 @@ function ListaSolicitudes({ lista, mostrarColumna, config, onAbrir, vacio }: { l
   );
 }
 
-function AuditoriaGestionTab({ solicitudes }: { solicitudes: SolicitudInterna[] }) {
-  const a = estadisticasAuditoria(DEPTO, solicitudes);
+function AuditoriaGestionTab({ depto, solicitudes }: { depto: string; solicitudes: SolicitudInterna[] }) {
+  const a = estadisticasAuditoria(depto, solicitudes);
 
-  const conclusion = `Proveeduría ha recibido ${a.totalEntrantes} solicitud(es) de otros departamentos y enviado ${a.totalSalientes}. ` +
+  const conclusion = `${nombreDepto(depto)} ha recibido ${a.totalEntrantes} solicitud(es) de otros departamentos y enviado ${a.totalSalientes}. ` +
     `El tiempo de respuesta promedio de las resueltas es ${a.tiempoRespuestaPromedioDias === null ? "aún indeterminado (sin solicitudes resueltas)" : `${a.tiempoRespuestaPromedioDias} día(s)`}. ` +
     `${a.masAntiguasAbiertas.length > 0 ? `Hay ${a.masAntiguasAbiertas.length} solicitud(es) abiertas, la más antigua con ${diasEnBandeja(a.masAntiguasAbiertas[0])} día(s) en bandeja.` : "No hay solicitudes abiertas pendientes."}`;
 
   const recomendaciones: string[] = [];
   const criticas = a.masAntiguasAbiertas.filter(s => diasEnBandeja(s) >= 3);
   if (criticas.length > 0) recomendaciones.push(`Dar seguimiento a las solicitudes con más días en bandeja: ${criticas.map(s => `${s.id} (${diasEnBandeja(s)}d)`).join(", ")}.`);
-  const bloqueadas = solicitudes.filter(s => s.departamentoDestino === DEPTO && s.estado === "Bloqueada");
+  const bloqueadas = solicitudes.filter(s => s.departamentoDestino === depto && s.estado === "Bloqueada");
   if (bloqueadas.length > 0) recomendaciones.push(`Revisar el motivo de atraso de las solicitudes bloqueadas (${bloqueadas.length}) — puede requerir escalar a otro departamento.`);
   if (recomendaciones.length === 0) recomendaciones.push("Sin focos rojos activos con los datos actuales; mantener el monitoreo periódico.");
 
@@ -276,7 +275,7 @@ function AuditoriaGestionTab({ solicitudes }: { solicitudes: SolicitudInterna[] 
       </div>
 
       <div style={{ marginBottom: 14, padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 11.5, lineHeight: 1.6 }}>
-        <div><b>Interpretación:</b> Agrega todas las solicitudes que entran y salen de Proveeduría hacia otros departamentos — tiempos de respuesta, antigüedad y flujo entre áreas, calculados de las mismas solicitudes que se ven en Bandeja y Enviadas.</div>
+        <div><b>Interpretación:</b> Agrega todas las solicitudes que entran y salen de {nombreDepto(depto)} hacia otros departamentos — tiempos de respuesta, antigüedad y flujo entre áreas, calculados de las mismas solicitudes que se ven en Bandeja y Enviadas.</div>
         <div style={{ marginTop: 4 }}><b>Conclusión:</b> {conclusion}</div>
         <div style={{ marginTop: 4 }}><b>Recomendaciones:</b></div>
         <ul style={{ margin: "2px 0 0", paddingLeft: 18 }}>{recomendaciones.map((r, i) => <li key={i}>{r}</li>)}</ul>
@@ -308,7 +307,7 @@ function AuditoriaGestionTab({ solicitudes }: { solicitudes: SolicitudInterna[] 
       <div className="g2" style={{ marginBottom: 14, alignItems: "start" }}>
         <div className="card">
           <div className="card-title">Flujo de entrada (Bandeja de Gestión)</div>
-          <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 6 }}>% sobre el total recibido por Proveeduría · tiempo de respuesta de las resueltas de cada departamento</div>
+          <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 6 }}>% sobre el total recibido por {nombreDepto(depto)} · tiempo de respuesta de las resueltas de cada departamento</div>
           {a.flujoEntrante.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Sin actividad registrada</div>}
           {a.flujoEntrante.map(f => (
             <div key={f.departamento} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 11.5 }}>
@@ -322,7 +321,7 @@ function AuditoriaGestionTab({ solicitudes }: { solicitudes: SolicitudInterna[] 
         </div>
         <div className="card">
           <div className="card-title">Flujo de salida (Solicitudes Enviadas)</div>
-          <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 6 }}>% sobre el total enviado por Proveeduría · tiempo de respuesta de cada departamento hacia Proveeduría</div>
+          <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 6 }}>% sobre el total enviado por {nombreDepto(depto)} · tiempo de respuesta de cada departamento hacia {nombreDepto(depto)}</div>
           {a.flujoSaliente.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Sin actividad registrada</div>}
           {a.flujoSaliente.map(f => (
             <div key={f.departamento} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 11.5 }}>
@@ -336,17 +335,17 @@ function AuditoriaGestionTab({ solicitudes }: { solicitudes: SolicitudInterna[] 
         </div>
       </div>
 
-      <MejorDiaRecepcionCard mejorDiaRecepcion={a.mejorDiaRecepcion} totalEntrantes={a.totalEntrantes} />
+      <MejorDiaRecepcionCard depto={depto} mejorDiaRecepcion={a.mejorDiaRecepcion} totalEntrantes={a.totalEntrantes} />
     </div>
   );
 }
 
-function MejorDiaRecepcionCard({ mejorDiaRecepcion, totalEntrantes }: { mejorDiaRecepcion: { dia: string; n: number; pct: number }[]; totalEntrantes: number }) {
+function MejorDiaRecepcionCard({ depto, mejorDiaRecepcion, totalEntrantes }: { depto: string; mejorDiaRecepcion: { dia: string; n: number; pct: number }[]; totalEntrantes: number }) {
   const mejor = totalEntrantes > 0 ? [...mejorDiaRecepcion].sort((a, b) => b.n - a.n)[0] : null;
 
   return (
     <div className="card">
-      <div className="card-title">Mejor día de recepción de solicitudes — Proveeduría</div>
+      <div className="card-title">Mejor día de recepción de solicitudes — {nombreDepto(depto)}</div>
       {totalEntrantes === 0 ? (
         <div style={{ fontSize: 11, color: "#9CA3AF" }}>Aún no hay solicitudes recibidas para calcular esta tendencia.</div>
       ) : (
@@ -375,10 +374,10 @@ function MejorDiaRecepcionCard({ mejorDiaRecepcion, totalEntrantes }: { mejorDia
 }
 
 // ── Configuración: alertas (estilo Config RRHH), flujo de aprobación, tipos y prioridades ──
-function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitudesDepto; setConfig: React.Dispatch<React.SetStateAction<ConfiguracionSolicitudesDepto>> }) {
+function ConfiguracionTab({ depto, config, setConfig }: { depto: string; config: ConfiguracionSolicitudesDepto; setConfig: React.Dispatch<React.SetStateAction<ConfiguracionSolicitudesDepto>> }) {
   const [subTab, setSubTab] = useState<"notif" | "flujo" | "tipos" | "prioridades">("notif");
   const [nuevoTipoNombre, setNuevoTipoNombre] = useState("");
-  const [nuevoTipoDepto, setNuevoTipoDepto] = useState(DEPARTAMENTOS.find(d => d.id !== DEPTO)?.id || "");
+  const [nuevoTipoDepto, setNuevoTipoDepto] = useState(DEPARTAMENTOS.find(d => d.id !== depto)?.id || "");
   const [nuevaPrioridadNombre, setNuevaPrioridadNombre] = useState("");
   const [nuevaPrioridadClase, setNuevaPrioridadClase] = useState("badge-info");
   const [nuevaPrioridadNota, setNuevaPrioridadNota] = useState("");
@@ -426,7 +425,7 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
           </div>
           <div className="card">
             <div className="card-title">📣 A quién notificar</div>
-            <div className="form-group"><label className="form-label">Responsable de las alertas de Proveeduría</label>
+            <div className="form-group"><label className="form-label">Responsable de las alertas de {nombreDepto(depto)}</label>
               <select className="form-control" value={config.notificarA} onChange={e => setConfig(prev => ({ ...prev, notificarA: e.target.value }))}>
                 {ROSTER.map(n => <option key={n}>{n}</option>)}
               </select>
@@ -445,7 +444,7 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
         <div className="card">
           <div className="card-title">Encargado por defecto de cada departamento</div>
           <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 10 }}>Es quien aparece como "Encargado área" en el Flujo de Aprobación al crear una solicitud nueva.</div>
-          {DEPARTAMENTOS.filter(d => d.id !== DEPTO).map(d => (
+          {DEPARTAMENTOS.filter(d => d.id !== depto).map(d => (
             <div key={d.id} className="g2" style={{ alignItems: "center", marginBottom: 4 }}>
               <div style={{ fontSize: 12.5 }}>{d.icono} {d.nombre}</div>
               <select className="form-control" value={config.flujoAprobacion.encargadosPorDepto[d.id] || ""} onChange={e => setEncargado(d.id, e.target.value)}>
@@ -464,7 +463,7 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
       {subTab === "tipos" && (
         <div className="card">
           <div className="card-title">Tipos de solicitud disponibles en "¿Qué necesitas solicitar?"</div>
-          {DEPARTAMENTOS.filter(d => d.id !== DEPTO).map(d => {
+          {DEPARTAMENTOS.filter(d => d.id !== depto).map(d => {
             const tipos = config.tiposSolicitud.filter(t => t.departamentoId === d.id);
             return (
               <div key={d.id} style={{ marginBottom: 10 }}>
@@ -479,7 +478,7 @@ function ConfiguracionTab({ config, setConfig }: { config: ConfiguracionSolicitu
           <div className="g3" style={{ marginTop: 12 }}>
             <div className="form-group"><label className="form-label">Departamento</label>
               <select className="form-control" value={nuevoTipoDepto} onChange={e => setNuevoTipoDepto(e.target.value)}>
-                {DEPARTAMENTOS.filter(d => d.id !== DEPTO).map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                {DEPARTAMENTOS.filter(d => d.id !== depto).map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
               </select>
             </div>
             <div className="form-group"><label className="form-label">Nuevo tipo</label><input className="form-control" value={nuevoTipoNombre} onChange={e => setNuevoTipoNombre(e.target.value)} placeholder="Ej: Cotización especial" /></div>
