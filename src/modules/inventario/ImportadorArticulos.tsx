@@ -28,10 +28,8 @@ export function ImportadorArticulos({
   categorias: CategoriaInventario[];
 }) {
   const [step, setStep] = useState<"upload" | "preview" | "complete">("upload");
-  const [archivo, setArchivo] = useState<File | null>(null);
   const [articulosPreview, setArticulosPreview] = useState<ArticuloPreview[]>([]);
   const [erroresValidacion, setErroresValidacion] = useState<ErrorValidacion[]>([]);
-  const [cargando, setCargando] = useState(false);
   const [resumenCarga, setResumenCarga] = useState<{ exitosos: number; fallidos: number }>({ exitosos: 0, fallidos: 0 });
 
   const parseCSV = async (file: File): Promise<Record<string, string>[]> => {
@@ -115,8 +113,6 @@ export function ImportadorArticulos({
       return;
     }
 
-    setArchivo(file);
-    setCargando(true);
     setErroresValidacion([]);
 
     try {
@@ -158,7 +154,7 @@ export function ImportadorArticulos({
     } catch (error) {
       alert(`Error al procesar archivo: ${error}`);
     } finally {
-      setCargando(false);
+      // archivo procesado
     }
   };
 
