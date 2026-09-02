@@ -31,6 +31,7 @@ export function ImportadorArticulos({
   const [articulosPreview, setArticulosPreview] = useState<ArticuloPreview[]>([]);
   const [erroresValidacion, setErroresValidacion] = useState<ErrorValidacion[]>([]);
   const [resumenCarga, setResumenCarga] = useState<{ exitosos: number; fallidos: number }>({ exitosos: 0, fallidos: 0 });
+  const [mostrarGuia, setMostrarGuia] = useState(false);
 
   const parseCSV = async (file: File): Promise<Record<string, string>[]> => {
     return new Promise((resolve, reject) => {
@@ -180,10 +181,55 @@ export function ImportadorArticulos({
           <div className="page-title">Importar Artículos — Inventario</div>
           <div className="page-subtitle">Carga masiva desde archivo CSV o Excel</div>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => setView("config-inv")}>
-          ← Volver
-        </button>
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setMostrarGuia(!mostrarGuia)} style={{display:"flex",alignItems:"center",gap:6}}>
+            ❓ Guía
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setView("config-inv")}>
+            ← Volver
+          </button>
+        </div>
       </div>
+
+      {mostrarGuia && (
+        <div style={{background:"#f9f9f9",border:"1px solid #ddd",borderRadius:8,padding:20,marginBottom:20}}>
+          <div style={{fontSize:18,fontWeight:600,marginBottom:15,color:"#e8611a"}}>📋 Guía Rápida de Carga</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,fontSize:12}}>
+            <div>
+              <div style={{fontWeight:600,marginBottom:8,color:"#333"}}>Los 3 Errores Más Comunes:</div>
+              <div style={{marginBottom:12,padding:10,background:"#fee2e2",borderRadius:4,borderLeft:"3px solid #ef4444"}}>
+                <strong>❌ Stock > Max</strong><br/>Si Max=10, Stock debe ser ≤10
+              </div>
+              <div style={{marginBottom:12,padding:10,background:"#fee2e2",borderRadius:4,borderLeft:"3px solid #ef4444"}}>
+                <strong>❌ Min ≥ Max</strong><br/>Min debe ser < Max
+              </div>
+              <div style={{padding:10,background:"#fee2e2",borderRadius:4,borderLeft:"3px solid #ef4444"}}>
+                <strong>❌ Códigos inválidos</strong><br/>Usar: C1-C6, B1-B3, PV1-PV8
+              </div>
+            </div>
+            <div>
+              <div style={{fontWeight:600,marginBottom:8,color:"#333"}}>Códigos Válidos:</div>
+              <table style={{width:"100%",fontSize:11,borderCollapse:"collapse"}}>
+                <tr style={{background:"#e8611a",color:"white"}}>
+                  <th style={{padding:6,textAlign:"left"}}>Categoría</th>
+                  <th style={{padding:6,textAlign:"left"}}>Bodega</th>
+                  <th style={{padding:6,textAlign:"left"}}>Proveedor</th>
+                </tr>
+                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C1: Herramienta</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B1: Central</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>PV1-PV8</td></tr>
+                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C2: Consumible</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B2: Heredia</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>FIFO</td></tr>
+                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C3: Insumo</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B3: Taller</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>Promedio</td></tr>
+                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C4: Electrónica</td><td style={{padding:6}}></td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>LIFO</td></tr>
+                <tr><td style={{padding:6}}>C5: Seguridad</td></tr>
+                <tr><td style={{padding:6}}>C6: Activo Fijo</td></tr>
+              </table>
+            </div>
+          </div>
+          <div style={{marginTop:15,padding:12,background:"#d1fae5",borderLeft:"3px solid #10b981",borderRadius:4,fontSize:12}}>
+            <strong>💡 Consejo:</strong> Copy-paste los códigos desde las hojas de referencia del Excel. Así evitas errores de tipografía.
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setMostrarGuia(false)} style={{marginTop:12}}>← Cerrar Guía</button>
+        </div>
+      )}
 
       {step === "upload" && (
         <div className="card" style={{ maxWidth: 600, margin: "40px auto" }}>
