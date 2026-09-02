@@ -210,17 +210,21 @@ export function ImportadorArticulos({
             <div>
               <div style={{fontWeight:600,marginBottom:8,color:"#333"}}>Códigos Válidos:</div>
               <table style={{width:"100%",fontSize:11,borderCollapse:"collapse"}}>
-                <tr style={{background:"#e8611a",color:"white"}}>
-                  <th style={{padding:6,textAlign:"left"}}>Categoría</th>
-                  <th style={{padding:6,textAlign:"left"}}>Bodega</th>
-                  <th style={{padding:6,textAlign:"left"}}>Proveedor</th>
-                </tr>
-                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C1: Herramienta</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B1: Central</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>PV1-PV8</td></tr>
-                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C2: Consumible</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B2: Heredia</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>FIFO</td></tr>
-                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C3: Insumo</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B3: Taller</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>Promedio</td></tr>
-                <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C4: Electrónica</td><td style={{padding:6}}></td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>LIFO</td></tr>
-                <tr><td style={{padding:6}}>C5: Seguridad</td></tr>
-                <tr><td style={{padding:6}}>C6: Activo Fijo</td></tr>
+                <thead>
+                  <tr style={{background:"#e8611a",color:"white"}}>
+                    <th style={{padding:6,textAlign:"left"}}>Categoría</th>
+                    <th style={{padding:6,textAlign:"left"}}>Bodega</th>
+                    <th style={{padding:6,textAlign:"left"}}>Proveedor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C1: Herramienta</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B1: Central</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>PV1-PV8</td></tr>
+                  <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C2: Consumible</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B2: Heredia</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>FIFO</td></tr>
+                  <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C3: Insumo</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>B3: Taller</td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>Promedio</td></tr>
+                  <tr><td style={{padding:6,borderBottom:"1px solid #ddd"}}>C4: Electrónica</td><td style={{padding:6}}></td><td style={{padding:6,borderBottom:"1px solid #ddd"}}>LIFO</td></tr>
+                  <tr><td style={{padding:6}}>C5: Seguridad</td></tr>
+                  <tr><td style={{padding:6}}>C6: Activo Fijo</td></tr>
+                </tbody>
               </table>
             </div>
           </div>
