@@ -198,10 +198,10 @@ export function ImportadorArticulos({
             <div>
               <div style={{fontWeight:600,marginBottom:8,color:"#333"}}>Los 3 Errores Más Comunes:</div>
               <div style={{marginBottom:12,padding:10,background:"#fee2e2",borderRadius:4,borderLeft:"3px solid #ef4444"}}>
-                <strong>❌ Stock > Max</strong><br/>Si Max=10, Stock debe ser ≤10
+                <strong>❌ Stock &gt; Max</strong><br/>Si Max=10, Stock debe ser ≤10
               </div>
               <div style={{marginBottom:12,padding:10,background:"#fee2e2",borderRadius:4,borderLeft:"3px solid #ef4444"}}>
-                <strong>❌ Min ≥ Max</strong><br/>Min debe ser < Max
+                <strong>❌ Min ≥ Max</strong><br/>Min debe ser &lt; Max
               </div>
               <div style={{padding:10,background:"#fee2e2",borderRadius:4,borderLeft:"3px solid #ef4444"}}>
                 <strong>❌ Códigos inválidos</strong><br/>Usar: C1-C6, B1-B3, PV1-PV8
