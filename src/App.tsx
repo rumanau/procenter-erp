@@ -36,6 +36,7 @@ import { Trazabilidad }        from "./modules/inventario/Trazabilidad";
 import { PortalSolicitudes }   from "./modules/inventario/PortalSolicitudes";
 import { BandejaGestion }      from "./modules/inventario/BandejaGestion";
 import { ConfigInventario }    from "./modules/inventario/ConfigInventario";
+import { ImportadorArticulos } from "./modules/inventario/ImportadorArticulos";
 
 // módulos — proveeduría
 import { ProveeduriaHome }     from "./modules/proveeduria/ProveeduriaHome";
@@ -162,6 +163,7 @@ export default function App() {
         {view === "solicitudes"  && <PortalSolicitudes setView={setView} />}
         {view === "bandeja"      && <BandejaGestion    setView={setView} />}
         {view === "config-inv"   && <ConfigInventario  setView={setView} bodegas={bodegas} setBodegas={setBodegas} categorias={categoriasInv} setCategorias={setCategoriasInv} articulos={articulos} />}
+        {view === "importar-articulos" && <ImportadorArticulos setView={setView} articulos={articulos} setArticulos={setArticulos} proveedores={proveedoresInv} bodegas={bodegas} categorias={categoriasInv} />}
 
         {/* CONFIGURACIÓN GENERAL & RRHH */}
         {view === "config-gral"  && <ConfigGeneral    setView={setView} catalogos={catalogos} setCatalogos={setCatalogos} />}

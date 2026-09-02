@@ -3,7 +3,7 @@ import type { View, Company } from "../types";
 import { ProcenterIsotipo } from "./Logo";
 
 const GRUPOS:Record<string,View[]>={
-  inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad","solicitudes-inventario"],
+  inventario:["inventario","existencias","nuevo","entradas","ingreso","salida","traslado","ajuste","baja","conteo","reabasto","valorizado","trazabilidad","solicitudes-inventario","importar-articulos"],
   proveeduria:["proveeduria","proveedores","resumen-proveedores","ordenes-compra","nueva-oc","comparador","cotizaciones","nueva-cotizacion","solicitudes-proveeduria"],
   solicitudes:["solicitudes","bandeja"],
   bi:["bi","reportes","bi-ejecutivo","bi-rrhh","bi-inv","bi-calidad"],

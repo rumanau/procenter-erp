@@ -1,7 +1,7 @@
 export type View =
   | "inventario" | "existencias" | "nuevo" | "entradas"
   | "ingreso" | "salida" | "traslado" | "ajuste" | "baja"
-  | "conteo" | "reabasto" | "valorizado" | "trazabilidad" | "solicitudes-inventario"
+  | "conteo" | "reabasto" | "valorizado" | "trazabilidad" | "solicitudes-inventario" | "importar-articulos"
   | "proveeduria" | "proveedores" | "resumen-proveedores" | "ordenes-compra" | "nueva-oc" | "comparador" | "cotizaciones" | "nueva-cotizacion" | "solicitudes-proveeduria"
   | "bi" | "reportes" | "solicitudes" | "bandeja" | "config-inv"
   | "rrhh" | "admin-personal" | "nomina" | "asistencia"

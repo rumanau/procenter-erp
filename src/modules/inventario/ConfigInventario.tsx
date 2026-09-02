@@ -5,7 +5,7 @@ export function ConfigInventario({setView,bodegas,setBodegas,categorias,setCateg
   const [tab,setTab]=useState("bodegas");
   const itemsPorBodega=(id:string)=>articulos.filter(a=>a.activo&&a.bodegaId===id).length;
   const itemsPorCat=(id:string)=>articulos.filter(a=>a.activo&&a.categoriaId===id).length;
-  const tabs=[["bodegas","🏭 Bodegas"],["categorias","📂 Categorías"],["alertas","🔔 Alertas"],["flujos","🔄 Flujos de Aprobación"],["general","⚙️ General"]];
+  const tabs=[["bodegas","🏭 Bodegas"],["categorias","📂 Categorías"],["alertas","🔔 Alertas"],["flujos","🔄 Flujos de Aprobación"],["importar","📤 Importar"],["general","⚙️ General"]];
 
   return (
     <div className="content">
@@ -122,6 +122,30 @@ export function ConfigInventario({setView,bodegas,setBodegas,categorias,setCateg
               </div>
             </div>
           ))}
+        </div>
+      </div>}
+
+      {tab==="importar"&&<div>
+        <div className="card" style={{maxWidth:600,margin:"40px auto",textAlign:"center",padding:40}}>
+          <div style={{fontSize:48,marginBottom:12}}>📤</div>
+          <div className="card-title">Importar Artículos desde Archivo</div>
+          <div style={{fontSize:14,color:"#6B7280",marginBottom:24,lineHeight:1.6}}>
+            Carga masiva de artículos desde un archivo CSV o Excel. El sistema validará cada registro y te mostrará un preview antes de confirmar la importación.
+          </div>
+          <div style={{display:"flex",gap:12,flexDirection:"column",marginBottom:24}}>
+            <div style={{padding:16,background:"#F0F9FF",borderRadius:8,borderLeft:"4px solid #0284C7"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#0C4A6E",marginBottom:6}}>📋 Plantilla Requerida</div>
+              <div style={{fontSize:12,color:"#0C4A6E"}}>Descarga la plantilla Excel con ejemplos y validaciones preconfiguradas</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+            <a href="CARGA_MASIVA_INVENTARIO_PROCENTER.xlsx" download className="btn btn-secondary btn-sm">
+              📥 Descargar Plantilla Excel
+            </a>
+            <button className="btn btn-primary btn-sm" onClick={()=>setView("importar-articulos")}>
+              📤 Iniciar Importación
+            </button>
+          </div>
         </div>
       </div>}
 

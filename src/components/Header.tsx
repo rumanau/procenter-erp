@@ -24,6 +24,7 @@ export function Header({view,setView,company,onSwitch}:{view:View;setView:(v:Vie
     reabasto:"Inventario › Reabastecimiento",valorizado:"Inventario › Inv. Valorizado",
     trazabilidad:"Inventario › Trazabilidad",
     "solicitudes-inventario":"Inventario › Solicitudes entre Departamentos",
+    "importar-articulos":"Inventario › Importar Artículos",
     proveeduria:"Proveeduría",proveedores:"Proveeduría › Proveedores",
     "resumen-proveedores":"Proveeduría › Resumen de Proveedores",
     "solicitudes-proveeduria":"Proveeduría › Solicitudes entre Departamentos",
